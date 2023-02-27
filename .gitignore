@@ -1,2 +1,3 @@
 volumes
 *.tar.gz
+*nethasp.ini
