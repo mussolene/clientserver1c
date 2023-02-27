@@ -5,7 +5,7 @@ ENV GOSU_VERSION 1.13
 ENV PLATFORM_VERSION 8.3.23.1437
 ENV SERVER_VERSION 8.3.23-1437
 ENV PATH_PLATFORM_TAR server64_8_3_23_1437.tar.gz
-ENV COMPONENT_PLATFORM client_full,server,ws
+ENV COMPONENT_PLATFORM server
 COPY $PATH_PLATFORM_TAR /tmp/
 
 RUN apt-get -qq update && apt-get -qq install --yes --no-install-recommends apt-utils ca-certificates wget locales iputils-ping sudo gnupg2 curl htop vim mc \
@@ -39,6 +39,8 @@ RUN chmod +x /createsymlink-current.sh \
 
 COPY docker-entrypoint.sh /
 COPY logcfg.xml /home/usr1cv8/.1cv8/1C/1cv8/conf
+COPY nethasp.ini /opt/1cv8/conf/nethasp.ini
+COPY nethasp.ini /home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini
 
 EXPOSE 1540-1541 1560-1591
 

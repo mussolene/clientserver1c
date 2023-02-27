@@ -20,8 +20,6 @@ services:
     networks:
       debug_def:
         ipv4_address: 172.16.1.3
-    volumes:
-      - ./volumes/1c-server/data:/opt/1cv8
 
   1c-client:
     build: ./client
