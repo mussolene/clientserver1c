@@ -109,6 +109,8 @@ RUN chmod +x /createsymlink-current.sh \
   && /createsymlink-current.sh \
   && rm /createsymlink-current.sh
 
+COPY nethasp.ini /opt/1cv8/conf/nethasp.ini
+
 EXPOSE 5900
 
 ENTRYPOINT ["/init"]

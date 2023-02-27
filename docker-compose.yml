@@ -20,6 +20,8 @@ services:
     networks:
       debug_def:
         ipv4_address: 172.16.1.3
+    volumes:
+      - ./volumes/1c-server/data:/opt/1cv8
 
   1c-client:
     build: ./client
@@ -33,6 +35,9 @@ services:
     networks:
       debug_def:
         ipv4_address: 172.16.1.2
+    volumes:
+      - ./volumes/1c-client/data:/mnt/data
+      - ./volumes/1c-client/cache:/root/.1cv8/1C/1cv8/
 
   # 1c-mssql:
   #   user: root
@@ -74,6 +79,8 @@ services:
     networks:
       debug_def:
         ipv4_address: 172.16.1.4
+    volumes:
+      - ./volumes/pg/data:/var/lib/postgresql/data
 
 networks:
   debug_def:
