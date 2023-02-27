@@ -1,3 +1,9 @@
 volumes
 *.tar.gz
 *nethasp.ini
+*.dt
+*.1CD
+*.epf
+*.erf
+*.cf
+*.cfe
