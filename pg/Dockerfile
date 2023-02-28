@@ -63,7 +63,6 @@ RUN mkdir -p /var/run/postgresql && chown -R postgres /var/run/postgresql && cho
 ENV PATH /opt/pgpro/1c-$PG_MAJOR/bin:$PATH
 ENV PGDATA /var/lib/postgresql/data
 ENV PGLOG /var/log/postgresql
-VOLUME /var/lib/postgresql/data
 
 COPY docker-entrypoint.sh /
 
