@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND noninteractive
 ENV GOSU_VERSION 1.13
 ENV PLATFORM_VERSION 8.3.23.1437
 ENV SERVER_VERSION 8.3.23-1437
-ENV PATH_PLATFORM_TAR server64_8_3_23_1437.tar.gz
+ENV PATH_PLATFORM_TAR ../artifacts/server64_8_3_23_1437.tar.gz
 ENV COMPONENT_PLATFORM server
 COPY $PATH_PLATFORM_TAR /tmp/
 
@@ -32,15 +32,15 @@ RUN cd /tmp && tar -xzvf $PATH_PLATFORM_TAR \
   && chown --recursive usr1cv8:grp1cv8 /var/log/1C /home/usr1cv8
 
 # create symlink to current 1c:enterprise directory
-COPY createsymlink-current.sh /createsymlink-current.sh
+COPY ../artifacts/createsymlink-current.sh /createsymlink-current.sh
 RUN chmod +x /createsymlink-current.sh \
   && /createsymlink-current.sh \
   && rm /createsymlink-current.sh
 
 COPY docker-entrypoint.sh /
-COPY logcfg.xml /home/usr1cv8/.1cv8/1C/1cv8/conf
-COPY nethasp.ini /opt/1cv8/conf/nethasp.ini
-COPY nethasp.ini /home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini
+COPY ../artifacts/logcfg.xml /home/usr1cv8/.1cv8/1C/1cv8/conf
+COPY ../artifacts/nethasp.ini /opt/1cv8/conf/nethasp.ini
+COPY ../artifacts/nethasp.ini /home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini
 
 EXPOSE 1540-1541 1560-1591
 

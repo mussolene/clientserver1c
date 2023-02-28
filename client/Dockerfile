@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND noninteractive
 ENV GOSU_VERSION 1.13
 ENV PLATFORM_VERSION 8.3.23.1437
 ENV SERVER_VERSION 8.3.23-1437
-ENV PATH_PLATFORM_TAR server64_8_3_23_1437.tar.gz
+ENV PATH_PLATFORM_TAR ../artifacts/server64_8_3_23_1437.tar.gz
 ENV COMPONENT_PLATFORM client_full
 COPY $PATH_PLATFORM_TAR /tmp/
 ENV DISPLAY=:0
@@ -72,7 +72,7 @@ RUN apt-get update \
 ENV LANG ru_RU.UTF-8
 
 # remove DST Root CA X3 cert if it exists
-COPY remove-dst-root-ca-x3.sh /remove-dst-root-ca-x3.sh
+COPY ../artifacts/remove-dst-root-ca-x3.sh /remove-dst-root-ca-x3.sh
 RUN chmod +x /remove-dst-root-ca-x3.sh \
   && /remove-dst-root-ca-x3.sh \
   && rm /remove-dst-root-ca-x3.sh
@@ -80,7 +80,7 @@ RUN chmod +x /remove-dst-root-ca-x3.sh \
 RUN tar xzf /tmp/s6-overlay-amd64.tar.gz -C / \
   && rm -rf /tmp/s6-overlay-amd64.tar.gz
 
-COPY ./client-vnc/rootfs/ /
+COPY ../artifacts/client-vnc/rootfs/ /
 
 RUN apt-get -qq update && apt-get -qq install --yes --no-install-recommends apt-utils ca-certificates wget locales iputils-ping sudo gnupg2 curl htop vim mc \
   && `#----- Install the dependencies -----` \
@@ -104,12 +104,12 @@ RUN cd /tmp && tar -xzvf $PATH_PLATFORM_TAR \
   && rm -rf /tmp/* 
 
 # create symlink to current 1c:enterprise directory
-COPY createsymlink-current.sh /createsymlink-current.sh
+COPY ../artifacts/createsymlink-current.sh /createsymlink-current.sh
 RUN chmod +x /createsymlink-current.sh \
   && /createsymlink-current.sh \
   && rm /createsymlink-current.sh
 
-COPY nethasp.ini /opt/1cv8/conf/nethasp.ini
+COPY ../artifacts/nethasp.ini /opt/1cv8/conf/nethasp.ini
 
 EXPOSE 5900
 
