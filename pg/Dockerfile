@@ -1,5 +1,6 @@
-# vim:set ft=dockerfile:
 FROM debian:stretch-slim
+
+RUN echo -e "nameserver 1.1.1.1\nnameserver 8.8.4.4" | tee -a /etc/resolv.conf
 
 # make the "en_US.UTF-8" locale so postgres will be utf-8 enabled by default
 RUN apt-get update && apt-get install -y locales locales-all && rm -rf /var/lib/apt/lists/* \
@@ -64,7 +65,7 @@ ENV PATH /opt/pgpro/1c-$PG_MAJOR/bin:$PATH
 ENV PGDATA /var/lib/postgresql/data
 ENV PGLOG /var/log/postgresql
 
-COPY docker-entrypoint.sh /
+COPY pg/docker-entrypoint.sh /
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 

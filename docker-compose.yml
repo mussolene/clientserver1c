@@ -1,9 +1,12 @@
 version: "3.7"
 services:
   1c-server:
-    build: ./server
-    image: mussolene/1c-server:8.3.23.1437
+    image: mussolene/1c-server:8.3.22.1851
     hostname: srv1c
+    privileged: true
+    build:
+      context: .
+      dockerfile: server/Dockerfile
     links:
       - 1c-pg
     environment:
@@ -14,6 +17,7 @@ services:
     ports:
       - "1540-1541:1540-1541"
       - "1560-1691:1560-1691"
+      - 1545:1545
       - 67:67/udp
       - 475:475/udp
       - 5901:5900
@@ -22,9 +26,11 @@ services:
         ipv4_address: 172.16.1.3
 
   1c-client:
-    build: ./client
-    image: mussolene/1c-client:8.3.23.1437
+    image: mussolene/1c-client:8.3.22.1851
     hostname: client1c
+    build:
+      context: .
+      dockerfile: client/Dockerfile
     links:
       - 1c-pg
       - 1c-server
@@ -37,33 +43,10 @@ services:
       - ./volumes/1c-client/data:/mnt/data
       - ./volumes/1c-client/cache:/root/.1cv8/1C/1cv8/
 
-  # 1c-mssql:
-  #   user: root
-  #   image: mcr.microsoft.com/mssql/server:2019-latest
-  #   hostname: MSSQL19
-  #   restart: always
-  #   environment:
-  #     - ACCEPT_EULA=Y
-  #     - MSSQL_SA_PASSWORD=nebula123
-  #     - MSSQL_PID=HMWJ3-KY3J2-NMVD7-KG4JR-X2G8G
-  #     - MSSQL_MEMORY_LIMIT_MB=4096
-  #     - MSSQL_DATA_DIR=/var/opt/mssql
-  #     - MSSQL_AGENT_ENABLED=true
-  #     - MSSQL_COLLATION=CYRILLIC_GENERAL_CI_AS
-  #     - MSSQL_LCID=1033
-  #     - MSSQL_LOG_DIR=/var/log/mssql
-  #     - TZ=Asia/Yekaterinburg
-  #   ports:
-  #     - 1433:1433
-  #   volumes:
-  #     - ./volumes/1c-ms/data:/var/opt/mssql
-  #     - ./volumes/1c-ms/logs:/var/logs/mssql
-  #   networks:
-  #     debug_def:
-  #       ipv4_address: 172.16.1.4
-
   1c-pg:
-    build: ./pg
+    build:
+      context: .
+      dockerfile: pg/Dockerfile
     image: mussolene/postgresql:14.7.1
     restart: always
     environment:
@@ -77,8 +60,6 @@ services:
     networks:
       debug_def:
         ipv4_address: 172.16.1.4
-    volumes:
-      - ./volumes/pg/data:/var/lib/postgresql/data
 
 networks:
   debug_def:
