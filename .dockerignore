@@ -1,4 +1,10 @@
 .git
 .env
 volumes
-.local/1c/platform
+.local/**
+!.local/1c/
+.local/1c/**
+!.local/1c/server-platform/
+!.local/1c/server-platform/**
+!.local/1c/client-platform/
+!.local/1c/client-platform/**

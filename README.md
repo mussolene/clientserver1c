@@ -8,24 +8,31 @@
 2. `1c-server` - сервер 1С
 3. `1c-pg` - PostgreSQL для 1С
 
-Отдельно собирается shared base image:
+Отдельно собираются shared base image:
 
-1. `linux-desktop-base` - общий GUI-слой для клиента: Xfce, VNC, шрифты и системные зависимости
+1. `linux-common-base` - общий системный слой для сервера и клиента
+2. `linux-desktop-base` - GUI-слой для клиента поверх `linux-common-base`: Xfce, VNC и desktop-зависимости
+3. `linux-onescript-builder` - промежуточный build-слой, который скачивает исходники OneScript, собирает `oscript` и раскладывает `opm`
+4. `linux-onescript` - reusable runtime-слой с готовыми `OneScript` и `opm`
 
-В клиентский образ также устанавливаются:
+В клиентский образ также переносятся:
 
 1. `OneScript`
-2. `Vanessa ADD`
-3. `vanessa-runner`
+2. `OPM`
+3. `Vanessa ADD`
+4. `vanessa-runner`
 
 Поддерживаются сборки для `amd64` и `arm64` Linux, начиная с платформы `8.3.22`.
 
 ## Структура
 
 - `client/` - Dockerfile клиентского контейнера
+- `base/linux-common/` - Dockerfile общего common-base образа
 - `base/linux-desktop/` - Dockerfile общего desktop-base образа
+- `base/linux-onescript-builder/` - Dockerfile промежуточного builder-образа для сборки OneScript из исходников
+- `base/linux-onescript/` - Dockerfile общего onescript-base образа
 - `server/` - Dockerfile серверного контейнера
-- `pg/` - Dockerfile и entrypoint для PostgreSQL
+- `pg/` - Dockerfile PostgreSQL
 - `artifacts/` - общие артефакты для сборки
 - `artifacts/client-vnc/` - rootfs overlay для VNC-клиента
 - `artifacts/config/` - конфиги, которые копируются в образы
@@ -61,9 +68,12 @@ make build
 - `make env` - создать `.env` из `.env.example`, если файла еще нет
 - `make download` - скачать архив платформы в `.local/1c/platform/`; при необходимости запросит ITS-логин и пароль
 - `make prepare-platform` - подготовить локальные staging-каталоги `.local/1c/server-platform/` и `.local/1c/client-platform/` для Docker build
+- `make build-common-base` - собрать shared image `linux-common-base` для сервера и клиента
 - `make build-desktop-base` - собрать shared image `linux-desktop-base` для клиента
-- `make up` - скачать платформу при необходимости, при необходимости запросить ITS-логин и пароль, затем поднять стенд; принимает `PG_MAJOR`, `PG_REPO_DIST`, `PLATFORM_VERSION`, `PLATFORM_ARCH`, `DOCKER_DEFAULT_PLATFORM`, `ENABLE_USBIP_TOOLS`, `ONESCRIPT_VERSION`, `VANESSA_ADD_VERSION`, `VANESSA_RUNNER_VERSION`
-- `make build` - собрать образы; принимает `PLATFORM_ARCH`, `DOCKER_DEFAULT_PLATFORM`, `ENABLE_USBIP_TOOLS`, `ONESCRIPT_VERSION`, `VANESSA_ADD_VERSION`, `VANESSA_RUNNER_VERSION`
+- `make build-onescript-builder` - собрать промежуточный image `linux-onescript-builder`, который скачивает исходники OneScript, собирает `oscript` и раскладывает `opm`
+- `make build-onescript-base` - собрать shared image `linux-onescript`
+- `make up` - скачать платформу при необходимости, при необходимости запросить ITS-логин и пароль, затем поднять стенд; принимает `PG_MAJOR`, `PG_REPO_DIST`, `PLATFORM_VERSION`, `PLATFORM_ARCH`, `DOCKER_DEFAULT_PLATFORM`, `ENABLE_USBIP_TOOLS`, `ONESCRIPT_VERSION`
+- `make build` - собрать образы; принимает `PLATFORM_ARCH`, `DOCKER_DEFAULT_PLATFORM`, `ENABLE_USBIP_TOOLS`, `ONESCRIPT_VERSION`
 - `make config` - проверить `docker compose config`
 - `make down` - остановить стенд
 - `make ps` - показать состояние контейнеров
@@ -73,25 +83,44 @@ make build
 ## Переменные `.env`
 
 - `POSTGRES_PASSWORD` - пароль PostgreSQL для локального стенда
-- `PG_MAJOR` - major-версия Postgres Pro 1C для контейнера БД; по умолчанию `17`
-- `PG_REPO_DIST` - дистрибутивный codename репозитория Postgres Pro 1C; по умолчанию `bullseye`
+- `PG_MAJOR` - major-версия PostgreSQL для контейнера БД; по умолчанию `17`
+- `PG_REPO_DIST` - тег базового официального образа `postgres`; по умолчанию `bookworm`
 - `PLATFORM_VERSION` - версия платформы 1С, которая будет скачиваться и использоваться при сборке
 - `PLATFORM_ARCH` - архитектура дистрибутивов платформы 1С из ITS: `amd64` или `arm64`
 - `DOCKER_DEFAULT_PLATFORM` - целевая Docker-платформа для cross-build/run; обычно пусто, для явного cross-build можно задать `linux/amd64` или `linux/arm64`
-- `ENABLE_USBIP_TOOLS` - собирать ли USB/IP и `VirtualHere` helper в серверном образе; `auto` по умолчанию, на `arm64` автоматически отключается
+- `ENABLE_USBIP_TOOLS` - собирать ли USB/IP и `VirtualHere` helper в серверном образе; по умолчанию `0`, включайте только явно при необходимости
+- `COMMON_BASE_IMAGE` - имя shared common base image; по умолчанию `mussolene/linux-common-base`
+- `COMMON_BASE_TAG` - тег shared common base image; по умолчанию `jammy`
+- `COMMON_BASE_DIST` - базовый Ubuntu tag для сборки shared common base image; по умолчанию `jammy`
 - `DESKTOP_BASE_IMAGE` - имя shared desktop base image; по умолчанию `mussolene/linux-desktop-base`
-- `DESKTOP_BASE_TAG` - тег shared desktop base image; по умолчанию `bullseye`
-- `BASE_DEBIAN_DIST` - Debian codename для сборки shared desktop base image; по умолчанию `bullseye`
-- `ONESCRIPT_VERSION` - версия `OneScript`, которая будет скачана в клиентский образ
-- `VANESSA_ADD_VERSION` - версия пакета `add`, которая будет установлена через `opm`
-- `VANESSA_RUNNER_VERSION` - версия пакета `vanessa-runner`, которая будет установлена через `opm`
+- `DESKTOP_BASE_TAG` - тег shared desktop base image; по умолчанию `jammy`
+- `ONESCRIPT_BASE_IMAGE` - имя shared onescript base image; по умолчанию `mussolene/linux-onescript`
+- `ONESCRIPT_BASE_TAG` - тег shared onescript base image; по умолчанию `2.0.0`
+- `ONESCRIPT_BASE_DIST` - базовый Ubuntu tag для сборки shared onescript base image; по умолчанию `jammy`
+- `ONESCRIPT_BUILD_IMAGE` - имя промежуточного build image для сборки OneScript из исходников; по умолчанию `mussolene/linux-onescript-builder`
+- `ONESCRIPT_BUILD_TAG` - тег промежуточного build image; по умолчанию `2.0.0`
+- `ONESCRIPT_SDK_IMAGE` - базовый SDK image для containerized сборки OneScript; по умолчанию `mcr.microsoft.com/dotnet/sdk:8.0`
+- `ONESCRIPT_VERSION` - версия `OneScript`, чей git tag `v<version>` будет скачан и собран в builder-слое
+- `VANESSA_ADD_VERSION` - версия пакета `add`, устанавливаемого через `opm`; по умолчанию `6.9.5`
+- `VANESSA_RUNNER_VERSION` - версия пакета `vanessa-runner`, устанавливаемого через `opm`; по умолчанию `2.6.0`
 - `ITS_LOGIN` и `ITS_PASSWORD` - учетка для `login.1c.ru` / `releases.1c.ru`; если не заданы, будут запрошены интерактивно и сохранены в `.env`
 
 По умолчанию downloader пытается найти файл нужной версии на `releases.1c.ru`, скачать его в `.local/1c/platform/`, а затем Dockerfile берут архив уже оттуда. Учетные данные остаются только на хосте и не попадают в образ.
 
-Тяжелый GUI/VNC/font слой теперь вынесен в отдельный image `linux-desktop-base`, а `1c-client` собирается уже поверх него. Это позволяет не пересобирать Xfce, VNC, шрифты и системные зависимости при каждой смене версии платформы.
+Общие системные зависимости вынесены в `linux-common-base`, тяжелый GUI/VNC слой вынесен в `linux-desktop-base`, а `OneScript` вынесен в связку `linux-onescript-builder` -> `linux-onescript`.
 
-OneScript и пакеты BDD скачиваются уже на этапе `docker build` клиента. На `amd64` после сборки в контейнере доступны команды `oscript`, `opm` и `vrunner`, а сама `Vanessa ADD` лежит в `/opt/onescript/lib/add`. На `arm64` установка `OneScript` пока пропускается, потому что в upstream-релизе `OneScript 2.0.0` нет Linux `arm64`-артефакта.
+Итоговая иерархия такая:
+
+1. `linux-common-base`
+2. `linux-desktop-base` = `linux-common-base` + GUI
+3. `1c-server` = `linux-common-base` + серверная платформа 1С
+4. `1c-client` = `linux-desktop-base` + `linux-onescript` + клиентская платформа 1С + `Vanessa`
+
+Это позволяет отдельно кэшировать общий системный слой, отдельно GUI-слой и отдельно containerized сборку OneScript из исходников.
+
+OneScript собирается уже на этапе `docker build` промежуточного `linux-onescript-builder`. Там повторяется upstream-like packaging: раскладывается `opm` и подтягиваются базовые системные пакеты OneScript. Пакеты `add` и `vanessa-runner` затем ставятся уже в `1c-client` штатно через `opm install`.
+
+Штатный upstream packaging у OneScript не содержит `linux-arm64`, но прямой containerized `dotnet publish` по `src/oscript/oscript.csproj` для `linux-arm64` работает. Поэтому `arm64`-вариант здесь собирается именно из исходников в builder-слое, а не через upstream ZIP.
 
 ## Версия сборки
 
@@ -133,46 +162,47 @@ make up
 ```
 
 1. `make env` создаст `.env`, если его еще нет
-2. `make up` при необходимости спросит ITS-логин и пароль, сохранит их в `.env`, соберет `linux-desktop-base`, скачает платформу и поднимет контейнеры
+2. `make up` при необходимости спросит ITS-логин и пароль, сохранит их в `.env`, соберет `linux-common-base`, `linux-desktop-base`, `linux-onescript-builder` и `linux-onescript`, скачает платформу и поднимет контейнеры
 
 Если нужно отдельно прогреть только shared base image:
 
 ```bash
+make build-common-base
 make build-desktop-base
+make build-onescript-builder
+make build-onescript-base
 ```
 
 ## Версия PostgreSQL
 
-По умолчанию контейнер БД собирается на `Postgres Pro 1C 17` через официальный репозиторий `repo.postgrespro.ru`. Для текущего стенда это выбранная верхняя рабочая версия по умолчанию; при необходимости ее можно понизить через переменные окружения.
+По умолчанию контейнер БД собирается на официальном образе `postgres:17-bookworm`. Это наиболее переносимый вариант для локальной сборки на разных хостах и архитектурах; major-версию и distro tag при необходимости можно переопределить через переменные окружения.
 
 Переопределить можно через `.env`:
 
 ```bash
 PG_MAJOR=17
-PG_REPO_DIST=bullseye
+PG_REPO_DIST=bookworm
 ```
 
 или разово:
 
 ```bash
 make up PG_MAJOR=16
-make build PG_MAJOR=17 PG_REPO_DIST=bullseye
+make build PG_MAJOR=17 PG_REPO_DIST=bookworm
 ```
 
-## OneScript и BDD
+## OneScript
 
-По умолчанию `1c-client` собирается вместе с `OneScript`, `Vanessa ADD` и `vanessa-runner`. Переопределить версии можно через `.env`:
+По умолчанию `1c-client` собирается вместе с `OneScript`. Переопределить версию можно через `.env`:
 
 ```bash
 ONESCRIPT_VERSION=2.0.0
-VANESSA_ADD_VERSION=6.9.5
-VANESSA_RUNNER_VERSION=2.6.0
 ```
 
 или разово:
 
 ```bash
-make build ONESCRIPT_VERSION=2.0.0 VANESSA_ADD_VERSION=6.9.5 VANESSA_RUNNER_VERSION=2.6.0
+make build ONESCRIPT_VERSION=2.0.0
 ```
 
 После сборки в клиентском контейнере доступны:

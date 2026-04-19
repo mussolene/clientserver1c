@@ -10,14 +10,22 @@ PLATFORM_ARCH ?=
 PLATFORM_DIST_NAME ?=
 DOCKER_DEFAULT_PLATFORM ?=
 ENABLE_USBIP_TOOLS ?=
+COMMON_BASE_IMAGE ?=
+COMMON_BASE_TAG ?=
+COMMON_BASE_DIST ?=
 DESKTOP_BASE_IMAGE ?=
 DESKTOP_BASE_TAG ?=
-BASE_DEBIAN_DIST ?=
+ONESCRIPT_BASE_IMAGE ?=
+ONESCRIPT_BASE_TAG ?=
+ONESCRIPT_BASE_DIST ?=
+ONESCRIPT_BUILD_IMAGE ?=
+ONESCRIPT_BUILD_TAG ?=
+ONESCRIPT_SDK_IMAGE ?=
 ONESCRIPT_VERSION ?=
 VANESSA_ADD_VERSION ?=
 VANESSA_RUNNER_VERSION ?=
 
-.PHONY: help env download prepare-platform build-desktop-base up build config down ps logs clean-platform clean
+.PHONY: help env download prepare-platform build-common-base build-desktop-base build-onescript-builder build-onescript-base up build config down ps logs clean-platform clean
 
 help:
 	@printf '%s\n' \
@@ -25,8 +33,11 @@ help:
 	  '  make env             - create .env from .env.example if missing' \
 	  '  make download        - download the 1C platform archive into .local/1c/platform; prompts ITS creds if needed' \
 	  '  make prepare-platform - prepare staged platform inputs for Docker builds' \
+	  '  make build-common-base - build the shared common base image for server and client' \
 	  '  make build-desktop-base - build the shared desktop GUI base image for the client' \
-	  '  make up              - download platform if needed, prompt ITS creds if needed, and start the stack; supports PG_MAJOR/PG_REPO_DIST/ONESCRIPT_VERSION/VANESSA_* overrides' \
+	  '  make build-onescript-builder - build the intermediate OneScript source-build image' \
+	  '  make build-onescript-base - build the reusable OneScript image' \
+	  '  make up              - download platform if needed, prompt ITS creds if needed, and start the stack; supports PG_MAJOR/PG_REPO_DIST/PLATFORM_ARCH/DOCKER_DEFAULT_PLATFORM/ONESCRIPT_VERSION overrides' \
 	  '  make build           - build images' \
 	  '  make config          - validate docker compose config' \
 	  '  make down            - stop containers' \
@@ -36,12 +47,16 @@ help:
 	  '  make clean           - remove local platform caches and stop the stack' \
 	  '' \
 	  'Examples:' \
-	  '  make config PG_MAJOR=17 PG_REPO_DIST=bullseye' \
+	  '  make config PG_MAJOR=17 PG_REPO_DIST=bookworm' \
 	  '  make up PG_MAJOR=16' \
-	  '  make build-desktop-base DESKTOP_BASE_TAG=bullseye' \
+	  '  make build-common-base COMMON_BASE_TAG=jammy' \
+	  '  make build-desktop-base DESKTOP_BASE_TAG=jammy' \
+	  '  make build-onescript-builder ONESCRIPT_BUILD_TAG=2.0.0' \
+	  '  make build-onescript-base ONESCRIPT_BASE_TAG=2.0.0' \
 	  '  make build PLATFORM_ARCH=arm64 DOCKER_DEFAULT_PLATFORM=linux/arm64' \
+	  '  make build PLATFORM_ARCH=amd64 DOCKER_DEFAULT_PLATFORM=linux/amd64' \
 	  '  make up PLATFORM_VERSION=8.3.24.1548' \
-	  '  make build ONESCRIPT_VERSION=2.0.0 VANESSA_ADD_VERSION=6.9.5 VANESSA_RUNNER_VERSION=2.6.0' \
+	  '  make build ONESCRIPT_VERSION=2.0.0' \
 	  '  make download PLATFORM_VERSION=8.3.25.1374'
 
 env:
@@ -67,13 +82,47 @@ prepare-platform:
 	if [[ -n "$(PLATFORM_DIST_NAME)" ]]; then env_args+=(PLATFORM_DIST_NAME="$(PLATFORM_DIST_NAME)"); fi; \
 	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" ./scripts/prepare-platform.sh
 
+build-common-base:
+	@env_args=(); \
+	if [[ -n "$(DOCKER_DEFAULT_PLATFORM)" ]]; then env_args+=(DOCKER_DEFAULT_PLATFORM="$(DOCKER_DEFAULT_PLATFORM)"); fi; \
+	if [[ -n "$(COMMON_BASE_IMAGE)" ]]; then env_args+=(COMMON_BASE_IMAGE="$(COMMON_BASE_IMAGE)"); fi; \
+	if [[ -n "$(COMMON_BASE_TAG)" ]]; then env_args+=(COMMON_BASE_TAG="$(COMMON_BASE_TAG)"); fi; \
+	if [[ -n "$(COMMON_BASE_DIST)" ]]; then env_args+=(COMMON_BASE_DIST="$(COMMON_BASE_DIST)"); fi; \
+	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" bash ./scripts/build-common-base.sh
+
 build-desktop-base:
 	@env_args=(); \
 	if [[ -n "$(DOCKER_DEFAULT_PLATFORM)" ]]; then env_args+=(DOCKER_DEFAULT_PLATFORM="$(DOCKER_DEFAULT_PLATFORM)"); fi; \
+	if [[ -n "$(COMMON_BASE_IMAGE)" ]]; then env_args+=(COMMON_BASE_IMAGE="$(COMMON_BASE_IMAGE)"); fi; \
+	if [[ -n "$(COMMON_BASE_TAG)" ]]; then env_args+=(COMMON_BASE_TAG="$(COMMON_BASE_TAG)"); fi; \
 	if [[ -n "$(DESKTOP_BASE_IMAGE)" ]]; then env_args+=(DESKTOP_BASE_IMAGE="$(DESKTOP_BASE_IMAGE)"); fi; \
 	if [[ -n "$(DESKTOP_BASE_TAG)" ]]; then env_args+=(DESKTOP_BASE_TAG="$(DESKTOP_BASE_TAG)"); fi; \
-	if [[ -n "$(BASE_DEBIAN_DIST)" ]]; then env_args+=(BASE_DEBIAN_DIST="$(BASE_DEBIAN_DIST)"); fi; \
 	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" bash ./scripts/build-desktop-base.sh
+
+build-onescript-builder:
+	@env_args=(); \
+	if [[ -n "$(DOCKER_DEFAULT_PLATFORM)" ]]; then env_args+=(DOCKER_DEFAULT_PLATFORM="$(DOCKER_DEFAULT_PLATFORM)"); fi; \
+	if [[ -n "$(ONESCRIPT_BUILD_IMAGE)" ]]; then env_args+=(ONESCRIPT_BUILD_IMAGE="$(ONESCRIPT_BUILD_IMAGE)"); fi; \
+	if [[ -n "$(ONESCRIPT_BUILD_TAG)" ]]; then env_args+=(ONESCRIPT_BUILD_TAG="$(ONESCRIPT_BUILD_TAG)"); fi; \
+	if [[ -n "$(ONESCRIPT_SDK_IMAGE)" ]]; then env_args+=(ONESCRIPT_SDK_IMAGE="$(ONESCRIPT_SDK_IMAGE)"); fi; \
+	if [[ -n "$(ONESCRIPT_VERSION)" ]]; then env_args+=(ONESCRIPT_VERSION="$(ONESCRIPT_VERSION)"); fi; \
+	if [[ -n "$(VANESSA_ADD_VERSION)" ]]; then env_args+=(VANESSA_ADD_VERSION="$(VANESSA_ADD_VERSION)"); fi; \
+	if [[ -n "$(VANESSA_RUNNER_VERSION)" ]]; then env_args+=(VANESSA_RUNNER_VERSION="$(VANESSA_RUNNER_VERSION)"); fi; \
+	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" bash ./scripts/build-onescript-builder.sh
+
+build-onescript-base:
+	@env_args=(); \
+	if [[ -n "$(DOCKER_DEFAULT_PLATFORM)" ]]; then env_args+=(DOCKER_DEFAULT_PLATFORM="$(DOCKER_DEFAULT_PLATFORM)"); fi; \
+	if [[ -n "$(ONESCRIPT_BUILD_IMAGE)" ]]; then env_args+=(ONESCRIPT_BUILD_IMAGE="$(ONESCRIPT_BUILD_IMAGE)"); fi; \
+	if [[ -n "$(ONESCRIPT_BUILD_TAG)" ]]; then env_args+=(ONESCRIPT_BUILD_TAG="$(ONESCRIPT_BUILD_TAG)"); fi; \
+	if [[ -n "$(ONESCRIPT_BASE_IMAGE)" ]]; then env_args+=(ONESCRIPT_BASE_IMAGE="$(ONESCRIPT_BASE_IMAGE)"); fi; \
+	if [[ -n "$(ONESCRIPT_BASE_TAG)" ]]; then env_args+=(ONESCRIPT_BASE_TAG="$(ONESCRIPT_BASE_TAG)"); fi; \
+	if [[ -n "$(ONESCRIPT_BASE_DIST)" ]]; then env_args+=(ONESCRIPT_BASE_DIST="$(ONESCRIPT_BASE_DIST)"); fi; \
+	if [[ -n "$(ONESCRIPT_SDK_IMAGE)" ]]; then env_args+=(ONESCRIPT_SDK_IMAGE="$(ONESCRIPT_SDK_IMAGE)"); fi; \
+	if [[ -n "$(ONESCRIPT_VERSION)" ]]; then env_args+=(ONESCRIPT_VERSION="$(ONESCRIPT_VERSION)"); fi; \
+	if [[ -n "$(VANESSA_ADD_VERSION)" ]]; then env_args+=(VANESSA_ADD_VERSION="$(VANESSA_ADD_VERSION)"); fi; \
+	if [[ -n "$(VANESSA_RUNNER_VERSION)" ]]; then env_args+=(VANESSA_RUNNER_VERSION="$(VANESSA_RUNNER_VERSION)"); fi; \
+	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" bash ./scripts/build-onescript-base.sh
 
 up:
 	@env_args=(); \
@@ -84,9 +133,17 @@ up:
 	if [[ -n "$(PLATFORM_ARCH)" ]]; then env_args+=(PLATFORM_ARCH="$(PLATFORM_ARCH)"); fi; \
 	if [[ -n "$(PLATFORM_DIST_NAME)" ]]; then env_args+=(PLATFORM_DIST_NAME="$(PLATFORM_DIST_NAME)"); fi; \
 	if [[ -n "$(ENABLE_USBIP_TOOLS)" ]]; then env_args+=(ENABLE_USBIP_TOOLS="$(ENABLE_USBIP_TOOLS)"); fi; \
+	if [[ -n "$(COMMON_BASE_IMAGE)" ]]; then env_args+=(COMMON_BASE_IMAGE="$(COMMON_BASE_IMAGE)"); fi; \
+	if [[ -n "$(COMMON_BASE_TAG)" ]]; then env_args+=(COMMON_BASE_TAG="$(COMMON_BASE_TAG)"); fi; \
+	if [[ -n "$(COMMON_BASE_DIST)" ]]; then env_args+=(COMMON_BASE_DIST="$(COMMON_BASE_DIST)"); fi; \
 	if [[ -n "$(DESKTOP_BASE_IMAGE)" ]]; then env_args+=(DESKTOP_BASE_IMAGE="$(DESKTOP_BASE_IMAGE)"); fi; \
 	if [[ -n "$(DESKTOP_BASE_TAG)" ]]; then env_args+=(DESKTOP_BASE_TAG="$(DESKTOP_BASE_TAG)"); fi; \
-	if [[ -n "$(BASE_DEBIAN_DIST)" ]]; then env_args+=(BASE_DEBIAN_DIST="$(BASE_DEBIAN_DIST)"); fi; \
+	if [[ -n "$(ONESCRIPT_BASE_IMAGE)" ]]; then env_args+=(ONESCRIPT_BASE_IMAGE="$(ONESCRIPT_BASE_IMAGE)"); fi; \
+	if [[ -n "$(ONESCRIPT_BASE_TAG)" ]]; then env_args+=(ONESCRIPT_BASE_TAG="$(ONESCRIPT_BASE_TAG)"); fi; \
+	if [[ -n "$(ONESCRIPT_BASE_DIST)" ]]; then env_args+=(ONESCRIPT_BASE_DIST="$(ONESCRIPT_BASE_DIST)"); fi; \
+	if [[ -n "$(ONESCRIPT_BUILD_IMAGE)" ]]; then env_args+=(ONESCRIPT_BUILD_IMAGE="$(ONESCRIPT_BUILD_IMAGE)"); fi; \
+	if [[ -n "$(ONESCRIPT_BUILD_TAG)" ]]; then env_args+=(ONESCRIPT_BUILD_TAG="$(ONESCRIPT_BUILD_TAG)"); fi; \
+	if [[ -n "$(ONESCRIPT_SDK_IMAGE)" ]]; then env_args+=(ONESCRIPT_SDK_IMAGE="$(ONESCRIPT_SDK_IMAGE)"); fi; \
 	if [[ -n "$(ONESCRIPT_VERSION)" ]]; then env_args+=(ONESCRIPT_VERSION="$(ONESCRIPT_VERSION)"); fi; \
 	if [[ -n "$(VANESSA_ADD_VERSION)" ]]; then env_args+=(VANESSA_ADD_VERSION="$(VANESSA_ADD_VERSION)"); fi; \
 	if [[ -n "$(VANESSA_RUNNER_VERSION)" ]]; then env_args+=(VANESSA_RUNNER_VERSION="$(VANESSA_RUNNER_VERSION)"); fi; \
@@ -102,14 +159,25 @@ build:
 	if [[ -n "$(PLATFORM_ARCH)" ]]; then env_args+=(PLATFORM_ARCH="$(PLATFORM_ARCH)"); fi; \
 	if [[ -n "$(PLATFORM_DIST_NAME)" ]]; then env_args+=(PLATFORM_DIST_NAME="$(PLATFORM_DIST_NAME)"); fi; \
 	if [[ -n "$(ENABLE_USBIP_TOOLS)" ]]; then env_args+=(ENABLE_USBIP_TOOLS="$(ENABLE_USBIP_TOOLS)"); fi; \
+	if [[ -n "$(COMMON_BASE_IMAGE)" ]]; then env_args+=(COMMON_BASE_IMAGE="$(COMMON_BASE_IMAGE)"); fi; \
+	if [[ -n "$(COMMON_BASE_TAG)" ]]; then env_args+=(COMMON_BASE_TAG="$(COMMON_BASE_TAG)"); fi; \
+	if [[ -n "$(COMMON_BASE_DIST)" ]]; then env_args+=(COMMON_BASE_DIST="$(COMMON_BASE_DIST)"); fi; \
 	if [[ -n "$(DESKTOP_BASE_IMAGE)" ]]; then env_args+=(DESKTOP_BASE_IMAGE="$(DESKTOP_BASE_IMAGE)"); fi; \
 	if [[ -n "$(DESKTOP_BASE_TAG)" ]]; then env_args+=(DESKTOP_BASE_TAG="$(DESKTOP_BASE_TAG)"); fi; \
-	if [[ -n "$(BASE_DEBIAN_DIST)" ]]; then env_args+=(BASE_DEBIAN_DIST="$(BASE_DEBIAN_DIST)"); fi; \
+	if [[ -n "$(ONESCRIPT_BASE_IMAGE)" ]]; then env_args+=(ONESCRIPT_BASE_IMAGE="$(ONESCRIPT_BASE_IMAGE)"); fi; \
+	if [[ -n "$(ONESCRIPT_BASE_TAG)" ]]; then env_args+=(ONESCRIPT_BASE_TAG="$(ONESCRIPT_BASE_TAG)"); fi; \
+	if [[ -n "$(ONESCRIPT_BASE_DIST)" ]]; then env_args+=(ONESCRIPT_BASE_DIST="$(ONESCRIPT_BASE_DIST)"); fi; \
+	if [[ -n "$(ONESCRIPT_BUILD_IMAGE)" ]]; then env_args+=(ONESCRIPT_BUILD_IMAGE="$(ONESCRIPT_BUILD_IMAGE)"); fi; \
+	if [[ -n "$(ONESCRIPT_BUILD_TAG)" ]]; then env_args+=(ONESCRIPT_BUILD_TAG="$(ONESCRIPT_BUILD_TAG)"); fi; \
+	if [[ -n "$(ONESCRIPT_SDK_IMAGE)" ]]; then env_args+=(ONESCRIPT_SDK_IMAGE="$(ONESCRIPT_SDK_IMAGE)"); fi; \
 	if [[ -n "$(ONESCRIPT_VERSION)" ]]; then env_args+=(ONESCRIPT_VERSION="$(ONESCRIPT_VERSION)"); fi; \
 	if [[ -n "$(VANESSA_ADD_VERSION)" ]]; then env_args+=(VANESSA_ADD_VERSION="$(VANESSA_ADD_VERSION)"); fi; \
 	if [[ -n "$(VANESSA_RUNNER_VERSION)" ]]; then env_args+=(VANESSA_RUNNER_VERSION="$(VANESSA_RUNNER_VERSION)"); fi; \
 	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" ./scripts/prepare-platform.sh; \
+	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" bash ./scripts/build-common-base.sh; \
 	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" bash ./scripts/build-desktop-base.sh; \
+	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" bash ./scripts/build-onescript-builder.sh; \
+	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" bash ./scripts/build-onescript-base.sh; \
 	env "$${env_args[@]}" $(DOCKER_COMPOSE) build
 
 config:
@@ -122,9 +190,17 @@ config:
 	if [[ -n "$(PLATFORM_ARCH)" ]]; then env_args+=(PLATFORM_ARCH="$(PLATFORM_ARCH)"); fi; \
 	if [[ -n "$(PLATFORM_DIST_NAME)" ]]; then env_args+=(PLATFORM_DIST_NAME="$(PLATFORM_DIST_NAME)"); fi; \
 	if [[ -n "$(ENABLE_USBIP_TOOLS)" ]]; then env_args+=(ENABLE_USBIP_TOOLS="$(ENABLE_USBIP_TOOLS)"); fi; \
+	if [[ -n "$(COMMON_BASE_IMAGE)" ]]; then env_args+=(COMMON_BASE_IMAGE="$(COMMON_BASE_IMAGE)"); fi; \
+	if [[ -n "$(COMMON_BASE_TAG)" ]]; then env_args+=(COMMON_BASE_TAG="$(COMMON_BASE_TAG)"); fi; \
+	if [[ -n "$(COMMON_BASE_DIST)" ]]; then env_args+=(COMMON_BASE_DIST="$(COMMON_BASE_DIST)"); fi; \
 	if [[ -n "$(DESKTOP_BASE_IMAGE)" ]]; then env_args+=(DESKTOP_BASE_IMAGE="$(DESKTOP_BASE_IMAGE)"); fi; \
 	if [[ -n "$(DESKTOP_BASE_TAG)" ]]; then env_args+=(DESKTOP_BASE_TAG="$(DESKTOP_BASE_TAG)"); fi; \
-	if [[ -n "$(BASE_DEBIAN_DIST)" ]]; then env_args+=(BASE_DEBIAN_DIST="$(BASE_DEBIAN_DIST)"); fi; \
+	if [[ -n "$(ONESCRIPT_BASE_IMAGE)" ]]; then env_args+=(ONESCRIPT_BASE_IMAGE="$(ONESCRIPT_BASE_IMAGE)"); fi; \
+	if [[ -n "$(ONESCRIPT_BASE_TAG)" ]]; then env_args+=(ONESCRIPT_BASE_TAG="$(ONESCRIPT_BASE_TAG)"); fi; \
+	if [[ -n "$(ONESCRIPT_BASE_DIST)" ]]; then env_args+=(ONESCRIPT_BASE_DIST="$(ONESCRIPT_BASE_DIST)"); fi; \
+	if [[ -n "$(ONESCRIPT_BUILD_IMAGE)" ]]; then env_args+=(ONESCRIPT_BUILD_IMAGE="$(ONESCRIPT_BUILD_IMAGE)"); fi; \
+	if [[ -n "$(ONESCRIPT_BUILD_TAG)" ]]; then env_args+=(ONESCRIPT_BUILD_TAG="$(ONESCRIPT_BUILD_TAG)"); fi; \
+	if [[ -n "$(ONESCRIPT_SDK_IMAGE)" ]]; then env_args+=(ONESCRIPT_SDK_IMAGE="$(ONESCRIPT_SDK_IMAGE)"); fi; \
 	if [[ -n "$(ONESCRIPT_VERSION)" ]]; then env_args+=(ONESCRIPT_VERSION="$(ONESCRIPT_VERSION)"); fi; \
 	if [[ -n "$(VANESSA_ADD_VERSION)" ]]; then env_args+=(VANESSA_ADD_VERSION="$(VANESSA_ADD_VERSION)"); fi; \
 	if [[ -n "$(VANESSA_RUNNER_VERSION)" ]]; then env_args+=(VANESSA_RUNNER_VERSION="$(VANESSA_RUNNER_VERSION)"); fi; \

@@ -1,22 +1,28 @@
 ARG DESKTOP_BASE_IMAGE=mussolene/linux-desktop-base
-ARG DESKTOP_BASE_TAG=bullseye
+ARG DESKTOP_BASE_TAG=jammy
+ARG ONESCRIPT_BASE_IMAGE=mussolene/linux-onescript
+ARG ONESCRIPT_BASE_TAG=2.0.0
+FROM ${ONESCRIPT_BASE_IMAGE}:${ONESCRIPT_BASE_TAG} AS onescript_base
 FROM ${DESKTOP_BASE_IMAGE}:${DESKTOP_BASE_TAG}
 
 ARG TARGETARCH
 ARG PLATFORM_VERSION=8.3.22.1851
 ARG PLATFORM_DIST_NAME
-ARG ONESCRIPT_VERSION=2.0.0
 ARG VANESSA_ADD_VERSION=6.9.5
 ARG VANESSA_RUNNER_VERSION=2.6.0
 
 ENV PLATFORM_VERSION=${PLATFORM_VERSION}
 ENV PLATFORM_DIST_NAME=${PLATFORM_DIST_NAME}
-ENV ONESCRIPT_VERSION=${ONESCRIPT_VERSION}
-ENV VANESSA_ADD_VERSION=${VANESSA_ADD_VERSION}
-ENV VANESSA_RUNNER_VERSION=${VANESSA_RUNNER_VERSION}
-ENV COMPONENT_PLATFORM client_full
+ENV COMPONENT_PLATFORM=client_full
+ENV ONESCRIPT_ROOT=/opt/onescript
+ENV PATH=/opt/onescript:/opt/onescript/bin:${PATH}
+ENV OSCRIPT_CONFIG=lib.system=/opt/onescript/lib
+ENV OSCRIPTBIN=/opt/onescript/bin
 COPY .local/1c/client-platform/ /tmp/platform/
 COPY artifacts/ /tmp/build-artifacts/
+COPY --from=onescript_base /opt/onescript /opt/onescript
+COPY --from=onescript_base /usr/local/bin/oscript /usr/local/bin/oscript
+COPY --from=onescript_base /usr/local/bin/opm /usr/local/bin/opm
 
 RUN archive_name="${PLATFORM_DIST_NAME}" \
   && if [ -z "$archive_name" ]; then \
@@ -58,7 +64,8 @@ RUN archive_name="${PLATFORM_DIST_NAME}" \
            chmod +x "$installer" \
            && "$installer" --mode unattended --enable-components "$COMPONENT_PLATFORM"; \
          else \
-           apt-get -qq update \
+           rm -rf /var/lib/apt/lists/* \
+           && apt-get -qq update -o Acquire::Retries=5 \
            && apt-get -qq install --yes --no-install-recommends \
              /tmp/platform-unpacked/*.deb; \
          fi \
@@ -78,33 +85,20 @@ RUN chmod +x /createsymlink-current.sh \
   && /createsymlink-current.sh \
   && rm /createsymlink-current.sh
 
+RUN (opm install "add@${VANESSA_ADD_VERSION}" || opm install add) \
+  && (opm install "vanessa-runner@${VANESSA_RUNNER_VERSION}" || opm install vanessa-runner) \
+  && mkdir -p /opt/lib \
+  && ln -sfn /opt/onescript/lib/add /opt/lib/add \
+  && ln -sf /opt/onescript/bin/vrunner /usr/local/bin/vrunner \
+  && ln -sf /opt/onescript/bin/runner /usr/local/bin/runner \
+  && ln -sf /opt/onescript/bin/vanessa-runner /usr/local/bin/vanessa-runner \
+  && command -v vrunner >/dev/null \
+  && vrunner help >/dev/null
+
 RUN if [ -f /tmp/build-artifacts/nethasp.ini ]; then \
     cp /tmp/build-artifacts/nethasp.ini /opt/1cv8/conf/nethasp.ini; \
   fi \
   && rm -rf /tmp/build-artifacts
-
-ENV ONESCRIPT_ROOT=/opt/onescript
-ENV PATH=/opt/onescript/bin:${PATH}
-
-RUN mkdir -p "$ONESCRIPT_ROOT" \
-  && arch="$(dpkg --print-architecture)" \
-  && if [ "$arch" = "amd64" ]; then \
-       curl -fsSL -o /tmp/onescript.zip \
-         "https://github.com/EvilBeaver/OneScript/releases/download/v${ONESCRIPT_VERSION}/OneScript-${ONESCRIPT_VERSION}-linux-x64.zip"; \
-       unzip -q /tmp/onescript.zip -d "$ONESCRIPT_ROOT"; \
-       chmod +x "$ONESCRIPT_ROOT/bin/oscript" "$ONESCRIPT_ROOT/bin/opm"; \
-       ln -sf "$ONESCRIPT_ROOT/bin/oscript" /usr/local/bin/oscript; \
-       ln -sf "$ONESCRIPT_ROOT/bin/opm" /usr/local/bin/opm; \
-       oscript --version; \
-       opm --version; \
-       opm install "add@${VANESSA_ADD_VERSION}"; \
-       opm install "vanessa-runner@${VANESSA_RUNNER_VERSION}"; \
-       test -f "$ONESCRIPT_ROOT/lib/add/packagedef"; \
-       command -v vrunner >/dev/null; \
-     else \
-       echo "Skipping OneScript install on $arch: upstream v${ONESCRIPT_VERSION} release has no Linux $arch artifact."; \
-     fi \
-  && rm -f /tmp/onescript.zip
 
 EXPOSE 5900
 

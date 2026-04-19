@@ -1,38 +1,40 @@
-FROM ubuntu:20.04
+ARG COMMON_BASE_IMAGE=mussolene/linux-common-base
+ARG COMMON_BASE_TAG=jammy
+FROM ${COMMON_BASE_IMAGE}:${COMMON_BASE_TAG}
 
 ARG TARGETARCH
 ARG PLATFORM_VERSION=8.3.22.1851
 ARG PLATFORM_DIST_NAME
-ARG ENABLE_USBIP_TOOLS=auto
+ARG ENABLE_USBIP_TOOLS=0
 
-ENV DEBIAN_FRONTEND noninteractive
-ENV GOSU_VERSION 1.13
 ENV PLATFORM_VERSION=${PLATFORM_VERSION}
 ENV PLATFORM_DIST_NAME=${PLATFORM_DIST_NAME}
 ENV ENABLE_USBIP_TOOLS=${ENABLE_USBIP_TOOLS}
-ENV COMPONENT_PLATFORM server
+ENV COMPONENT_PLATFORM=server
 COPY .local/1c/server-platform/ /tmp/platform/
 COPY artifacts/ /tmp/build-artifacts/
 
-RUN apt-get -qq update && apt-get -qq install --yes --no-install-recommends apt-utils ca-certificates wget locales iputils-ping sudo gnupg2 curl htop vim mc libc-dev curl gcc bison flex make musl-dev libssl-dev bc libelf-dev usbutils unzip \
-  && `#----- Install the dependencies -----` \
-  && apt-get -qq install --yes --no-install-recommends fontconfig imagemagick \
-  && `#----- Deal with ttf-mscorefonts-installer -----` \
-  && echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections \
-  && apt-get -qq install --yes --no-install-recommends xfonts-utils cabextract \
-  && apt-get -qq install libgsf-1-114 ttf-mscorefonts-installer t1utils unixodbc \
-  && `#----- Install gosu -----` \
-  && wget --quiet --output-document /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$(dpkg --print-architecture)" \
-  && chmod +x /usr/local/bin/gosu \
-  && gosu nobody true 
-
-RUN localedef --inputfile ru_RU --force --charmap UTF-8 --alias-file /usr/share/locale/locale.alias ru_RU.UTF-8
-ENV LANG ru_RU.utf8
+RUN rm -rf /var/lib/apt/lists/* \
+  && apt-get -qq update -o Acquire::Retries=5 \
+  && apt-get -qq install --yes --no-install-recommends \
+    bc \
+    bison \
+    flex \
+    gcc \
+    libelf-dev \
+    libc-dev \
+    libssl-dev \
+    make \
+    musl-dev \
+    usbutils \
+  && rm -rf /var/lib/apt/lists/*
 
 RUN archive_name="${PLATFORM_DIST_NAME}" \
   && if [ -z "$archive_name" ]; then \
     version_underscored="$(printf '%s' "$PLATFORM_VERSION" | tr '.' '_')"; \
-    if [ -f "/tmp/platform/server64_${version_underscored}.zip" ]; then \
+    if [ -f "/tmp/platform/server.arm.deb64_${PLATFORM_VERSION}.zip" ]; then \
+      archive_name="server.arm.deb64_${PLATFORM_VERSION}.zip"; \
+    elif [ -f "/tmp/platform/server64_${version_underscored}.zip" ]; then \
       archive_name="server64_${version_underscored}.zip"; \
     elif [ -f "/tmp/platform/deb64_${version_underscored}.zip" ]; then \
       archive_name="deb64_${version_underscored}.zip"; \
@@ -46,7 +48,8 @@ RUN archive_name="${PLATFORM_DIST_NAME}" \
     *.zip) \
       mkdir -p /tmp/platform-unpacked \
       && unzip -q "/tmp/platform/${archive_name}" -d /tmp/platform-unpacked \
-      && apt-get -qq update \
+      && rm -rf /var/lib/apt/lists/* \
+      && apt-get -qq update -o Acquire::Retries=5 \
       && apt-get -qq install --yes --no-install-recommends \
         /tmp/platform-unpacked/*.deb \
       ;; \
@@ -70,7 +73,7 @@ RUN chmod +x /createsymlink-current.sh \
 RUN arch="$(dpkg --print-architecture)" \
   && usbip_mode="$ENABLE_USBIP_TOOLS" \
   && if [ "$usbip_mode" = "auto" ]; then \
-       if [ "$arch" = "amd64" ]; then usbip_mode="1"; else usbip_mode="0"; fi; \
+       usbip_mode="0"; \
      fi \
   && if [ "$usbip_mode" = "1" ]; then \
        mkdir /tmp/vhclient \
@@ -80,7 +83,7 @@ RUN arch="$(dpkg --print-architecture)" \
        && make defconfig \
        && ([ ! -f /proc/1/root/proc/config.gz ] || zcat /proc/1/root/proc/config.gz > .config) \
        && printf '%s\n' 'CONFIG_USBIP_CORE=m' 'CONFIG_USBIP_VHCI_HCD=m' 'CONFIG_USBIP_VHCI_HC_PORTS=8' 'CONFIG_USBIP_VHCI_NR_HCS=1' >> .config \
-       && make oldconfig modules_prepare \
+       && yes "" | make oldconfig modules_prepare \
        && make M=drivers/usb/usbip \
        && mkdir -p /dist \
        && cd drivers/usb/usbip \

@@ -7,9 +7,11 @@ services:
       context: .
       dockerfile: server/Dockerfile
       args:
+        COMMON_BASE_IMAGE: ${COMMON_BASE_IMAGE:-mussolene/linux-common-base}
+        COMMON_BASE_TAG: ${COMMON_BASE_TAG:-jammy}
         PLATFORM_VERSION: ${PLATFORM_VERSION:-8.3.22.1851}
         PLATFORM_DIST_NAME: ${PLATFORM_DIST_NAME-}
-        ENABLE_USBIP_TOOLS: ${ENABLE_USBIP_TOOLS:-auto}
+        ENABLE_USBIP_TOOLS: ${ENABLE_USBIP_TOOLS:-0}
     depends_on:
       - 1c-pg
     environment:
@@ -35,11 +37,14 @@ services:
       context: .
       dockerfile: client/Dockerfile
       args:
+        COMMON_BASE_IMAGE: ${COMMON_BASE_IMAGE:-mussolene/linux-common-base}
+        COMMON_BASE_TAG: ${COMMON_BASE_TAG:-jammy}
         DESKTOP_BASE_IMAGE: ${DESKTOP_BASE_IMAGE:-mussolene/linux-desktop-base}
-        DESKTOP_BASE_TAG: ${DESKTOP_BASE_TAG:-bullseye}
+        DESKTOP_BASE_TAG: ${DESKTOP_BASE_TAG:-jammy}
+        ONESCRIPT_BASE_IMAGE: ${ONESCRIPT_BASE_IMAGE:-mussolene/linux-onescript}
+        ONESCRIPT_BASE_TAG: ${ONESCRIPT_BASE_TAG:-2.0.0}
         PLATFORM_VERSION: ${PLATFORM_VERSION:-8.3.22.1851}
         PLATFORM_DIST_NAME: ${PLATFORM_DIST_NAME-}
-        ONESCRIPT_VERSION: ${ONESCRIPT_VERSION:-2.0.0}
         VANESSA_ADD_VERSION: ${VANESSA_ADD_VERSION:-6.9.5}
         VANESSA_RUNNER_VERSION: ${VANESSA_RUNNER_VERSION:-2.6.0}
     depends_on:
@@ -60,7 +65,7 @@ services:
       dockerfile: pg/Dockerfile
       args:
         PG_MAJOR: ${PG_MAJOR:-17}
-        PG_REPO_DIST: ${PG_REPO_DIST:-bullseye}
+        PG_REPO_DIST: ${PG_REPO_DIST:-bookworm}
     image: mussolene/postgresql:1c-${PG_MAJOR:-17}
     restart: always
     environment:
