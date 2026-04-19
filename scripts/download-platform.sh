@@ -18,6 +18,7 @@ and leaves credentials only on the host.
 
 Expected .env variables:
   PLATFORM_VERSION
+  PLATFORM_ARCH
   PLATFORM_DIST_NAME
   ITS_LOGIN
   ITS_PASSWORD
@@ -103,6 +104,7 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
 fi
 
 INPUT_PLATFORM_VERSION="${PLATFORM_VERSION-}"
+INPUT_PLATFORM_ARCH="${PLATFORM_ARCH-}"
 INPUT_PLATFORM_DIST_NAME="${PLATFORM_DIST_NAME-}"
 INPUT_ITS_LOGIN="${ITS_LOGIN-}"
 INPUT_ITS_PASSWORD="${ITS_PASSWORD-}"
@@ -116,10 +118,36 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 PLATFORM_VERSION="${INPUT_PLATFORM_VERSION:-${PLATFORM_VERSION:-8.3.22.1851}}"
-PLATFORM_DIST_NAME="${INPUT_PLATFORM_DIST_NAME:-${PLATFORM_DIST_NAME:-server64_${PLATFORM_VERSION//./_}.tar.gz}}"
+PLATFORM_ARCH="${INPUT_PLATFORM_ARCH:-${PLATFORM_ARCH:-}}"
 PLATFORM_DOWNLOAD_URL="${INPUT_PLATFORM_DOWNLOAD_URL:-${PLATFORM_DOWNLOAD_URL:-}}"
 ITS_LOGIN="${INPUT_ITS_LOGIN:-${ITS_LOGIN:-}}"
 ITS_PASSWORD="${INPUT_ITS_PASSWORD:-${ITS_PASSWORD:-}}"
+if [[ -z "$PLATFORM_ARCH" && -n "${DOCKER_DEFAULT_PLATFORM:-}" ]]; then
+  case "${DOCKER_DEFAULT_PLATFORM##*/}" in
+    amd64|arm64) PLATFORM_ARCH="${DOCKER_DEFAULT_PLATFORM##*/}" ;;
+  esac
+fi
+PLATFORM_ARCH="${PLATFORM_ARCH:-amd64}"
+case "$PLATFORM_ARCH" in
+  amd64|arm64) ;;
+  *)
+    echo "Unsupported PLATFORM_ARCH: $PLATFORM_ARCH" >&2
+    exit 1
+    ;;
+esac
+
+default_dist_name() {
+  local version="$1"
+  local arch="$2"
+  local version_underscored="${version//./_}"
+
+  case "$arch" in
+    arm64) printf 'server.arm.deb64_%s.zip\n' "$version" ;;
+    *) printf 'server64_%s.tar.gz\n' "$version_underscored" ;;
+  esac
+}
+
+PLATFORM_DIST_NAME="${INPUT_PLATFORM_DIST_NAME:-${PLATFORM_DIST_NAME:-$(default_dist_name "$PLATFORM_VERSION" "$PLATFORM_ARCH")}}"
 TARGET_FILE="$PLATFORM_DIR/$PLATFORM_DIST_NAME"
 TEMP_FILE="$TARGET_FILE.part"
 
@@ -232,6 +260,9 @@ download_via_its() {
   seen_candidates="|"
   for candidate in \
     "$PLATFORM_DIST_NAME" \
+    "server.arm.deb64_${PLATFORM_VERSION}.zip" \
+    "client.arm.deb64_${PLATFORM_VERSION}.zip" \
+    "thin.client.arm.deb64_${PLATFORM_VERSION}.zip" \
     "server64_${normalized_version}.tar.gz" \
     "deb64_${normalized_version}.tar.gz" \
     "deb64_${normalized_version}.zip" \

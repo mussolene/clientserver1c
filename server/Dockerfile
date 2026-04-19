@@ -1,12 +1,15 @@
 FROM ubuntu:20.04
 
+ARG TARGETARCH
 ARG PLATFORM_VERSION=8.3.22.1851
 ARG PLATFORM_DIST_NAME
+ARG ENABLE_USBIP_TOOLS=auto
 
 ENV DEBIAN_FRONTEND noninteractive
 ENV GOSU_VERSION 1.13
 ENV PLATFORM_VERSION=${PLATFORM_VERSION}
 ENV PLATFORM_DIST_NAME=${PLATFORM_DIST_NAME}
+ENV ENABLE_USBIP_TOOLS=${ENABLE_USBIP_TOOLS}
 ENV COMPONENT_PLATFORM server
 COPY .local/1c/server-platform/ /tmp/platform/
 COPY artifacts/ /tmp/build-artifacts/
@@ -45,17 +48,13 @@ RUN archive_name="${PLATFORM_DIST_NAME}" \
       && unzip -q "/tmp/platform/${archive_name}" -d /tmp/platform-unpacked \
       && apt-get -qq update \
       && apt-get -qq install --yes --no-install-recommends \
-        /tmp/platform-unpacked/1c-enterprise-${PLATFORM_VERSION}-common_*.deb \
-        /tmp/platform-unpacked/1c-enterprise-${PLATFORM_VERSION}-common-nls_*.deb \
-        /tmp/platform-unpacked/1c-enterprise-${PLATFORM_VERSION}-server_*.deb \
-        /tmp/platform-unpacked/1c-enterprise-${PLATFORM_VERSION}-server-nls_*.deb \
-        /tmp/platform-unpacked/1c-enterprise-${PLATFORM_VERSION}-ws_*.deb \
-        /tmp/platform-unpacked/1c-enterprise-${PLATFORM_VERSION}-ws-nls_*.deb \
-        /tmp/platform-unpacked/1c-enterprise-${PLATFORM_VERSION}-crs_*.deb \
+        /tmp/platform-unpacked/*.deb \
       ;; \
     *) \
       tar -xzvf "/tmp/platform/${archive_name}" \
-      && ./setup-full-$PLATFORM_VERSION-x86_64.run --mode unattended --enable-components $COMPONENT_PLATFORM \
+      && installer="$(find . -maxdepth 1 -name "setup-full-${PLATFORM_VERSION}-*.run" | head -n 1)" \
+      && chmod +x "$installer" \
+      && "$installer" --mode unattended --enable-components $COMPONENT_PLATFORM \
       ;; \
     esac \
   && rm -rf /tmp/* \
@@ -68,21 +67,30 @@ RUN chmod +x /createsymlink-current.sh \
   && /createsymlink-current.sh \
   && rm /createsymlink-current.sh
 
-RUN mkdir /tmp/vhclient \
-  && cd /tmp/vhclient \
-  && curl https://mirrors.edge.kernel.org/pub/linux/kernel/v5.x/linux-5.10.102.tar.gz -o kernel.tar.gz \
-  && tar -xzf kernel.tar.gz --strip-components=1 \
-  && make defconfig \
-  && ([ ! -f /proc/1/root/proc/config.gz ] || zcat /proc/1/root/proc/config.gz > .config) \
-  && printf '%s\n' 'CONFIG_USBIP_CORE=m' 'CONFIG_USBIP_VHCI_HCD=m' 'CONFIG_USBIP_VHCI_HC_PORTS=8' 'CONFIG_USBIP_VHCI_NR_HCS=1' >> .config \
-  && make oldconfig modules_prepare \
-  && make M=drivers/usb/usbip \
-  && mkdir -p /dist \
-  && cd drivers/usb/usbip \
-  && cp usbip-core.ko vhci-hcd.ko /dist \
-  && echo -e '[General]\nAutoFind=0\n' > /dist/.vhui \
-  && curl -fsSL https://www.virtualhere.com/sites/default/files/usbclient/vhclientx86_64 -o /dist/vhclientx86_64 \
-  && chmod +x /dist/vhclientx86_64
+RUN arch="$(dpkg --print-architecture)" \
+  && usbip_mode="$ENABLE_USBIP_TOOLS" \
+  && if [ "$usbip_mode" = "auto" ]; then \
+       if [ "$arch" = "amd64" ]; then usbip_mode="1"; else usbip_mode="0"; fi; \
+     fi \
+  && if [ "$usbip_mode" = "1" ]; then \
+       mkdir /tmp/vhclient \
+       && cd /tmp/vhclient \
+       && curl https://mirrors.edge.kernel.org/pub/linux/kernel/v5.x/linux-5.10.102.tar.gz -o kernel.tar.gz \
+       && tar -xzf kernel.tar.gz --strip-components=1 \
+       && make defconfig \
+       && ([ ! -f /proc/1/root/proc/config.gz ] || zcat /proc/1/root/proc/config.gz > .config) \
+       && printf '%s\n' 'CONFIG_USBIP_CORE=m' 'CONFIG_USBIP_VHCI_HCD=m' 'CONFIG_USBIP_VHCI_HC_PORTS=8' 'CONFIG_USBIP_VHCI_NR_HCS=1' >> .config \
+       && make oldconfig modules_prepare \
+       && make M=drivers/usb/usbip \
+       && mkdir -p /dist \
+       && cd drivers/usb/usbip \
+       && cp usbip-core.ko vhci-hcd.ko /dist \
+       && printf '%s\n' '[General]' 'AutoFind=0' > /dist/.vhui \
+       && curl -fsSL https://www.virtualhere.com/sites/default/files/usbclient/vhclientx86_64 -o /dist/vhclientx86_64 \
+       && chmod +x /dist/vhclientx86_64; \
+     else \
+       echo "Skipping USB/IP helper build on $arch"; \
+     fi
 
 COPY artifacts/config/logcfg.xml /home/usr1cv8/.1cv8/1C/1cv8/conf
 RUN if [ -f /tmp/build-artifacts/nethasp.ini ]; then \

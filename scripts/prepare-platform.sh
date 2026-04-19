@@ -15,14 +15,28 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 PLATFORM_VERSION="${PLATFORM_VERSION:-8.3.22.1851}"
+if [[ -z "${PLATFORM_ARCH:-}" && -n "${DOCKER_DEFAULT_PLATFORM:-}" ]]; then
+  case "${DOCKER_DEFAULT_PLATFORM##*/}" in
+    amd64|arm64) PLATFORM_ARCH="${DOCKER_DEFAULT_PLATFORM##*/}" ;;
+  esac
+fi
+PLATFORM_ARCH="${PLATFORM_ARCH:-amd64}"
 PLATFORM_DIST_NAME="${PLATFORM_DIST_NAME:-}"
 version_underscored="${PLATFORM_VERSION//./_}"
+
+case "$PLATFORM_ARCH" in
+  amd64|arm64) ;;
+  *)
+    echo "Unsupported PLATFORM_ARCH: $PLATFORM_ARCH" >&2
+    exit 1
+    ;;
+esac
 
 mkdir -p "$PLATFORM_CACHE_DIR" "$SERVER_STAGING_DIR" "$CLIENT_STAGING_DIR"
 find "$SERVER_STAGING_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 find "$CLIENT_STAGING_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 
-download_env=(ENV_FILE="$ENV_FILE" PLATFORM_VERSION="$PLATFORM_VERSION")
+download_env=(ENV_FILE="$ENV_FILE" PLATFORM_VERSION="$PLATFORM_VERSION" PLATFORM_ARCH="$PLATFORM_ARCH")
 if [[ -n "$PLATFORM_DIST_NAME" ]]; then
   download_env+=(PLATFORM_DIST_NAME="$PLATFORM_DIST_NAME")
 fi
@@ -48,19 +62,38 @@ copy_to_staging() {
   cp -f "$PLATFORM_CACHE_DIR/$source_name" "$target_dir/"
 }
 
-server_archive="$(resolve_existing_file \
-  "$PLATFORM_DIST_NAME" \
-  "deb64_${version_underscored}.zip" \
-  "server64_${version_underscored}.zip" \
-  "server64_${version_underscored}.tar.gz")"
+if [[ "$PLATFORM_ARCH" == "arm64" ]]; then
+  server_archive="$(resolve_existing_file \
+    "$PLATFORM_DIST_NAME" \
+    "server.arm.deb64_${PLATFORM_VERSION}.zip")"
+else
+  server_archive="$(resolve_existing_file \
+    "$PLATFORM_DIST_NAME" \
+    "deb64_${version_underscored}.zip" \
+    "server64_${version_underscored}.zip" \
+    "server64_${version_underscored}.tar.gz")"
+fi
 copy_to_staging "$server_archive" "$SERVER_STAGING_DIR"
 
-if [[ "$PLATFORM_VERSION" == 8.5.* ]]; then
+if [[ "$PLATFORM_ARCH" == "arm64" ]]; then
+  client_archive="$(resolve_existing_file \
+    "client.arm.deb64_${PLATFORM_VERSION}.zip" \
+    "thin.client.arm.deb64_${PLATFORM_VERSION}.zip" || true)"
+  if [[ -z "$client_archive" ]]; then
+    env ENV_FILE="$ENV_FILE" PLATFORM_VERSION="$PLATFORM_VERSION" PLATFORM_ARCH="$PLATFORM_ARCH" \
+      PLATFORM_DIST_NAME="client.arm.deb64_${PLATFORM_VERSION}.zip" \
+      "$ROOT_DIR/scripts/download-platform.sh"
+    client_archive="$(resolve_existing_file \
+      "client.arm.deb64_${PLATFORM_VERSION}.zip" \
+      "thin.client.arm.deb64_${PLATFORM_VERSION}.zip")"
+  fi
+  copy_to_staging "$client_archive" "$CLIENT_STAGING_DIR"
+elif [[ "$PLATFORM_VERSION" == 8.5.* ]]; then
   full_client_archive="server64_with_all_clients_${version_underscored}.zip"
   full_client_installer="setup-full-${PLATFORM_VERSION}-x86_64.run"
 
   if [[ ! -f "$PLATFORM_CACHE_DIR/$full_client_archive" ]]; then
-    env ENV_FILE="$ENV_FILE" PLATFORM_VERSION="$PLATFORM_VERSION" PLATFORM_DIST_NAME="$full_client_archive" \
+    env ENV_FILE="$ENV_FILE" PLATFORM_VERSION="$PLATFORM_VERSION" PLATFORM_ARCH="$PLATFORM_ARCH" PLATFORM_DIST_NAME="$full_client_archive" \
       "$ROOT_DIR/scripts/download-platform.sh"
   fi
 
