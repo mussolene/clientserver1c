@@ -1,4 +1,6 @@
-volumes
+/volumes/
+/.local/
+.env
 *.tar.gz
 *nethasp.ini
 *.dt
