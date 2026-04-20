@@ -218,6 +218,7 @@ opm install vanessa-runner
 
 - workflow публикует multi-arch образы для `linux/amd64` и `linux/arm64`
 - для внутренних зависимостей цепочки он использует GHCR как промежуточный registry через commit tag `build-<sha>`
+- для `1c-client`, `1c-server` и `postgresql` публикуется дополнительный composite tag вида `platform-<PLATFORM_VERSION>-pg-<PG_1C_VERSION>`
 - publish запускается на `push` в `main` / `master`, на `v*` tags и вручную через `workflow_dispatch`
 
 ## Порты

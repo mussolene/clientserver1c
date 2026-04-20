@@ -106,10 +106,13 @@ jobs:
         run: |
           set -euo pipefail
 
+          stack_tag="platform-${{ steps.cfg.outputs.platform_version }}-pg-${{ steps.cfg.outputs.pg_1c_version }}"
+
           emit_tags() {
             local output_name="$1"
             local image_name="$2"
             local version_tag="$3"
+            local extra_tag="${4:-}"
             local ghcr_base="${GHCR_REGISTRY}/${{ steps.cfg.outputs.ghcr_namespace }}/${image_name}"
             local dockerhub_base="docker.io/${{ steps.cfg.outputs.dockerhub_namespace }}/${image_name}"
             {
@@ -118,6 +121,10 @@ jobs:
               echo "${dockerhub_base}:${BUILD_TAG}"
               echo "${ghcr_base}:${version_tag}"
               echo "${dockerhub_base}:${version_tag}"
+              if [[ -n "${extra_tag}" ]]; then
+                echo "${ghcr_base}:${extra_tag}"
+                echo "${dockerhub_base}:${extra_tag}"
+              fi
               if [[ "${REF_TYPE}" == "branch" && "${REF_NAME}" == "${DEFAULT_BRANCH}" ]]; then
                 echo "${ghcr_base}:latest"
                 echo "${dockerhub_base}:latest"
@@ -135,9 +142,9 @@ jobs:
           emit_tags desktop_base_tags linux-desktop-base "${DESKTOP_BASE_TAG}"
           emit_tags onescript_builder_tags linux-onescript-builder "${ONESCRIPT_BUILD_TAG}"
           emit_tags onescript_tags linux-onescript "${ONESCRIPT_BASE_TAG}"
-          emit_tags pg_tags postgresql "${{ steps.cfg.outputs.pg_1c_version }}"
-          emit_tags server_tags 1c-server "${{ steps.cfg.outputs.platform_version }}"
-          emit_tags client_tags 1c-client "${{ steps.cfg.outputs.platform_version }}"
+          emit_tags pg_tags postgresql "${{ steps.cfg.outputs.pg_1c_version }}" "${stack_tag}"
+          emit_tags server_tags 1c-server "${{ steps.cfg.outputs.platform_version }}" "${stack_tag}"
+          emit_tags client_tags 1c-client "${{ steps.cfg.outputs.platform_version }}" "${stack_tag}"
 
       - name: Build and push linux-common-base
         uses: docker/build-push-action@v6
