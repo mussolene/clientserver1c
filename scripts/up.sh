@@ -11,10 +11,8 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-"$ROOT_DIR/scripts/prepare-platform.sh"
-bash "$ROOT_DIR/scripts/build-common-base.sh"
-bash "$ROOT_DIR/scripts/build-desktop-base.sh"
-bash "$ROOT_DIR/scripts/build-onescript-builder.sh"
-bash "$ROOT_DIR/scripts/build-onescript-base.sh"
+env ENV_FILE="$ENV_FILE" bash "$ROOT_DIR/scripts/ensure-its-env.sh"
 
-exec docker compose up --build "$@"
+docker compose --profile build build 1c-pg 1c-server 1c-client
+
+exec docker compose up "$@"

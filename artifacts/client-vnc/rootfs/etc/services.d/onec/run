@@ -3,4 +3,8 @@
 # https://github.com/just-containers/s6-overlay/issues/165
 export HOME=/root
 
+if [ -x /opt/1cv8/current/1cv8c ]; then
+  exec s6-setuidgid root /opt/1cv8/current/1cv8c
+fi
+
 exec s6-setuidgid root /opt/1cv8/current/1cv8

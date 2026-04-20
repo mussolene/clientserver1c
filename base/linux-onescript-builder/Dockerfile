@@ -9,8 +9,8 @@ ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
 ENV DOTNET_NOLOGO=1
 
 RUN rm -rf /var/lib/apt/lists/* \
-  && apt-get update -o Acquire::Retries=5 \
-  && apt-get install -y --no-install-recommends \
+  && apt-get update -o APT::Sandbox::User=root -o Acquire::Retries=5 \
+  && apt-get install -y -o APT::Sandbox::User=root --no-install-recommends \
     ca-certificates \
     git \
   && case "$TARGETARCH" in \

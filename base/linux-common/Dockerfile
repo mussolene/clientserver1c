@@ -1,38 +1,32 @@
-ARG COMMON_BASE_DIST=jammy
-FROM ubuntu:${COMMON_BASE_DIST}
+ARG COMMON_BASE_DIST=bookworm
+FROM debian:${COMMON_BASE_DIST}-slim
 
-ARG COMMON_BASE_DIST=jammy
+ARG COMMON_BASE_DIST=bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=ru_RU.UTF-8
 
 RUN printf '%s\n' \
   && rm -rf /var/lib/apt/lists/* \
-  && apt-get update -o Acquire::Retries=5 \
+  && if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+       sed -i 's/^Components: main$/Components: main contrib non-free non-free-firmware/' /etc/apt/sources.list.d/debian.sources; \
+     fi \
+  && apt-get update -o APT::Sandbox::User=root -o Acquire::Retries=5 \
   && echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections \
-  && apt-get install -y --no-install-recommends \
-    apt-utils \
-    ca-certificates \
+  && apt-get install -y -o APT::Sandbox::User=root --no-install-recommends \
+    bash \
     cabextract \
+    ca-certificates \
     curl \
-    dirmngr \
     fontconfig \
     gosu \
-    gnupg \
-    htop \
-    imagemagick \
-    iputils-ping \
     libgsf-1-114 \
     locales \
-    mc \
     procps \
-    sudo \
     t1utils \
     ttf-mscorefonts-installer \
     unixodbc \
     unzip \
-    vim \
-    wget \
     xfonts-utils \
   && localedef -i ru_RU -c -f UTF-8 -A /usr/share/locale/locale.alias ru_RU.UTF-8 \
   && gosu nobody true \

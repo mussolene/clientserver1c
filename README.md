@@ -2,207 +2,190 @@
 
 Инфраструктурный репозиторий для локального стенда 1С в Docker.
 
-Состав стенда:
+Основные сервисы:
 
-1. `1c-client` - клиент 1С с VNC
+1. `1c-pg` - `PostgreSQL 1C`
 2. `1c-server` - сервер 1С
-3. `1c-pg` - PostgreSQL для 1С
+3. `1c-client` - клиент 1С с VNC, `OneScript`, `opm`, `Vanessa ADD`, `vanessa-runner`
 
-Отдельно собираются shared base image:
+Поддерживаются сборки для `linux/amd64` и `linux/arm64`.
 
-1. `linux-common-base` - общий системный слой для сервера и клиента
-2. `linux-desktop-base` - GUI-слой для клиента поверх `linux-common-base`: Xfce, VNC и desktop-зависимости
-3. `linux-onescript-builder` - промежуточный build-слой, который скачивает исходники OneScript, собирает `oscript` и раскладывает `opm`
-4. `linux-onescript` - reusable runtime-слой с готовыми `OneScript` и `opm`
+## Как устроена сборка
 
-В клиентский образ также переносятся:
+Основной сценарий теперь идет через `docker compose`, а не через ручной порядок shell-скриптов.
 
-1. `OneScript`
-2. `OPM`
-3. `Vanessa ADD`
-4. `vanessa-runner`
+В `docker-compose.yml` описаны не только прикладные сервисы, но и build-only слои:
 
-Поддерживаются сборки для `amd64` и `arm64` Linux, начиная с платформы `8.3.22`.
+1. `linux-common-base` - общий системный слой
+2. `linux-desktop-base` - GUI/VNC/Xfce слой для клиента
+3. `linux-onescript-builder` - промежуточный build-слой для сборки `OneScript` из исходников
+4. `linux-onescript` - runtime-слой с готовыми `oscript` и `opm`
+5. `1c-pg`
+6. `1c-server`
+7. `1c-client`
+
+Порядок сборки определяется самим `compose` через `additional_contexts: service:...`.
 
 ## Структура
 
-- `client/` - Dockerfile клиентского контейнера
-- `base/linux-common/` - Dockerfile общего common-base образа
-- `base/linux-desktop/` - Dockerfile общего desktop-base образа
-- `base/linux-onescript-builder/` - Dockerfile промежуточного builder-образа для сборки OneScript из исходников
-- `base/linux-onescript/` - Dockerfile общего onescript-base образа
-- `server/` - Dockerfile серверного контейнера
-- `pg/` - Dockerfile PostgreSQL
-- `artifacts/` - общие артефакты для сборки
-- `artifacts/client-vnc/` - rootfs overlay для VNC-клиента
-- `artifacts/config/` - конфиги, которые копируются в образы
-- `artifacts/scripts/` - служебные скрипты сборки
+- `base/linux-common/` - Dockerfile общего base-слоя
+- `base/linux-desktop/` - Dockerfile desktop-слоя
+- `base/linux-onescript-builder/` - Dockerfile builder-слоя `OneScript`
+- `base/linux-onescript/` - Dockerfile runtime-слоя `OneScript`
+- `pg/` - Dockerfile и helper-скрипты для `PostgreSQL 1C`
+- `server/` - Dockerfile серверного контейнера 1С
+- `client/` - Dockerfile клиентского контейнера 1С
+- `scripts/` - вспомогательные shell-скрипты
+- `artifacts/` - overlay, конфиги и вспомогательные файлы для сборки
 
-## Что нужно подготовить локально
-
-В репозиторий не коммитятся локальные бинарные артефакты и чувствительные настройки. Перед сборкой подготовьте:
-
-1. локальный файл `.env` на основе `.env.example`
-
-Архив платформы скачивается локально в скрытую папку `.local/1c/platform/` и не хранится в git.
-Файл `artifacts/nethasp.ini` опционален: добавляйте его только если вашей схеме лицензирования он действительно нужен.
-
-## Запуск
+## Что нужно подготовить
 
 ```bash
 cp .env.example .env
+```
+
+Минимально нужно задать:
+
+- `POSTGRES_PASSWORD`
+- `PLATFORM_VERSION`
+
+Для build-time скачивания с ITS нужны:
+
+- `ITS_LOGIN`
+- `ITS_PASSWORD`
+
+Если `make build` или `make up` запускаются локально из интерактивного терминала и ITS-учетка не задана, скрипт сам спросит логин/пароль и сохранит их в `.env`.
+
+В CI интерактивного prompt нет: там `ITS_LOGIN` и `ITS_PASSWORD` должны быть заданы заранее.
+
+## Основной запуск
+
+```bash
 make up
 ```
 
-Если в `.env` нет `ITS_LOGIN` и `ITS_PASSWORD`, скрипт сам спросит их в CLI при первом скачивании и сохранит в локальный `.env`.
+Эта команда:
 
-Если архив уже скачан или нужен только этап загрузки:
+1. проверяет `.env`
+2. при локальном запуске при необходимости запрашивает ITS-учетку
+3. запускает `docker compose --profile build build 1c-pg 1c-server 1c-client`
+4. затем делает `docker compose up`
+
+Если нужен только build:
 
 ```bash
-make download
 make build
+```
+
+Если нужен только просмотр итогового конфига:
+
+```bash
+make config
 ```
 
 ## Make targets
 
-- `make env` - создать `.env` из `.env.example`, если файла еще нет
-- `make download` - скачать архив платформы в `.local/1c/platform/`; при необходимости запросит ITS-логин и пароль
-- `make prepare-platform` - подготовить локальные staging-каталоги `.local/1c/server-platform/` и `.local/1c/client-platform/` для Docker build
-- `make build-common-base` - собрать shared image `linux-common-base` для сервера и клиента
-- `make build-desktop-base` - собрать shared image `linux-desktop-base` для клиента
-- `make build-onescript-builder` - собрать промежуточный image `linux-onescript-builder`, который скачивает исходники OneScript, собирает `oscript` и раскладывает `opm`
-- `make build-onescript-base` - собрать shared image `linux-onescript`
-- `make up` - скачать платформу при необходимости, при необходимости запросить ITS-логин и пароль, затем поднять стенд; принимает `PG_MAJOR`, `PG_REPO_DIST`, `PLATFORM_VERSION`, `PLATFORM_ARCH`, `DOCKER_DEFAULT_PLATFORM`, `ENABLE_USBIP_TOOLS`, `ONESCRIPT_VERSION`
-- `make build` - собрать образы; принимает `PLATFORM_ARCH`, `DOCKER_DEFAULT_PLATFORM`, `ENABLE_USBIP_TOOLS`, `ONESCRIPT_VERSION`
-- `make config` - проверить `docker compose config`
+- `make env` - создать `.env` из `.env.example`, если его еще нет
+- `make up` - основной сценарий: собрать всю цепочку через `compose` и поднять стенд
+- `make build` - собрать всю цепочку через `compose`, не запуская контейнеры
+- `make config` - проверить итоговый `docker compose config`
 - `make down` - остановить стенд
 - `make ps` - показать состояние контейнеров
 - `make logs` - смотреть логи
-- `make clean-platform` - удалить локальные кэши платформы и staging-каталоги
+
+Низкоуровневые/вспомогательные цели:
+
+- `make build-common-base`
+- `make build-desktop-base`
+- `make build-onescript-builder`
+- `make build-onescript-base`
+
+Offline/helper цели:
+
+- `make download` - скачать архив платформы в `.local/1c/platform/`
+- `make prepare-platform` - подготовить локальные staging-каталоги `.local/1c/server-platform/` и `.local/1c/client-platform/`
+- `make clean-platform` - очистить локальные кэши платформы
+
+Основной online-flow не требует `make download` или `make prepare-platform`.
+
+## Build-time скачивание
+
+### Платформа 1С
+
+`1c-server` и `1c-client` скачивают дистрибутивы платформы прямо во время `docker build` через ITS secrets.
+
+Используется [scripts/download-platform-build.sh](/Users/maxon/git/me/clientserver1c/scripts/download-platform-build.sh:1):
+
+- логин на `login.1c.ru`
+- поиск релиза на `releases.1c.ru`
+- выбор архива по `PLATFORM_VERSION`, `PLATFORM_ARCH`, `TARGETARCH`
+- кэширование через BuildKit cache `id=1c-platform-cache`
+
+Архив не коммитится в git и не остается в финальном образе.
+
+### PostgreSQL 1C
+
+`1c-pg` тоже скачивает пакет во время `docker build` через ITS secrets.
+
+Используется [pg/download-postgresql-1c.sh](/Users/maxon/git/me/clientserver1c/pg/download-postgresql-1c.sh:1):
+
+- логин на `login.1c.ru`
+- поиск релиза в `AddCompPostgre`
+- выбор пакета под нужный дистрибутив и архитектуру
+- установка `.deb` сразу в image
+
+Архив также не хранится в репозитории и не остается в финальном image.
 
 ## Переменные `.env`
 
-- `POSTGRES_PASSWORD` - пароль PostgreSQL для локального стенда
-- `PG_MAJOR` - major-версия PostgreSQL для контейнера БД; по умолчанию `17`
-- `PG_REPO_DIST` - тег базового официального образа `postgres`; по умолчанию `bookworm`
-- `PLATFORM_VERSION` - версия платформы 1С, которая будет скачиваться и использоваться при сборке
-- `PLATFORM_ARCH` - архитектура дистрибутивов платформы 1С из ITS: `amd64` или `arm64`
-- `DOCKER_DEFAULT_PLATFORM` - целевая Docker-платформа для cross-build/run; обычно пусто, для явного cross-build можно задать `linux/amd64` или `linux/arm64`
-- `ENABLE_USBIP_TOOLS` - собирать ли USB/IP и `VirtualHere` helper в серверном образе; по умолчанию `0`, включайте только явно при необходимости
-- `COMMON_BASE_IMAGE` - имя shared common base image; по умолчанию `mussolene/linux-common-base`
-- `COMMON_BASE_TAG` - тег shared common base image; по умолчанию `jammy`
-- `COMMON_BASE_DIST` - базовый Ubuntu tag для сборки shared common base image; по умолчанию `jammy`
-- `DESKTOP_BASE_IMAGE` - имя shared desktop base image; по умолчанию `mussolene/linux-desktop-base`
-- `DESKTOP_BASE_TAG` - тег shared desktop base image; по умолчанию `jammy`
-- `ONESCRIPT_BASE_IMAGE` - имя shared onescript base image; по умолчанию `mussolene/linux-onescript`
-- `ONESCRIPT_BASE_TAG` - тег shared onescript base image; по умолчанию `2.0.0`
-- `ONESCRIPT_BASE_DIST` - базовый Ubuntu tag для сборки shared onescript base image; по умолчанию `jammy`
-- `ONESCRIPT_BUILD_IMAGE` - имя промежуточного build image для сборки OneScript из исходников; по умолчанию `mussolene/linux-onescript-builder`
-- `ONESCRIPT_BUILD_TAG` - тег промежуточного build image; по умолчанию `2.0.0`
-- `ONESCRIPT_SDK_IMAGE` - базовый SDK image для containerized сборки OneScript; по умолчанию `mcr.microsoft.com/dotnet/sdk:8.0`
-- `ONESCRIPT_VERSION` - версия `OneScript`, чей git tag `v<version>` будет скачан и собран в builder-слое
-- `VANESSA_ADD_VERSION` - версия пакета `add`, устанавливаемого через `opm`; по умолчанию `6.9.5`
-- `VANESSA_RUNNER_VERSION` - версия пакета `vanessa-runner`, устанавливаемого через `opm`; по умолчанию `2.6.0`
-- `ITS_LOGIN` и `ITS_PASSWORD` - учетка для `login.1c.ru` / `releases.1c.ru`; если не заданы, будут запрошены интерактивно и сохранены в `.env`
+- `POSTGRES_PASSWORD` - пароль PostgreSQL
+- `PG_MAJOR` - major-ветка PostgreSQL, по умолчанию `17`
+- `PG_1C_VERSION` - версия `PostgreSQL 1C`, по умолчанию `17.7-1.1C`
+- `PG_REPO_DIST` - целевой дистрибутив пакета `PostgreSQL 1C`, по умолчанию `bookworm`
+- `PLATFORM_VERSION` - версия платформы 1С
+- `PLATFORM_ARCH` - `amd64` или `arm64`
+- `DOCKER_DEFAULT_PLATFORM` - платформа Docker для явного cross-build, например `linux/amd64` или `linux/arm64`
+- `COMMON_BASE_IMAGE`, `COMMON_BASE_TAG`, `COMMON_BASE_DIST` - параметры общего base-слоя
+- `DESKTOP_BASE_IMAGE`, `DESKTOP_BASE_TAG` - параметры desktop-слоя
+- `ONESCRIPT_BUILD_IMAGE`, `ONESCRIPT_BUILD_TAG`, `ONESCRIPT_SDK_IMAGE`, `ONESCRIPT_VERSION` - параметры сборки `OneScript`
+- `ONESCRIPT_BASE_IMAGE`, `ONESCRIPT_BASE_TAG` - параметры runtime-слоя `OneScript`
+- `VANESSA_ADD_VERSION` - версия пакета `add`
+- `VANESSA_RUNNER_VERSION` - версия пакета `vanessa-runner`
+- `ITS_LOGIN`, `ITS_PASSWORD` - учетные данные ITS
 
-По умолчанию downloader пытается найти файл нужной версии на `releases.1c.ru`, скачать его в `.local/1c/platform/`, а затем Dockerfile берут архив уже оттуда. Учетные данные остаются только на хосте и не попадают в образ.
+## Архитектура
 
-Общие системные зависимости вынесены в `linux-common-base`, тяжелый GUI/VNC слой вынесен в `linux-desktop-base`, а `OneScript` вынесен в связку `linux-onescript-builder` -> `linux-onescript`.
-
-Итоговая иерархия такая:
-
-1. `linux-common-base`
-2. `linux-desktop-base` = `linux-common-base` + GUI
-3. `1c-server` = `linux-common-base` + серверная платформа 1С
-4. `1c-client` = `linux-desktop-base` + `linux-onescript` + клиентская платформа 1С + `Vanessa`
-
-Это позволяет отдельно кэшировать общий системный слой, отдельно GUI-слой и отдельно containerized сборку OneScript из исходников.
-
-OneScript собирается уже на этапе `docker build` промежуточного `linux-onescript-builder`. Там повторяется upstream-like packaging: раскладывается `opm` и подтягиваются базовые системные пакеты OneScript. Пакеты `add` и `vanessa-runner` затем ставятся уже в `1c-client` штатно через `opm install`.
-
-Штатный upstream packaging у OneScript не содержит `linux-arm64`, но прямой containerized `dotnet publish` по `src/oscript/oscript.csproj` для `linux-arm64` работает. Поэтому `arm64`-вариант здесь собирается именно из исходников в builder-слое, а не через upstream ZIP.
-
-## Версия сборки
-
-Версию можно задать двумя способами:
-
-1. Постоянно через `.env`:
+По умолчанию:
 
 ```bash
-PLATFORM_VERSION=8.3.24.1548
+PLATFORM_ARCH=amd64
 ```
 
-2. Разово в команде:
-
-```bash
-make up PLATFORM_VERSION=8.3.24.1548
-```
-
-## Архитектура сборки
-
-По умолчанию репозиторий собирает `amd64`-вариант платформы. Для нативной `arm64`-сборки на ARM-хосте:
+Для нативной ARM-сборки:
 
 ```bash
 make build PLATFORM_ARCH=arm64
 ```
 
-Для cross-build:
+Для явного cross-build:
 
 ```bash
 make build PLATFORM_ARCH=arm64 DOCKER_DEFAULT_PLATFORM=linux/arm64
+make build PLATFORM_ARCH=amd64 DOCKER_DEFAULT_PLATFORM=linux/amd64
 ```
 
-Практический нюанс для `8.5.1.1150`: ITS отдает отдельные ARM-архивы `server.arm.deb64_8.5.1.1150.zip` и `client.arm.deb64_8.5.1.1150.zip`. В этом релизе клиентский ARM-архив содержит `thin-client` пакеты, поэтому ARM-клиент сейчас собирается из них, тогда как на `amd64` для `8.5.x` используется full client.
+## OneScript и Vanessa
 
-## Типовой сценарий
+`OneScript` собирается из исходников в `linux-onescript-builder`, затем переносится в `linux-onescript`, а пакеты:
 
-```bash
-make env
-make up
-```
+- `add`
+- `vanessa-runner`
 
-1. `make env` создаст `.env`, если его еще нет
-2. `make up` при необходимости спросит ITS-логин и пароль, сохранит их в `.env`, соберет `linux-common-base`, `linux-desktop-base`, `linux-onescript-builder` и `linux-onescript`, скачает платформу и поднимет контейнеры
-
-Если нужно отдельно прогреть только shared base image:
+ставятся уже в `1c-client` штатно через:
 
 ```bash
-make build-common-base
-make build-desktop-base
-make build-onescript-builder
-make build-onescript-base
-```
-
-## Версия PostgreSQL
-
-По умолчанию контейнер БД собирается на официальном образе `postgres:17-bookworm`. Это наиболее переносимый вариант для локальной сборки на разных хостах и архитектурах; major-версию и distro tag при необходимости можно переопределить через переменные окружения.
-
-Переопределить можно через `.env`:
-
-```bash
-PG_MAJOR=17
-PG_REPO_DIST=bookworm
-```
-
-или разово:
-
-```bash
-make up PG_MAJOR=16
-make build PG_MAJOR=17 PG_REPO_DIST=bookworm
-```
-
-## OneScript
-
-По умолчанию `1c-client` собирается вместе с `OneScript`. Переопределить версию можно через `.env`:
-
-```bash
-ONESCRIPT_VERSION=2.0.0
-```
-
-или разово:
-
-```bash
-make build ONESCRIPT_VERSION=2.0.0
+opm install add
+opm install vanessa-runner
 ```
 
 После сборки в клиентском контейнере доступны:
@@ -213,11 +196,12 @@ make build ONESCRIPT_VERSION=2.0.0
 
 ## Порты
 
-- клиент VNC: `localhost:5900`
-- сервер 1С: `1540-1541`, `1560-1691`, `1545`
-- PostgreSQL: `5432`
+- `1c-client` VNC: `5900`
+- `1c-server`: `1540-1541`, `1560-1691`, `1545`
+- `1c-pg`: `5432`
 
 ## Замечания
 
-- `docker-compose.yml` настроен для локального стенда, не для production
-- пароль БД задается через `.env`, а не хранится в git
+- `artifacts/nethasp.ini` опционален
+- `.env` и `.local/` не коммитятся
+- `docker-compose.yml` настроен под локальный стенд, не под production

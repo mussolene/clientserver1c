@@ -1,4 +1,47 @@
 services:
+  linux-common-base:
+    profiles: ["build"]
+    image: ${COMMON_BASE_IMAGE:-mussolene/linux-common-base}:${COMMON_BASE_TAG:-bookworm}
+    build:
+      context: .
+      dockerfile: base/linux-common/Dockerfile
+      args:
+        COMMON_BASE_DIST: ${COMMON_BASE_DIST:-bookworm}
+
+  linux-desktop-base:
+    profiles: ["build"]
+    image: ${DESKTOP_BASE_IMAGE:-mussolene/linux-desktop-base}:${DESKTOP_BASE_TAG:-bookworm}
+    build:
+      context: .
+      dockerfile: base/linux-desktop/Dockerfile
+      additional_contexts:
+        common_base: service:linux-common-base
+      args:
+        COMMON_BASE_IMAGE: common_base
+
+  linux-onescript-builder:
+    profiles: ["build"]
+    image: ${ONESCRIPT_BUILD_IMAGE:-mussolene/linux-onescript-builder}:${ONESCRIPT_BUILD_TAG:-2.0.0}
+    build:
+      context: .
+      dockerfile: base/linux-onescript-builder/Dockerfile
+      args:
+        ONESCRIPT_SDK_IMAGE: ${ONESCRIPT_SDK_IMAGE:-mcr.microsoft.com/dotnet/sdk:8.0}
+        ONESCRIPT_VERSION: ${ONESCRIPT_VERSION:-2.0.0}
+
+  linux-onescript:
+    profiles: ["build"]
+    image: ${ONESCRIPT_BASE_IMAGE:-mussolene/linux-onescript}:${ONESCRIPT_BASE_TAG:-2.0.0}
+    build:
+      context: .
+      dockerfile: base/linux-onescript/Dockerfile
+      additional_contexts:
+        common_base: service:linux-common-base
+        onescript_build: service:linux-onescript-builder
+      args:
+        COMMON_BASE_IMAGE: common_base
+        ONESCRIPT_BUILD_IMAGE: onescript_build
+
   1c-server:
     image: mussolene/1c-server:${PLATFORM_VERSION:-8.3.22.1851}
     hostname: srv1c
@@ -6,12 +49,15 @@ services:
     build:
       context: .
       dockerfile: server/Dockerfile
+      additional_contexts:
+        common_base: service:linux-common-base
       args:
-        COMMON_BASE_IMAGE: ${COMMON_BASE_IMAGE:-mussolene/linux-common-base}
-        COMMON_BASE_TAG: ${COMMON_BASE_TAG:-jammy}
+        COMMON_BASE_IMAGE: common_base
         PLATFORM_VERSION: ${PLATFORM_VERSION:-8.3.22.1851}
         PLATFORM_DIST_NAME: ${PLATFORM_DIST_NAME-}
-        ENABLE_USBIP_TOOLS: ${ENABLE_USBIP_TOOLS:-0}
+      secrets:
+        - its_login
+        - its_password
     depends_on:
       - 1c-pg
     environment:
@@ -22,10 +68,10 @@ services:
     ports:
       - "1540-1541:1540-1541"
       - "1560-1691:1560-1691"
-      - 1545:1545
-      - 67:67/udp
-      - 475:475/udp
-      - 5901:5900
+      - "1545:1545"
+      - "67:67/udp"
+      - "475:475/udp"
+      - "5901:5900"
     networks:
       debug_def:
         ipv4_address: 172.16.1.3
@@ -36,22 +82,24 @@ services:
     build:
       context: .
       dockerfile: client/Dockerfile
+      additional_contexts:
+        desktop_base: service:linux-desktop-base
+        onescript_base: service:linux-onescript
       args:
-        COMMON_BASE_IMAGE: ${COMMON_BASE_IMAGE:-mussolene/linux-common-base}
-        COMMON_BASE_TAG: ${COMMON_BASE_TAG:-jammy}
-        DESKTOP_BASE_IMAGE: ${DESKTOP_BASE_IMAGE:-mussolene/linux-desktop-base}
-        DESKTOP_BASE_TAG: ${DESKTOP_BASE_TAG:-jammy}
-        ONESCRIPT_BASE_IMAGE: ${ONESCRIPT_BASE_IMAGE:-mussolene/linux-onescript}
-        ONESCRIPT_BASE_TAG: ${ONESCRIPT_BASE_TAG:-2.0.0}
+        DESKTOP_BASE_IMAGE: desktop_base
+        ONESCRIPT_BASE_IMAGE: onescript_base
         PLATFORM_VERSION: ${PLATFORM_VERSION:-8.3.22.1851}
         PLATFORM_DIST_NAME: ${PLATFORM_DIST_NAME-}
         VANESSA_ADD_VERSION: ${VANESSA_ADD_VERSION:-6.9.5}
         VANESSA_RUNNER_VERSION: ${VANESSA_RUNNER_VERSION:-2.6.0}
+      secrets:
+        - its_login
+        - its_password
     depends_on:
       - 1c-pg
       - 1c-server
     ports:
-      - 5900:5900
+      - "5900:5900"
     networks:
       debug_def:
         ipv4_address: 172.16.1.2
@@ -60,13 +108,20 @@ services:
       - ./volumes/1c-client/cache:/root/.1cv8/1C/1cv8/
 
   1c-pg:
+    image: mussolene/postgresql:${PG_1C_VERSION:-17.7-1.1C}
     build:
       context: .
       dockerfile: pg/Dockerfile
+      additional_contexts:
+        common_base: service:linux-common-base
       args:
         PG_MAJOR: ${PG_MAJOR:-17}
+        COMMON_BASE_IMAGE: common_base
         PG_REPO_DIST: ${PG_REPO_DIST:-bookworm}
-    image: mussolene/postgresql:1c-${PG_MAJOR:-17}
+        PG_1C_VERSION: ${PG_1C_VERSION:-17.7-1.1C}
+      secrets:
+        - its_login
+        - its_password
     restart: always
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?copy .env.example to .env and set POSTGRES_PASSWORD}
@@ -75,7 +130,7 @@ services:
       LC_ALL: ru_RU.UTF-8
       POSTGRES_INITDB_ARGS: -EUTF-8
     ports:
-      - 5432:5432
+      - "5432:5432"
     networks:
       debug_def:
         ipv4_address: 172.16.1.4
@@ -86,3 +141,9 @@ networks:
     ipam:
       config:
         - subnet: 172.16.1.0/24
+
+secrets:
+  its_login:
+    environment: ITS_LOGIN
+  its_password:
+    environment: ITS_PASSWORD

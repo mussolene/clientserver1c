@@ -1,9 +1,7 @@
-ARG DESKTOP_BASE_IMAGE=mussolene/linux-desktop-base
-ARG DESKTOP_BASE_TAG=jammy
-ARG ONESCRIPT_BASE_IMAGE=mussolene/linux-onescript
-ARG ONESCRIPT_BASE_TAG=2.0.0
-FROM ${ONESCRIPT_BASE_IMAGE}:${ONESCRIPT_BASE_TAG} AS onescript_base
-FROM ${DESKTOP_BASE_IMAGE}:${DESKTOP_BASE_TAG}
+ARG DESKTOP_BASE_IMAGE=mussolene/linux-desktop-base:bookworm
+ARG ONESCRIPT_BASE_IMAGE=mussolene/linux-onescript:2.0.0
+FROM ${ONESCRIPT_BASE_IMAGE} AS onescript_base
+FROM ${DESKTOP_BASE_IMAGE}
 
 ARG TARGETARCH
 ARG PLATFORM_VERSION=8.3.22.1851
@@ -17,61 +15,45 @@ ENV COMPONENT_PLATFORM=client_full
 ENV ONESCRIPT_ROOT=/opt/onescript
 ENV PATH=/opt/onescript:/opt/onescript/bin:${PATH}
 ENV OSCRIPT_CONFIG=lib.system=/opt/onescript/lib
+ENV OPM_CONFIG=/opt/onescript/opm.cfg
 ENV OSCRIPTBIN=/opt/onescript/bin
-COPY .local/1c/client-platform/ /tmp/platform/
 COPY artifacts/ /tmp/build-artifacts/
+COPY scripts/download-platform-build.sh /usr/local/bin/download-platform-build.sh
+COPY artifacts/client-vnc/rootfs/etc/services.d/onec/run /etc/services.d/onec/run
 COPY --from=onescript_base /opt/onescript /opt/onescript
 COPY --from=onescript_base /usr/local/bin/oscript /usr/local/bin/oscript
 COPY --from=onescript_base /usr/local/bin/opm /usr/local/bin/opm
 
-RUN archive_name="${PLATFORM_DIST_NAME}" \
-  && if [ -z "$archive_name" ]; then \
-    version_underscored="$(printf '%s' "$PLATFORM_VERSION" | tr '.' '_')"; \
-    installer_path="$(find /tmp/platform -maxdepth 1 -name "setup-full-${PLATFORM_VERSION}-*.run" | head -n 1)"; \
-    alt_installer_path="$(find /tmp/platform -maxdepth 1 -name "all-clients-distr-${PLATFORM_VERSION}-*.run" | head -n 1)"; \
-    if [ -n "$installer_path" ]; then \
-      archive_name="$(basename "$installer_path")"; \
-    elif [ -n "$alt_installer_path" ]; then \
-      archive_name="$(basename "$alt_installer_path")"; \
-    elif [ -f "/tmp/platform/server64_with_all_clients_${version_underscored}.zip" ]; then \
-      archive_name="server64_with_all_clients_${version_underscored}.zip"; \
-    elif [ -f "/tmp/platform/client.arm.deb64_${PLATFORM_VERSION}.zip" ]; then \
-      archive_name="client.arm.deb64_${PLATFORM_VERSION}.zip"; \
-    elif [ -f "/tmp/platform/thin.client.arm.deb64_${PLATFORM_VERSION}.zip" ]; then \
-      archive_name="thin.client.arm.deb64_${PLATFORM_VERSION}.zip"; \
-    elif [ -f "/tmp/platform/server64_with_clients_${version_underscored}.zip" ]; then \
-      archive_name="server64_with_clients_${version_underscored}.zip"; \
-    elif [ -f "/tmp/platform/client_${version_underscored}.deb64.zip" ]; then \
-      archive_name="client_${version_underscored}.deb64.zip"; \
-    elif [ -f "/tmp/platform/thin.client_${version_underscored}.deb64.zip" ]; then \
-      archive_name="thin.client_${version_underscored}.deb64.zip"; \
-    else \
-      archive_name="server64_${version_underscored}.tar.gz"; \
-    fi; \
-  fi \
-  && test -f "/tmp/platform/${archive_name}" \
+RUN --mount=type=cache,id=1c-platform-cache,target=/var/cache/1c-platform \
+    --mount=type=secret,id=its_login \
+    --mount=type=secret,id=its_password \
+    chmod +x /usr/local/bin/download-platform-build.sh \
+  && archive_path="$(PLATFORM_COMPONENT=client PLATFORM_VERSION="$PLATFORM_VERSION" PLATFORM_DIST_NAME="$PLATFORM_DIST_NAME" TARGETARCH="$TARGETARCH" /usr/local/bin/download-platform-build.sh)" \
   && cd /tmp \
-  && case "$archive_name" in \
+  && case "$archive_path" in \
     *.run) \
-      chmod +x "/tmp/platform/${archive_name}" \
-      && "/tmp/platform/${archive_name}" --mode unattended --enable-components "$COMPONENT_PLATFORM" \
+      chmod +x "$archive_path" \
+      && "$archive_path" --mode unattended --enable-components "$COMPONENT_PLATFORM" \
       ;; \
     *.zip) \
       mkdir -p /tmp/platform-unpacked \
-      && unzip -q "/tmp/platform/${archive_name}" -d /tmp/platform-unpacked \
+      && unzip -q "$archive_path" -d /tmp/platform-unpacked \
       && installer="$(find /tmp/platform-unpacked -maxdepth 1 -name "setup-full-${PLATFORM_VERSION}-*.run" | head -n 1)" \
       && if [ -n "$installer" ]; then \
            chmod +x "$installer" \
            && "$installer" --mode unattended --enable-components "$COMPONENT_PLATFORM"; \
          else \
            rm -rf /var/lib/apt/lists/* \
-           && apt-get -qq update -o Acquire::Retries=5 \
-           && apt-get -qq install --yes --no-install-recommends \
+           && apt-get -qq update -o APT::Sandbox::User=root -o Acquire::Retries=5 \
+           && apt-get -qq install --yes --no-install-recommends -o APT::Sandbox::User=root \
+             bash \
+           && ln -sf /usr/bin/bash /bin/bash \
+           && apt-get -qq install --yes --no-install-recommends -o APT::Sandbox::User=root \
              /tmp/platform-unpacked/*.deb; \
          fi \
       ;; \
     *) \
-      tar -xzvf "/tmp/platform/${archive_name}" \
+      tar -xzvf "$archive_path" \
       && installer="$(find . -maxdepth 1 -name "setup-full-${PLATFORM_VERSION}-*.run" | head -n 1)" \
       && chmod +x "$installer" \
       && "$installer" --mode unattended --enable-components "$COMPONENT_PLATFORM" \

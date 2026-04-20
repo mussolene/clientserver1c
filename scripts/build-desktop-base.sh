@@ -12,13 +12,12 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 DESKTOP_BASE_IMAGE="${DESKTOP_BASE_IMAGE:-mussolene/linux-desktop-base}"
-DESKTOP_BASE_TAG="${DESKTOP_BASE_TAG:-jammy}"
+DESKTOP_BASE_TAG="${DESKTOP_BASE_TAG:-bookworm}"
 COMMON_BASE_IMAGE="${COMMON_BASE_IMAGE:-mussolene/linux-common-base}"
-COMMON_BASE_TAG="${COMMON_BASE_TAG:-jammy}"
+COMMON_BASE_TAG="${COMMON_BASE_TAG:-bookworm}"
 
 build_args=(
-  "--build-arg" "COMMON_BASE_IMAGE=${COMMON_BASE_IMAGE}"
-  "--build-arg" "COMMON_BASE_TAG=${COMMON_BASE_TAG}"
+  "--build-arg" "COMMON_BASE_IMAGE=${COMMON_BASE_IMAGE}:${COMMON_BASE_TAG}"
   "-f" "$ROOT_DIR/base/linux-desktop/Dockerfile"
   "-t" "${DESKTOP_BASE_IMAGE}:${DESKTOP_BASE_TAG}"
 )
