@@ -231,8 +231,9 @@ opm install vanessa-runner
 
 Практический нюанс:
 
-- workflow публикует multi-arch образы для `linux/amd64` и `linux/arm64`
-- для внутренних зависимостей цепочки он использует GHCR как промежуточный registry через commit tag `build-<sha>`
+- workflow публикует multi-arch образы для `linux/amd64` и `linux/arm64` только для базовых слоев и `postgresql`
+- `1c-server` и `1c-client` публикуются только как `linux/amd64`, потому что full Linux-дистрибутивы 1С для ARM в текущих релизах не дают стабильную сборку сервера и полного клиента
+- для внутренних зависимостей цепочки workflow использует GHCR как промежуточный registry через commit tag `build-<sha>`
 - publish запускается на `push` в `main` / `master`, на `v*` tags и вручную через `workflow_dispatch`
 
 ## Порты

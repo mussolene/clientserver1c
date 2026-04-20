@@ -22,7 +22,8 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       BUILD_TAG: build-${{ github.sha }}
-      PLATFORMS: linux/amd64,linux/arm64
+      PLATFORMS_MULTIARCH: linux/amd64,linux/arm64
+      PLATFORMS_ONEC: linux/amd64
       GHCR_REGISTRY: ghcr.io
       REPO_URL: ${{ github.server_url }}/${{ github.repository }}
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -144,7 +145,7 @@ jobs:
         with:
           context: .
           file: ./base/linux-common/Dockerfile
-          platforms: ${{ env.PLATFORMS }}
+          platforms: ${{ env.PLATFORMS_MULTIARCH }}
           pull: true
           push: true
           build-args: |
@@ -161,7 +162,7 @@ jobs:
         with:
           context: .
           file: ./base/linux-desktop/Dockerfile
-          platforms: ${{ env.PLATFORMS }}
+          platforms: ${{ env.PLATFORMS_MULTIARCH }}
           pull: true
           push: true
           build-args: |
@@ -180,7 +181,7 @@ jobs:
         with:
           context: .
           file: ./base/linux-onescript-builder/Dockerfile
-          platforms: ${{ env.PLATFORMS }}
+          platforms: ${{ env.PLATFORMS_MULTIARCH }}
           pull: true
           push: true
           build-args: |
@@ -198,7 +199,7 @@ jobs:
         with:
           context: .
           file: ./base/linux-onescript/Dockerfile
-          platforms: ${{ env.PLATFORMS }}
+          platforms: ${{ env.PLATFORMS_MULTIARCH }}
           pull: true
           push: true
           build-args: |
@@ -219,7 +220,7 @@ jobs:
         with:
           context: .
           file: ./pg/Dockerfile
-          platforms: ${{ env.PLATFORMS }}
+          platforms: ${{ env.PLATFORMS_MULTIARCH }}
           pull: true
           push: true
           build-args: |
@@ -241,7 +242,7 @@ jobs:
         with:
           context: .
           file: ./server/Dockerfile
-          platforms: ${{ env.PLATFORMS }}
+          platforms: ${{ env.PLATFORMS_ONEC }}
           pull: true
           push: true
           build-args: |
@@ -264,7 +265,7 @@ jobs:
         with:
           context: .
           file: ./client/Dockerfile
-          platforms: ${{ env.PLATFORMS }}
+          platforms: ${{ env.PLATFORMS_ONEC }}
           pull: true
           push: true
           build-args: |
