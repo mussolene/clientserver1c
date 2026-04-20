@@ -103,6 +103,7 @@ make up-server
 Дополнительные переменные:
 
 - `ONEC_FILE_DB_PATH` - путь к файловой ИБ в режиме `file-db`, по умолчанию `/mnt/data/testdb`
+- `ONEC_DISABLE_UNSAFE_ACTION_PROTECTION` - значение для `DisableUnsafeActionProtection` в `conf.cfg`, по умолчанию `.*` для developer-стенда
 - `SRV1CV8_PORT`, `SRV1CV8_REGPORT`, `SRV1CV8_RANGE`, `SRV1CV8_DEBUG` - параметры server-mode
 
 ## Платформа 1С
@@ -144,6 +145,14 @@ Compose использует:
 - `./volumes/1c-dev/data:/mnt/data`
 - `./volumes/1c-dev/cache:/root/.1cv8/1C/1cv8/`
 - `onec-license-store:/var/1C/licenses`
+
+При старте `1c-dev` runtime-скрипт прописывает `DisableUnsafeActionProtection` в `conf.cfg` по Linux-путям платформы:
+
+- `/opt/1cv8/current/conf/conf.cfg`
+- `/opt/1cv8/conf/conf.cfg`
+- `/root/.1cv8/1C/1cv8/conf/conf.cfg`
+
+Это нужно для запуска Vanessa/external EPF без модального предупреждения безопасности внутри developer-контейнера.
 
 ## Порты
 

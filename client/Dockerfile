@@ -93,8 +93,15 @@ if [[ -z "$installer_path" ]]; then
   exit 1
 fi
 
+installer_name="$(basename "$installer_path")"
+enable_components="client_full,server,ws,server_admin,config_storage_server,additional_admin_functions,integrity_monitoring,liberica_jre,ru"
+
 chmod +x "$installer_path"
-"$installer_path" --mode unattended
+cd "$tmp_installer_dir"
+"./$installer_name" \
+  --mode unattended \
+  --unattendedmodeui none \
+  --enable-components "$enable_components"
 rm -rf "$unpack_dir"/* "$tmp_installer_dir"/* /tmp/*.run /tmp/*.tar.gz /tmp/*.zip
 EOF
 
@@ -103,6 +110,35 @@ COPY artifacts/scripts/createsymlink-current.sh /createsymlink-current.sh
 RUN chmod +x /createsymlink-current.sh \
   && /createsymlink-current.sh \
   && rm /createsymlink-current.sh
+
+RUN bash -euxo pipefail <<'EOF'
+check_binary() {
+  local binary_name="$1"
+  local binary_path
+
+  binary_path="$(find /opt/1cv8 -type f -name "$binary_name" | head -n 1)"
+  if [[ -z "$binary_path" ]]; then
+    echo "Required 1C binary is missing after install: $binary_name" >&2
+    exit 1
+  fi
+
+  if ldd "$binary_path" | grep -q 'not found'; then
+    echo "Installed 1C binary has unresolved shared libraries: $binary_path" >&2
+    ldd "$binary_path" >&2
+    exit 1
+  fi
+}
+
+for required_binary in 1cv8 1cv8c ragent rmngr ras; do
+  check_binary "$required_binary"
+done
+
+uiproxy_path="$(find /opt/1cv8 -type f -name 'uiproxywx.so' | head -n 1)"
+if [[ -z "$uiproxy_path" ]]; then
+  echo "Required 1C UI runtime library is missing after install: uiproxywx.so" >&2
+  exit 1
+fi
+EOF
 
 RUN (opm install "add@${VANESSA_ADD_VERSION}" || opm install add) \
   && (opm install "vanessa-runner@${VANESSA_RUNNER_VERSION}" || opm install vanessa-runner) \

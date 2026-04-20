@@ -9,6 +9,53 @@ srv_debug="${SRV1CV8_DEBUG:-1}"
 srv_port="${SRV1CV8_PORT:-1540}"
 srv_regport="${SRV1CV8_REGPORT:-1541}"
 srv_range="${SRV1CV8_RANGE:-1560:1691}"
+disable_unsafe_actions_pattern="${ONEC_DISABLE_UNSAFE_ACTION_PROTECTION:-.*}"
+
+ensure_conf_line() {
+  conf_file="$1"
+  desired_line="$2"
+  conf_dir="$(dirname "$conf_file")"
+
+  mkdir -p "$conf_dir"
+  if [ -f "$conf_file" ] && grep -q '^DisableUnsafeActionProtection=' "$conf_file"; then
+    tmp_file="${conf_file}.tmp.$$"
+    awk -v desired="$desired_line" '
+      BEGIN { replaced = 0 }
+      /^DisableUnsafeActionProtection=/ {
+        if (!replaced) {
+          print desired
+          replaced = 1
+        }
+        next
+      }
+      { print }
+      END {
+        if (!replaced) {
+          print desired
+        }
+      }
+    ' "$conf_file" >"$tmp_file"
+    mv "$tmp_file" "$conf_file"
+  else
+    {
+      if [ -f "$conf_file" ]; then
+        cat "$conf_file"
+        printf '\n'
+      fi
+      printf '%s\n' "$desired_line"
+    } >"$conf_file"
+  fi
+}
+
+configure_unsafe_action_protection() {
+  [ -n "$disable_unsafe_actions_pattern" ] || return 0
+
+  managed_line="DisableUnsafeActionProtection=${disable_unsafe_actions_pattern}"
+
+  ensure_conf_line /opt/1cv8/conf/conf.cfg "$managed_line"
+  ensure_conf_line /opt/1cv8/current/conf/conf.cfg "$managed_line"
+  ensure_conf_line "$HOME/.1cv8/1C/1cv8/conf/conf.cfg" "$managed_line"
+}
 
 run_as() {
   target_user="$1"
@@ -19,6 +66,8 @@ run_as() {
 
   exec s6-setuidgid root "$@"
 }
+
+configure_unsafe_action_protection
 
 case "$runtime_mode" in
   license-ui)
