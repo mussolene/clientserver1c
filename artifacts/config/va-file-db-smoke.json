@@ -1,0 +1,41 @@
+{
+  "$schema": "https://github.com/vanessa-opensource/vanessa-runner/develop/behavior-schema.json",
+  "ИмяСборки": "file-db-smoke",
+  "СтрокаПодключенияКБазе": "/F/mnt/data/testdb",
+  "ПутьКVanessaADD": "/opt/onescript/lib/add/bddRunner.epf",
+  "КаталогПроекта": "/mnt/data/workspace",
+  "КаталогФич": "/mnt/data/workspace/tests/ui/smoke",
+  "КаталогиБиблиотек": [
+    "/opt/onescript/lib/add/features/libraries"
+  ],
+  "ВыполнитьСценарии": true,
+  "ЗавершитьРаботуСистемы": true,
+  "ЗакрытьTestClientПослеЗапускаСценариев": true,
+  "ВыводитьВЛогВыполнениеШагов": true,
+  "ДелатьЛогВыполненияСценариевВЖР": true,
+  "ВыгружатьСтатусВыполненияСценариевВФайл": true,
+  "ПутьКФайлуДляВыгрузкиСтатусаВыполненияСценариев": "/mnt/data/workspace/artifacts/ui-smoke-status.txt",
+  "ДелатьЛогВыполненияСценариевВТекстовыйФайл": true,
+  "ИмяФайлаЛогВыполненияСценариев": "/mnt/data/workspace/artifacts/ui-smoke.log",
+  "ДелатьОтчетВФорматеАллюр": true,
+  "КаталогOutputAllureБазовый": "/mnt/data/workspace/artifacts/allure",
+  "СоздаватьПодкаталогВКаталогеAllureДляЭтойСборки": true,
+  "ДелатьОтчетВФорматеCucumberJson": true,
+  "КаталогOutputCucumberJson": "/mnt/data/workspace/artifacts/cucumber",
+  "ДелатьСкриншотПриВозникновенииОшибки": false,
+  "КаталогOutputСкриншоты": "/mnt/data/workspace/artifacts/screenshots",
+  "КомандаСделатьСкриншот": "import -window root",
+  "ТаймаутДляАсинхронныхШагов": 120,
+  "ПаузаПриОткрытииОкна": 1,
+  "КоличествоСекундПоискаОкна": 10,
+  "КоличествоПопытокВыполненияДействия": 5,
+  "ТаймаутЗапуска1С": 120,
+  "ДиапазонПортовTestclient": "",
+  "ДополнительныеПараметры": {
+    "КаталогФичДляVBManager": "/mnt/data/workspace/tests/ui/smoke"
+  },
+  "СписокТеговИсключение": [
+    "Ignore",
+    "IgnoreOnLinux"
+  ]
+}

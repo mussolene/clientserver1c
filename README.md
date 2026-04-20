@@ -189,6 +189,30 @@ make up ONEC_PLATFORM_OVERRIDE=native-arm PLATFORM_ARCH=arm64
 
 Пакеты ставятся в процессе сборки образа.
 
+## UI smoke через Vanessa
+
+В репозитории есть воспроизводимый минимальный smoke для `TestManager -> TestClient`:
+
+- feature: `artifacts/tests/ui/smoke/open-test-client.feature`
+- `VAParams`: `artifacts/config/va-file-db-smoke.json`
+- runner: `scripts/run-ui-smoke.sh`
+
+Запуск:
+
+```bash
+make ui-smoke
+```
+
+По умолчанию runner:
+
+- пересоздаёт `1c-dev` в `ONEC_RUNTIME_MODE=shell`
+- копирует tracked feature и `VAParams` в `./volumes/1c-dev/data/workspace`
+- очищает старые артефакты
+- запускает `vrunner vanessa` против `/F/mnt/data/testdb`
+- в начале прогона снимает типовые стартовые модальные окна вроде `Рекомендуется обновить версию конфигурации`, которые блокируют подключение `TestClient`
+
+Артефакты сохраняются в `./volumes/1c-dev/data/workspace/artifacts`.
+
 ## CI publish
 
 Workflow [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml) публикует:

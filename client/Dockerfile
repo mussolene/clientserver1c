@@ -22,6 +22,14 @@ COPY --from=onescript_base /opt/onescript /opt/onescript
 COPY --from=onescript_base /usr/local/bin/oscript /usr/local/bin/oscript
 COPY --from=onescript_base /usr/local/bin/opm /usr/local/bin/opm
 
+RUN apt-get update -o APT::Sandbox::User=root \
+  && apt-get install --yes --no-install-recommends -o APT::Sandbox::User=root \
+    imagemagick \
+    iproute2 \
+    iputils-ping \
+    xdotool \
+  && rm -rf /var/lib/apt/lists/*
+
 RUN --mount=type=bind,source=.local/1c/dev-platform,target=/tmp/platform-staging,readonly \
   --mount=type=cache,target=/tmp/platform-unpacked \
   --mount=type=cache,target=/tmp/platform-installer-tmp \

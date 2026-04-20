@@ -14,7 +14,7 @@ ONEC_PLATFORM_OVERRIDE ?=
 
 COMPOSE_FILES := -f docker-compose.yml $(if $(filter native-arm,$(ONEC_PLATFORM_OVERRIDE)),-f docker-compose.onec-native-arm.yml)
 
-.PHONY: help env download prepare-platform build-common-base build-desktop-base build-onescript-builder build-onescript-base up up-file-db up-server build build-server-stack config down ps logs clean-platform clean
+.PHONY: help env download prepare-platform build-common-base build-desktop-base build-onescript-builder build-onescript-base up up-file-db up-server build build-server-stack ui-smoke config down ps logs clean-platform clean
 
 help:
 	@printf '%s\n' \
@@ -31,6 +31,7 @@ help:
 	  '  make up-server       - start the developer container in server mode together with PostgreSQL 1C, building missing images if needed' \
 	  '  make build           - prepare staged platform archives and build only the developer image' \
 	  '  make build-server-stack - prepare staged platform archives and build developer image plus PostgreSQL 1C' \
+	  '  make ui-smoke        - start 1c-dev in shell mode and run the tracked Vanessa smoke against the file DB' \
 	  '  make config          - validate docker compose config' \
 	  '  make down            - stop containers' \
 	  '  make ps              - show container status' \
@@ -159,6 +160,14 @@ build-server-stack:
 	if [[ -n "$(ONEC_PLATFORM_OVERRIDE)" ]]; then env_args+=(ONEC_PLATFORM_OVERRIDE="$(ONEC_PLATFORM_OVERRIDE)"); fi; \
 	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" bash ./scripts/prepare-platform.sh; \
 	env "$${env_args[@]}" $(DOCKER_COMPOSE) $(COMPOSE_FILES) --profile build build 1c-pg 1c-dev
+
+ui-smoke:
+	@env_args=(); \
+	if [[ -n "$(PLATFORM_VERSION)" ]]; then env_args+=(PLATFORM_VERSION="$(PLATFORM_VERSION)"); fi; \
+	if [[ -n "$(IB_CONNECTION)" ]]; then env_args+=(IB_CONNECTION="$(IB_CONNECTION)"); fi; \
+	if [[ -n "$(DB_USER)" ]]; then env_args+=(DB_USER="$(DB_USER)"); fi; \
+	if [[ -n "$(DB_PWD)" ]]; then env_args+=(DB_PWD="$(DB_PWD)"); fi; \
+	env "$${env_args[@]}" bash ./scripts/run-ui-smoke.sh
 
 config:
 	@env_args=(POSTGRES_PASSWORD="$(POSTGRES_PASSWORD)"); \
