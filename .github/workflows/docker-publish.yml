@@ -1,0 +1,290 @@
+name: Publish Docker images
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    env:
+      BUILD_TAG: build-${{ github.sha }}
+      PLATFORMS: linux/amd64,linux/arm64
+      GHCR_REGISTRY: ghcr.io
+      REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      REF_NAME: ${{ github.ref_name }}
+      REF_TYPE: ${{ github.ref_type }}
+      COMMON_BASE_TAG: bookworm
+      COMMON_BASE_DIST: bookworm
+      DESKTOP_BASE_TAG: bookworm
+      ONESCRIPT_BUILD_TAG: "2.0.0"
+      ONESCRIPT_BASE_TAG: "2.0.0"
+      ONESCRIPT_SDK_IMAGE: mcr.microsoft.com/dotnet/sdk:8.0
+      ONESCRIPT_VERSION: "2.0.0"
+      VANESSA_ADD_VERSION: "6.9.5"
+      VANESSA_RUNNER_VERSION: "2.6.0"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Load build defaults
+        id: cfg
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          get_var() {
+            local key="$1"
+            grep -E "^${key}=" .env.example | tail -n 1 | cut -d= -f2-
+          }
+
+          ghcr_namespace="${GHCR_NAMESPACE:-${GITHUB_REPOSITORY_OWNER,,}}"
+          dockerhub_username="${DOCKERHUB_USERNAME:-}"
+          dockerhub_namespace="${DOCKERHUB_NAMESPACE:-${dockerhub_username}}"
+
+          {
+            echo "platform_version=$(get_var PLATFORM_VERSION)"
+            echo "pg_1c_version=$(get_var PG_1C_VERSION)"
+            echo "pg_major=$(get_var PG_MAJOR)"
+            echo "pg_repo_dist=$(get_var PG_REPO_DIST)"
+            echo "ghcr_namespace=${ghcr_namespace}"
+            echo "dockerhub_username=${dockerhub_username}"
+            echo "dockerhub_namespace=${dockerhub_namespace}"
+          } >> "$GITHUB_OUTPUT"
+        env:
+          GHCR_NAMESPACE: ${{ vars.GHCR_NAMESPACE }}
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          DOCKERHUB_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE }}
+
+      - name: Validate required CI settings
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -n "${{ steps.cfg.outputs.dockerhub_username }}" || { echo "Missing repository variable DOCKERHUB_USERNAME" >&2; exit 1; }
+          test -n "${{ steps.cfg.outputs.dockerhub_namespace }}" || { echo "Missing repository variable DOCKERHUB_NAMESPACE or DOCKERHUB_USERNAME" >&2; exit 1; }
+          test -n "${{ secrets.DOCKERHUB_TOKEN }}" || { echo "Missing repository secret DOCKERHUB_TOKEN" >&2; exit 1; }
+          test -n "${{ secrets.ITS_LOGIN }}" || { echo "Missing repository secret ITS_LOGIN" >&2; exit 1; }
+          test -n "${{ secrets.ITS_PASSWORD }}" || { echo "Missing repository secret ITS_PASSWORD" >&2; exit 1; }
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ steps.cfg.outputs.dockerhub_username }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Compute image tags
+        id: tags
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          emit_tags() {
+            local output_name="$1"
+            local image_name="$2"
+            local version_tag="$3"
+            local ghcr_base="${GHCR_REGISTRY}/${{ steps.cfg.outputs.ghcr_namespace }}/${image_name}"
+            local dockerhub_base="docker.io/${{ steps.cfg.outputs.dockerhub_namespace }}/${image_name}"
+            {
+              echo "${output_name}<<EOF"
+              echo "${ghcr_base}:${BUILD_TAG}"
+              echo "${dockerhub_base}:${BUILD_TAG}"
+              echo "${ghcr_base}:${version_tag}"
+              echo "${dockerhub_base}:${version_tag}"
+              if [[ "${REF_TYPE}" == "branch" && "${REF_NAME}" == "${DEFAULT_BRANCH}" ]]; then
+                echo "${ghcr_base}:latest"
+                echo "${dockerhub_base}:latest"
+              fi
+              if [[ "${REF_TYPE}" == "tag" ]]; then
+                local release_tag="${REF_NAME#v}"
+                echo "${ghcr_base}:${release_tag}"
+                echo "${dockerhub_base}:${release_tag}"
+              fi
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          }
+
+          emit_tags common_base_tags linux-common-base "${COMMON_BASE_TAG}"
+          emit_tags desktop_base_tags linux-desktop-base "${DESKTOP_BASE_TAG}"
+          emit_tags onescript_builder_tags linux-onescript-builder "${ONESCRIPT_BUILD_TAG}"
+          emit_tags onescript_tags linux-onescript "${ONESCRIPT_BASE_TAG}"
+          emit_tags pg_tags postgresql "${{ steps.cfg.outputs.pg_1c_version }}"
+          emit_tags server_tags 1c-server "${{ steps.cfg.outputs.platform_version }}"
+          emit_tags client_tags 1c-client "${{ steps.cfg.outputs.platform_version }}"
+
+      - name: Build and push linux-common-base
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./base/linux-common/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          pull: true
+          push: true
+          build-args: |
+            COMMON_BASE_DIST=${{ env.COMMON_BASE_DIST }}
+          tags: ${{ steps.tags.outputs.common_base_tags }}
+          labels: |
+            org.opencontainers.image.source=${{ env.REPO_URL }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=linux-common-base
+          cache-to: type=gha,mode=max,scope=linux-common-base
+
+      - name: Build and push linux-desktop-base
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./base/linux-desktop/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          pull: true
+          push: true
+          build-args: |
+            COMMON_BASE_IMAGE=common_base
+          build-contexts: |
+            common_base=docker-image://${{ env.GHCR_REGISTRY }}/${{ steps.cfg.outputs.ghcr_namespace }}/linux-common-base:${{ env.BUILD_TAG }}
+          tags: ${{ steps.tags.outputs.desktop_base_tags }}
+          labels: |
+            org.opencontainers.image.source=${{ env.REPO_URL }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=linux-desktop-base
+          cache-to: type=gha,mode=max,scope=linux-desktop-base
+
+      - name: Build and push linux-onescript-builder
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./base/linux-onescript-builder/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          pull: true
+          push: true
+          build-args: |
+            ONESCRIPT_SDK_IMAGE=${{ env.ONESCRIPT_SDK_IMAGE }}
+            ONESCRIPT_VERSION=${{ env.ONESCRIPT_VERSION }}
+          tags: ${{ steps.tags.outputs.onescript_builder_tags }}
+          labels: |
+            org.opencontainers.image.source=${{ env.REPO_URL }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=linux-onescript-builder
+          cache-to: type=gha,mode=max,scope=linux-onescript-builder
+
+      - name: Build and push linux-onescript
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./base/linux-onescript/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          pull: true
+          push: true
+          build-args: |
+            COMMON_BASE_IMAGE=common_base
+            ONESCRIPT_BUILD_IMAGE=onescript_build
+          build-contexts: |
+            common_base=docker-image://${{ env.GHCR_REGISTRY }}/${{ steps.cfg.outputs.ghcr_namespace }}/linux-common-base:${{ env.BUILD_TAG }}
+            onescript_build=docker-image://${{ env.GHCR_REGISTRY }}/${{ steps.cfg.outputs.ghcr_namespace }}/linux-onescript-builder:${{ env.BUILD_TAG }}
+          tags: ${{ steps.tags.outputs.onescript_tags }}
+          labels: |
+            org.opencontainers.image.source=${{ env.REPO_URL }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=linux-onescript
+          cache-to: type=gha,mode=max,scope=linux-onescript
+
+      - name: Build and push postgresql
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./pg/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          pull: true
+          push: true
+          build-args: |
+            PG_MAJOR=${{ steps.cfg.outputs.pg_major }}
+            PG_REPO_DIST=${{ steps.cfg.outputs.pg_repo_dist }}
+            PG_1C_VERSION=${{ steps.cfg.outputs.pg_1c_version }}
+            COMMON_BASE_IMAGE=common_base
+          build-contexts: |
+            common_base=docker-image://${{ env.GHCR_REGISTRY }}/${{ steps.cfg.outputs.ghcr_namespace }}/linux-common-base:${{ env.BUILD_TAG }}
+          secrets: |
+            its_login=${{ secrets.ITS_LOGIN }}
+            its_password=${{ secrets.ITS_PASSWORD }}
+          tags: ${{ steps.tags.outputs.pg_tags }}
+          labels: |
+            org.opencontainers.image.source=${{ env.REPO_URL }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=postgresql
+          cache-to: type=gha,mode=max,scope=postgresql
+
+      - name: Build and push 1c-server
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./server/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          pull: true
+          push: true
+          build-args: |
+            COMMON_BASE_IMAGE=common_base
+            PLATFORM_VERSION=${{ steps.cfg.outputs.platform_version }}
+          build-contexts: |
+            common_base=docker-image://${{ env.GHCR_REGISTRY }}/${{ steps.cfg.outputs.ghcr_namespace }}/linux-common-base:${{ env.BUILD_TAG }}
+          secrets: |
+            its_login=${{ secrets.ITS_LOGIN }}
+            its_password=${{ secrets.ITS_PASSWORD }}
+          tags: ${{ steps.tags.outputs.server_tags }}
+          labels: |
+            org.opencontainers.image.source=${{ env.REPO_URL }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=1c-server
+          cache-to: type=gha,mode=max,scope=1c-server
+
+      - name: Build and push 1c-client
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./client/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          pull: true
+          push: true
+          build-args: |
+            DESKTOP_BASE_IMAGE=desktop_base
+            ONESCRIPT_BASE_IMAGE=onescript_base
+            PLATFORM_VERSION=${{ steps.cfg.outputs.platform_version }}
+            VANESSA_ADD_VERSION=${{ env.VANESSA_ADD_VERSION }}
+            VANESSA_RUNNER_VERSION=${{ env.VANESSA_RUNNER_VERSION }}
+          build-contexts: |
+            desktop_base=docker-image://${{ env.GHCR_REGISTRY }}/${{ steps.cfg.outputs.ghcr_namespace }}/linux-desktop-base:${{ env.BUILD_TAG }}
+            onescript_base=docker-image://${{ env.GHCR_REGISTRY }}/${{ steps.cfg.outputs.ghcr_namespace }}/linux-onescript:${{ env.BUILD_TAG }}
+          secrets: |
+            its_login=${{ secrets.ITS_LOGIN }}
+            its_password=${{ secrets.ITS_PASSWORD }}
+          tags: ${{ steps.tags.outputs.client_tags }}
+          labels: |
+            org.opencontainers.image.source=${{ env.REPO_URL }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=1c-client
+          cache-to: type=gha,mode=max,scope=1c-client

@@ -145,13 +145,9 @@ Offline/helper цели:
 - `PLATFORM_VERSION` - версия платформы 1С
 - `PLATFORM_ARCH` - `amd64` или `arm64`
 - `DOCKER_DEFAULT_PLATFORM` - платформа Docker для явного cross-build, например `linux/amd64` или `linux/arm64`
-- `COMMON_BASE_IMAGE`, `COMMON_BASE_TAG`, `COMMON_BASE_DIST` - параметры общего base-слоя
-- `DESKTOP_BASE_IMAGE`, `DESKTOP_BASE_TAG` - параметры desktop-слоя
-- `ONESCRIPT_BUILD_IMAGE`, `ONESCRIPT_BUILD_TAG`, `ONESCRIPT_SDK_IMAGE`, `ONESCRIPT_VERSION` - параметры сборки `OneScript`
-- `ONESCRIPT_BASE_IMAGE`, `ONESCRIPT_BASE_TAG` - параметры runtime-слоя `OneScript`
-- `VANESSA_ADD_VERSION` - версия пакета `add`
-- `VANESSA_RUNNER_VERSION` - версия пакета `vanessa-runner`
 - `ITS_LOGIN`, `ITS_PASSWORD` - учетные данные ITS
+
+Внутренние версии слоев и toolchain не вынесены в `.env`: они закреплены в Dockerfile, `docker-compose.yml` и CI workflow как внутренняя часть репозитория.
 
 ## Архитектура
 
@@ -193,6 +189,36 @@ opm install vanessa-runner
 - `oscript`
 - `opm`
 - `vrunner`
+
+## GitHub CI
+
+Для публикации образов в `ghcr.io` и `docker.io` в репозитории используется workflow [docker-publish.yml](/Users/maxon/git/me/clientserver1c/.github/workflows/docker-publish.yml:1).
+
+Что нужно подготовить в GitHub:
+
+1. В `Settings -> Secrets and variables -> Actions -> Repository secrets`:
+   - `ITS_LOGIN`
+   - `ITS_PASSWORD`
+   - `DOCKERHUB_TOKEN`
+2. В `Settings -> Secrets and variables -> Actions -> Repository variables`:
+   - `DOCKERHUB_USERNAME`
+   - опционально `DOCKERHUB_NAMESPACE`, если namespace в Docker Hub отличается от `DOCKERHUB_USERNAME`
+   - опционально `GHCR_NAMESPACE`, если namespace в GHCR должен отличаться от `github.repository_owner`
+3. В Docker Hub:
+   - создать access token с правом `Write`
+   - создать нужные репозитории или namespace, если у вас это не делается автоматически
+4. В GitHub Packages / GHCR:
+   - после первого publish при необходимости выставить package visibility
+   - если package живет с granular permissions отдельно от репозитория, проверить `Manage Actions access`
+5. В `Settings -> Actions`:
+   - разрешить запуск workflow
+   - если в организации действует restrictive policy, разрешить используемые official actions `actions/*` и `docker/*`
+
+Практический нюанс:
+
+- workflow публикует multi-arch образы для `linux/amd64` и `linux/arm64`
+- для внутренних зависимостей цепочки он использует GHCR как промежуточный registry через commit tag `build-<sha>`
+- publish запускается на `push` в `main` / `master`, на `v*` tags и вручную через `workflow_dispatch`
 
 ## Порты
 

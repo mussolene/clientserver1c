@@ -1,16 +1,16 @@
 services:
   linux-common-base:
     profiles: ["build"]
-    image: ${COMMON_BASE_IMAGE:-mussolene/linux-common-base}:${COMMON_BASE_TAG:-bookworm}
+    image: mussolene/linux-common-base:bookworm
     build:
       context: .
       dockerfile: base/linux-common/Dockerfile
       args:
-        COMMON_BASE_DIST: ${COMMON_BASE_DIST:-bookworm}
+        COMMON_BASE_DIST: bookworm
 
   linux-desktop-base:
     profiles: ["build"]
-    image: ${DESKTOP_BASE_IMAGE:-mussolene/linux-desktop-base}:${DESKTOP_BASE_TAG:-bookworm}
+    image: mussolene/linux-desktop-base:bookworm
     build:
       context: .
       dockerfile: base/linux-desktop/Dockerfile
@@ -21,17 +21,17 @@ services:
 
   linux-onescript-builder:
     profiles: ["build"]
-    image: ${ONESCRIPT_BUILD_IMAGE:-mussolene/linux-onescript-builder}:${ONESCRIPT_BUILD_TAG:-2.0.0}
+    image: mussolene/linux-onescript-builder:2.0.0
     build:
       context: .
       dockerfile: base/linux-onescript-builder/Dockerfile
       args:
-        ONESCRIPT_SDK_IMAGE: ${ONESCRIPT_SDK_IMAGE:-mcr.microsoft.com/dotnet/sdk:8.0}
-        ONESCRIPT_VERSION: ${ONESCRIPT_VERSION:-2.0.0}
+        ONESCRIPT_SDK_IMAGE: mcr.microsoft.com/dotnet/sdk:8.0
+        ONESCRIPT_VERSION: 2.0.0
 
   linux-onescript:
     profiles: ["build"]
-    image: ${ONESCRIPT_BASE_IMAGE:-mussolene/linux-onescript}:${ONESCRIPT_BASE_TAG:-2.0.0}
+    image: mussolene/linux-onescript:2.0.0
     build:
       context: .
       dockerfile: base/linux-onescript/Dockerfile
@@ -90,8 +90,8 @@ services:
         ONESCRIPT_BASE_IMAGE: onescript_base
         PLATFORM_VERSION: ${PLATFORM_VERSION:-8.3.22.1851}
         PLATFORM_DIST_NAME: ${PLATFORM_DIST_NAME-}
-        VANESSA_ADD_VERSION: ${VANESSA_ADD_VERSION:-6.9.5}
-        VANESSA_RUNNER_VERSION: ${VANESSA_RUNNER_VERSION:-2.6.0}
+        VANESSA_ADD_VERSION: 6.9.5
+        VANESSA_RUNNER_VERSION: 2.6.0
       secrets:
         - its_login
         - its_password

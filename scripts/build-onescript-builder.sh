@@ -11,10 +11,10 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-ONESCRIPT_BUILD_IMAGE="${ONESCRIPT_BUILD_IMAGE:-mussolene/linux-onescript-builder}"
-ONESCRIPT_BUILD_TAG="${ONESCRIPT_BUILD_TAG:-2.0.0}"
-ONESCRIPT_SDK_IMAGE="${ONESCRIPT_SDK_IMAGE:-mcr.microsoft.com/dotnet/sdk:8.0}"
-ONESCRIPT_VERSION="${ONESCRIPT_VERSION:-2.0.0}"
+ONESCRIPT_BUILD_IMAGE="mussolene/linux-onescript-builder"
+ONESCRIPT_BUILD_TAG="2.0.0"
+ONESCRIPT_SDK_IMAGE="mcr.microsoft.com/dotnet/sdk:8.0"
+ONESCRIPT_VERSION="2.0.0"
 
 build_args=(
   "--build-arg" "ONESCRIPT_SDK_IMAGE=${ONESCRIPT_SDK_IMAGE}"

@@ -11,10 +11,10 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-DESKTOP_BASE_IMAGE="${DESKTOP_BASE_IMAGE:-mussolene/linux-desktop-base}"
-DESKTOP_BASE_TAG="${DESKTOP_BASE_TAG:-bookworm}"
-COMMON_BASE_IMAGE="${COMMON_BASE_IMAGE:-mussolene/linux-common-base}"
-COMMON_BASE_TAG="${COMMON_BASE_TAG:-bookworm}"
+DESKTOP_BASE_IMAGE="mussolene/linux-desktop-base"
+DESKTOP_BASE_TAG="bookworm"
+COMMON_BASE_IMAGE="mussolene/linux-common-base"
+COMMON_BASE_TAG="bookworm"
 
 build_args=(
   "--build-arg" "COMMON_BASE_IMAGE=${COMMON_BASE_IMAGE}:${COMMON_BASE_TAG}"
