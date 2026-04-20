@@ -4,8 +4,12 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${ENV_FILE:-$ROOT_DIR/.env}"
 PLATFORM_CACHE_DIR="$ROOT_DIR/.local/1c/platform"
-SERVER_STAGING_DIR="$ROOT_DIR/.local/1c/server-platform"
-CLIENT_STAGING_DIR="$ROOT_DIR/.local/1c/client-platform"
+DEV_STAGING_DIR="$ROOT_DIR/.local/1c/dev-platform"
+
+INPUT_PLATFORM_VERSION="${PLATFORM_VERSION-}"
+INPUT_PLATFORM_ARCH="${PLATFORM_ARCH-}"
+INPUT_PLATFORM_DIST_NAME="${PLATFORM_DIST_NAME-}"
+INPUT_DOCKER_DEFAULT_PLATFORM="${DOCKER_DEFAULT_PLATFORM-}"
 
 if [[ -f "$ENV_FILE" ]]; then
   set -a
@@ -14,14 +18,16 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-PLATFORM_VERSION="${PLATFORM_VERSION:-8.3.22.1851}"
+PLATFORM_VERSION="${INPUT_PLATFORM_VERSION:-${PLATFORM_VERSION:-8.5.1.1302}}"
+PLATFORM_DIST_NAME="${INPUT_PLATFORM_DIST_NAME:-${PLATFORM_DIST_NAME:-}}"
+DOCKER_DEFAULT_PLATFORM="${INPUT_DOCKER_DEFAULT_PLATFORM:-${DOCKER_DEFAULT_PLATFORM:-}}"
+PLATFORM_ARCH="${INPUT_PLATFORM_ARCH:-${PLATFORM_ARCH:-}}"
 if [[ -z "${PLATFORM_ARCH:-}" && -n "${DOCKER_DEFAULT_PLATFORM:-}" ]]; then
   case "${DOCKER_DEFAULT_PLATFORM##*/}" in
     amd64|arm64) PLATFORM_ARCH="${DOCKER_DEFAULT_PLATFORM##*/}" ;;
   esac
 fi
 PLATFORM_ARCH="${PLATFORM_ARCH:-amd64}"
-PLATFORM_DIST_NAME="${PLATFORM_DIST_NAME:-}"
 version_underscored="${PLATFORM_VERSION//./_}"
 
 case "$PLATFORM_ARCH" in
@@ -32,9 +38,8 @@ case "$PLATFORM_ARCH" in
     ;;
 esac
 
-mkdir -p "$PLATFORM_CACHE_DIR" "$SERVER_STAGING_DIR" "$CLIENT_STAGING_DIR"
-find "$SERVER_STAGING_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-find "$CLIENT_STAGING_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+mkdir -p "$PLATFORM_CACHE_DIR" "$DEV_STAGING_DIR"
+find "$DEV_STAGING_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 
 download_env=(ENV_FILE="$ENV_FILE" PLATFORM_VERSION="$PLATFORM_VERSION" PLATFORM_ARCH="$PLATFORM_ARCH")
 if [[ -n "$PLATFORM_DIST_NAME" ]]; then
@@ -66,16 +71,8 @@ if [[ "$PLATFORM_ARCH" == "arm64" ]]; then
   server_archive="$(resolve_existing_file \
     "$PLATFORM_DIST_NAME" \
     "server.arm.deb64_${PLATFORM_VERSION}.zip")"
-else
-  server_archive="$(resolve_existing_file \
-    "$PLATFORM_DIST_NAME" \
-    "deb64_${version_underscored}.zip" \
-    "server64_${version_underscored}.zip" \
-    "server64_${version_underscored}.tar.gz")"
-fi
-copy_to_staging "$server_archive" "$SERVER_STAGING_DIR"
+  copy_to_staging "$server_archive" "$DEV_STAGING_DIR"
 
-if [[ "$PLATFORM_ARCH" == "arm64" ]]; then
   client_archive="$(resolve_existing_file \
     "client.arm.deb64_${PLATFORM_VERSION}.zip" \
     "thin.client.arm.deb64_${PLATFORM_VERSION}.zip" || true)"
@@ -87,32 +84,27 @@ if [[ "$PLATFORM_ARCH" == "arm64" ]]; then
       "client.arm.deb64_${PLATFORM_VERSION}.zip" \
       "thin.client.arm.deb64_${PLATFORM_VERSION}.zip")"
   fi
-  copy_to_staging "$client_archive" "$CLIENT_STAGING_DIR"
-elif [[ "$PLATFORM_VERSION" == 8.5.* ]]; then
+  copy_to_staging "$client_archive" "$DEV_STAGING_DIR"
+else
   full_client_archive="server64_with_all_clients_${version_underscored}.zip"
-  full_client_installer="setup-full-${PLATFORM_VERSION}-x86_64.run"
+  setup_full_run="setup-full-${PLATFORM_VERSION}-x86_64.run"
+  all_clients_run="all-clients-distr-${PLATFORM_VERSION}-x86_64.run"
 
   if [[ ! -f "$PLATFORM_CACHE_DIR/$full_client_archive" ]]; then
     env ENV_FILE="$ENV_FILE" PLATFORM_VERSION="$PLATFORM_VERSION" PLATFORM_ARCH="$PLATFORM_ARCH" PLATFORM_DIST_NAME="$full_client_archive" \
       "$ROOT_DIR/scripts/download-platform.sh"
   fi
 
-  if [[ ! -f "$PLATFORM_CACHE_DIR/$full_client_installer" ]]; then
-    unzip -p "$PLATFORM_CACHE_DIR/$full_client_archive" "$full_client_installer" > "$PLATFORM_CACHE_DIR/$full_client_installer"
-    chmod +x "$PLATFORM_CACHE_DIR/$full_client_installer"
+  if [[ -f "$PLATFORM_CACHE_DIR/$setup_full_run" && -f "$PLATFORM_CACHE_DIR/$all_clients_run" ]]; then
+    copy_to_staging "$setup_full_run" "$DEV_STAGING_DIR"
+    copy_to_staging "$all_clients_run" "$DEV_STAGING_DIR"
+  else
+    unzip -j -q "$PLATFORM_CACHE_DIR/$full_client_archive" \
+      "$setup_full_run" \
+      "$all_clients_run" \
+      -d "$DEV_STAGING_DIR"
   fi
-
-  copy_to_staging "$full_client_installer" "$CLIENT_STAGING_DIR"
-else
-  client_archive="$(resolve_existing_file \
-    "client_${version_underscored}.deb64.zip" \
-    "server64_with_all_clients_${version_underscored}.zip" \
-    "server64_with_clients_${version_underscored}.zip" \
-    "server64_${version_underscored}.tar.gz" \
-    "thin.client_${version_underscored}.deb64.zip")"
-  copy_to_staging "$client_archive" "$CLIENT_STAGING_DIR"
 fi
 
 printf 'Prepared platform staging:\n'
-printf '  server: %s\n' "$(ls -1 "$SERVER_STAGING_DIR" | tr '\n' ' ' | sed 's/ $//')"
-printf '  client: %s\n' "$(ls -1 "$CLIENT_STAGING_DIR" | tr '\n' ' ' | sed 's/ $//')"
+printf '  developer: %s\n' "$(ls -1 "$DEV_STAGING_DIR" | tr '\n' ' ' | sed 's/ $//')"

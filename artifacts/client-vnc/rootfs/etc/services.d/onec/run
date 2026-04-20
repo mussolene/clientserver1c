@@ -1,10 +1,49 @@
 #!/usr/bin/with-contenv sh
+set -eu
 
-# https://github.com/just-containers/s6-overlay/issues/165
 export HOME=/root
 
-if [ -x /opt/1cv8/current/1cv8c ]; then
-  exec s6-setuidgid root /opt/1cv8/current/1cv8c
-fi
+runtime_mode="${ONEC_RUNTIME_MODE:-license-ui}"
+file_db_path="${ONEC_FILE_DB_PATH:-/mnt/data/testdb}"
+srv_debug="${SRV1CV8_DEBUG:-1}"
+srv_port="${SRV1CV8_PORT:-1540}"
+srv_regport="${SRV1CV8_REGPORT:-1541}"
+srv_range="${SRV1CV8_RANGE:-1560:1691}"
 
-exec s6-setuidgid root /opt/1cv8/current/1cv8
+run_as() {
+  target_user="$1"
+  shift
+  if getent passwd "$target_user" >/dev/null 2>&1; then
+    exec s6-setuidgid "$target_user" "$@"
+  fi
+
+  exec s6-setuidgid root "$@"
+}
+
+case "$runtime_mode" in
+  license-ui)
+    if [ -x /opt/1cv8/current/1cv8c ]; then
+      exec s6-setuidgid root /opt/1cv8/current/1cv8c
+    fi
+    exec s6-setuidgid root /opt/1cv8/current/1cv8
+    ;;
+  file-db)
+    mkdir -p "$(dirname "$file_db_path")"
+    exec s6-setuidgid root /opt/1cv8/current/1cv8 ENTERPRISE /F "$file_db_path"
+    ;;
+  server)
+    if [ ! -x /opt/1cv8/current/ragent ]; then
+      echo "Server runtime requested, but /opt/1cv8/current/ragent is not installed" >&2
+      exit 1
+    fi
+    run_as usr1cv8 /opt/1cv8/current/ragent -debug "-port" "$srv_port" "-regport" "$srv_regport" "-range" "$srv_range"
+    ;;
+  shell)
+    exec s6-setuidgid root sh -lc 'trap : TERM INT; while :; do sleep 3600; done'
+    ;;
+  *)
+    echo "Unknown ONEC_RUNTIME_MODE: $runtime_mode" >&2
+    echo "Supported modes: license-ui, file-db, server, shell" >&2
+    exit 1
+    ;;
+esac

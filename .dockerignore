@@ -1,10 +1,12 @@
+/.agent/
+/.claude/
+/.codex/
+/AGENTS.md
+/CLAUDE.md
 .git
 .env
 volumes
 .local/**
 !.local/1c/
-.local/1c/**
-!.local/1c/server-platform/
-!.local/1c/server-platform/**
-!.local/1c/client-platform/
-!.local/1c/client-platform/**
+!.local/1c/dev-platform/
+!.local/1c/dev-platform/**

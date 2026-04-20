@@ -1,3 +1,8 @@
+/.agent/
+/.claude/
+/.codex/
+/AGENTS.md
+/CLAUDE.md
 /volumes/
 /.local/
 .env

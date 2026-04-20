@@ -4,62 +4,99 @@ FROM ${ONESCRIPT_BASE_IMAGE} AS onescript_base
 FROM ${DESKTOP_BASE_IMAGE}
 
 ARG TARGETARCH
-ARG PLATFORM_VERSION=8.3.22.1851
+ARG PLATFORM_VERSION=8.5.1.1302
 ARG PLATFORM_DIST_NAME
 ARG VANESSA_ADD_VERSION=6.9.5
 ARG VANESSA_RUNNER_VERSION=2.6.0
 
 ENV PLATFORM_VERSION=${PLATFORM_VERSION}
 ENV PLATFORM_DIST_NAME=${PLATFORM_DIST_NAME}
-ENV COMPONENT_PLATFORM=client_full
 ENV ONESCRIPT_ROOT=/opt/onescript
 ENV PATH=/opt/onescript:/opt/onescript/bin:${PATH}
 ENV OSCRIPT_CONFIG=lib.system=/opt/onescript/lib
 ENV OPM_CONFIG=/opt/onescript/opm.cfg
 ENV OSCRIPTBIN=/opt/onescript/bin
 COPY artifacts/ /tmp/build-artifacts/
-COPY scripts/download-platform-build.sh /usr/local/bin/download-platform-build.sh
 COPY artifacts/client-vnc/rootfs/etc/services.d/onec/run /etc/services.d/onec/run
 COPY --from=onescript_base /opt/onescript /opt/onescript
 COPY --from=onescript_base /usr/local/bin/oscript /usr/local/bin/oscript
 COPY --from=onescript_base /usr/local/bin/opm /usr/local/bin/opm
 
-RUN --mount=type=cache,id=1c-platform-cache,target=/var/cache/1c-platform \
-    --mount=type=secret,id=its_login \
-    --mount=type=secret,id=its_password \
-    chmod +x /usr/local/bin/download-platform-build.sh \
-  && archive_path="$(PLATFORM_COMPONENT=client PLATFORM_VERSION="$PLATFORM_VERSION" PLATFORM_DIST_NAME="$PLATFORM_DIST_NAME" TARGETARCH="$TARGETARCH" PLATFORM_PACKAGE_ARCH="$TARGETARCH" /usr/local/bin/download-platform-build.sh)" \
-  && cd /tmp \
-  && case "$archive_path" in \
-    *.run) \
-      chmod +x "$archive_path" \
-      && "$archive_path" --mode unattended --enable-components "$COMPONENT_PLATFORM" \
-      ;; \
-    *.zip) \
-      mkdir -p /tmp/platform-unpacked \
-      && unzip -q "$archive_path" -d /tmp/platform-unpacked \
-      && installer="$(find /tmp/platform-unpacked -maxdepth 1 -name "setup-full-${PLATFORM_VERSION}-*.run" | head -n 1)" \
-      && if [ -n "$installer" ]; then \
-           chmod +x "$installer" \
-           && "$installer" --mode unattended --enable-components "$COMPONENT_PLATFORM"; \
-         else \
-           rm -rf /var/lib/apt/lists/* \
-           && apt-get -qq update -o APT::Sandbox::User=root -o Acquire::Retries=5 \
-           && apt-get -qq install --yes --no-install-recommends -o APT::Sandbox::User=root \
-             bash \
-           && ln -sf /usr/bin/bash /bin/bash \
-           && apt-get -qq install --yes --no-install-recommends -o APT::Sandbox::User=root \
-             /tmp/platform-unpacked/*.deb; \
-         fi \
-      ;; \
-    *) \
-      tar -xzvf "$archive_path" \
-      && installer="$(find . -maxdepth 1 -name "setup-full-${PLATFORM_VERSION}-*.run" | head -n 1)" \
-      && chmod +x "$installer" \
-      && "$installer" --mode unattended --enable-components "$COMPONENT_PLATFORM" \
-      ;; \
-    esac \
-  && rm -rf /tmp/* 
+RUN --mount=type=bind,source=.local/1c/dev-platform,target=/tmp/platform-staging,readonly \
+  --mount=type=cache,target=/tmp/platform-unpacked \
+  --mount=type=cache,target=/tmp/platform-installer-tmp \
+  bash -euxo pipefail <<'EOF'
+staging_dir=/tmp/platform-staging
+unpack_dir=/tmp/platform-unpacked
+tmp_installer_dir=/tmp/platform-installer-tmp
+
+mkdir -p "$unpack_dir" "$tmp_installer_dir"
+rm -rf "$unpack_dir"/* "$tmp_installer_dir"/*
+export TMPDIR="$tmp_installer_dir"
+
+mapfile -t archives < <(find "$staging_dir" -maxdepth 1 -type f | sort)
+if [[ "${#archives[@]}" -eq 0 ]]; then
+  echo "No platform archives found in $staging_dir" >&2
+  exit 1
+fi
+
+installer_path=""
+
+for archive_path in "${archives[@]}"; do
+  case "$archive_path" in
+    *.run)
+      copied_installer_path="$tmp_installer_dir/$(basename "$archive_path")"
+      cp "$archive_path" "$copied_installer_path"
+      installer_path="$copied_installer_path"
+      ;;
+    *.zip)
+      archive_name="$(basename "$archive_path" .zip)"
+      target_dir="$unpack_dir/$archive_name"
+      mkdir -p "$target_dir"
+      unzip -q "$archive_path" -d "$target_dir"
+      ;;
+    *.tar.gz)
+      archive_name="$(basename "$archive_path" .tar.gz)"
+      target_dir="$unpack_dir/$archive_name"
+      mkdir -p "$target_dir"
+      tar -xzf "$archive_path" -C "$target_dir"
+      ;;
+    *)
+      echo "Unsupported platform archive: $archive_path" >&2
+      exit 1
+      ;;
+  esac
+done
+
+deb_list="$(find "$unpack_dir" -type f \
+  \( -name '*-common_*.deb' -o -name '*-common-nls_*.deb' -o -name '*-server_*.deb' -o -name '*-server-nls_*.deb' -o -name '*-client_*.deb' -o -name '*-client-nls_*.deb' \) \
+  ! -name '*-thin-client_*.deb' \
+  ! -name '*-thin-client-nls_*.deb' \
+  ! -name '*-web-client_*.deb' \
+  ! -name '*-web-client-nls_*.deb' \
+  | sort)"
+
+if [[ -n "$deb_list" ]]; then
+  rm -rf /var/lib/apt/lists/*
+  apt-get -qq update -o APT::Sandbox::User=root -o Acquire::Retries=5
+  apt-get -qq install --yes --no-install-recommends -o APT::Sandbox::User=root bash $deb_list
+  rm -rf "$unpack_dir"/* "$tmp_installer_dir"/* /tmp/*.run /tmp/*.tar.gz /tmp/*.zip
+  exit 0
+fi
+
+if [[ -z "$installer_path" ]]; then
+  installer_path="$(find "$unpack_dir" -type f -name "setup-full-${PLATFORM_VERSION}-*.run" | head -n 1)"
+fi
+
+if [[ -z "$installer_path" ]]; then
+  echo "Could not find 1C installer for version $PLATFORM_VERSION" >&2
+  exit 1
+fi
+
+chmod +x "$installer_path"
+"$installer_path" --mode unattended
+rm -rf "$unpack_dir"/* "$tmp_installer_dir"/* /tmp/*.run /tmp/*.tar.gz /tmp/*.zip
+EOF
 
 # create symlink to current 1c:enterprise directory
 COPY artifacts/scripts/createsymlink-current.sh /createsymlink-current.sh
@@ -77,11 +114,23 @@ RUN (opm install "add@${VANESSA_ADD_VERSION}" || opm install add) \
   && command -v vrunner >/dev/null \
   && vrunner help >/dev/null
 
-RUN if [ -f /tmp/build-artifacts/nethasp.ini ]; then \
-    cp /tmp/build-artifacts/nethasp.ini /opt/1cv8/conf/nethasp.ini; \
-  fi \
+RUN chmod +x /etc/services.d/onec/run \
+  && if ! getent group grp1cv8 >/dev/null; then \
+       groupadd -r grp1cv8; \
+     fi \
+  && mkdir -p /var/log/1C /var/1C/licenses /home/usr1cv8/.1cv8/1C/1cv8/conf \
+  && if getent passwd usr1cv8 >/dev/null; then \
+       chown --recursive usr1cv8:grp1cv8 /var/log/1C /home/usr1cv8; \
+     fi \
+  && chown root:grp1cv8 /var/1C/licenses \
+  && chmod 775 /var/1C/licenses \
+  && cp /tmp/build-artifacts/config/logcfg.xml /home/usr1cv8/.1cv8/1C/1cv8/conf/logcfg.xml \
+  && if [ -f /tmp/build-artifacts/nethasp.ini ]; then \
+       cp /tmp/build-artifacts/nethasp.ini /opt/1cv8/conf/nethasp.ini; \
+       cp /tmp/build-artifacts/nethasp.ini /home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini; \
+     fi \
   && rm -rf /tmp/build-artifacts
 
-EXPOSE 5900
+EXPOSE 5900 1540-1541 1560-1691 1545
 
 ENTRYPOINT ["/init"]

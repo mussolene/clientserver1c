@@ -117,7 +117,7 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-PLATFORM_VERSION="${INPUT_PLATFORM_VERSION:-${PLATFORM_VERSION:-8.3.22.1851}}"
+PLATFORM_VERSION="${INPUT_PLATFORM_VERSION:-${PLATFORM_VERSION:-8.5.1.1302}}"
 PLATFORM_ARCH="${INPUT_PLATFORM_ARCH:-${PLATFORM_ARCH:-}}"
 PLATFORM_DOWNLOAD_URL="${INPUT_PLATFORM_DOWNLOAD_URL:-${PLATFORM_DOWNLOAD_URL:-}}"
 ITS_LOGIN="${INPUT_ITS_LOGIN:-${ITS_LOGIN:-}}"
@@ -143,7 +143,7 @@ default_dist_name() {
 
   case "$arch" in
     arm64) printf 'server.arm.deb64_%s.zip\n' "$version" ;;
-    *) printf 'server64_%s.tar.gz\n' "$version_underscored" ;;
+    *) printf 'server64_with_all_clients_%s.zip\n' "$version_underscored" ;;
   esac
 }
 
@@ -263,6 +263,8 @@ download_via_its() {
     "server.arm.deb64_${PLATFORM_VERSION}.zip" \
     "client.arm.deb64_${PLATFORM_VERSION}.zip" \
     "thin.client.arm.deb64_${PLATFORM_VERSION}.zip" \
+    "server64_with_all_clients_${normalized_version}.zip" \
+    "server64_with_clients_${normalized_version}.zip" \
     "server64_${normalized_version}.tar.gz" \
     "deb64_${normalized_version}.tar.gz" \
     "deb64_${normalized_version}.zip" \

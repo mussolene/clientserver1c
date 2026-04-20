@@ -46,44 +46,9 @@ services:
         COMMON_BASE_IMAGE: common_base
         ONESCRIPT_BUILD_IMAGE: onescript_build
 
-  1c-server:
-    image: mussolene/1c-server:${PLATFORM_VERSION:-8.3.22.1851}
-    hostname: srv1c
-    privileged: true
-    platform: linux/amd64
-    build:
-      context: .
-      dockerfile: server/Dockerfile
-      additional_contexts:
-        common_base: service:linux-common-base
-      args:
-        COMMON_BASE_IMAGE: common_base
-        PLATFORM_VERSION: ${PLATFORM_VERSION:-8.3.22.1851}
-        PLATFORM_DIST_NAME: ${PLATFORM_DIST_NAME-}
-      secrets:
-        - its_login
-        - its_password
-    depends_on:
-      - 1c-pg
-    environment:
-      SRV1CV8_DEBUG: "1"
-      SRV1CV8_PORT: "1540"
-      SRV1CV8_REGPORT: "1541"
-      SRV1CV8_RANGE: "1560:1691"
-    ports:
-      - "1540-1541:1540-1541"
-      - "1560-1691:1560-1691"
-      - "1545:1545"
-      - "67:67/udp"
-      - "475:475/udp"
-      - "5901:5900"
-    networks:
-      debug_def:
-        ipv4_address: 172.16.1.3
-
-  1c-client:
-    image: mussolene/1c-client:${PLATFORM_VERSION:-8.3.22.1851}
-    hostname: client1c
+  1c-dev:
+    image: mussolene/1c-developer:${PLATFORM_VERSION:-8.5.1.1302}
+    hostname: onecdev
     platform: linux/amd64
     build:
       context: .
@@ -94,24 +59,26 @@ services:
       args:
         DESKTOP_BASE_IMAGE: desktop_base
         ONESCRIPT_BASE_IMAGE: onescript_base
-        PLATFORM_VERSION: ${PLATFORM_VERSION:-8.3.22.1851}
+        PLATFORM_VERSION: ${PLATFORM_VERSION:-8.5.1.1302}
         PLATFORM_DIST_NAME: ${PLATFORM_DIST_NAME-}
         VANESSA_ADD_VERSION: 6.9.5
         VANESSA_RUNNER_VERSION: 2.6.0
-      secrets:
-        - its_login
-        - its_password
-    depends_on:
-      - 1c-pg
-      - 1c-server
+    environment:
+      ONEC_RUNTIME_MODE: ${ONEC_RUNTIME_MODE:-license-ui}
+      ONEC_FILE_DB_PATH: ${ONEC_FILE_DB_PATH:-/mnt/data/testdb}
+      SRV1CV8_DEBUG: "1"
+      SRV1CV8_PORT: "1540"
+      SRV1CV8_REGPORT: "1541"
+      SRV1CV8_RANGE: "1560:1691"
     ports:
-      - "5900:5900"
+      - "127.0.0.1:5900:5900"
     networks:
       debug_def:
         ipv4_address: 172.16.1.2
     volumes:
-      - ./volumes/1c-client/data:/mnt/data
-      - ./volumes/1c-client/cache:/root/.1cv8/1C/1cv8/
+      - onec-license-store:/var/1C/licenses
+      - ./volumes/1c-dev/data:/mnt/data
+      - ./volumes/1c-dev/cache:/root/.1cv8/1C/1cv8/
 
   1c-pg:
     image: mussolene/postgresql:${PG_1C_VERSION:-17.7-1.1C}
@@ -150,3 +117,8 @@ secrets:
     environment: ITS_LOGIN
   its_password:
     environment: ITS_PASSWORD
+
+volumes:
+  onec-license-store:
+    name: onec-license-store
+    external: true

@@ -1,44 +1,37 @@
 # clientserver1c
 
-Инфраструктурный репозиторий для локального стенда 1С в Docker.
+Локальный Docker-стенд для 1С с одним developer-контейнером платформы. `PostgreSQL 1C` остаётся опциональным сервисом только для server/client-server сценариев.
 
 Основные сервисы:
 
-1. `1c-pg` - `PostgreSQL 1C`
-2. `1c-server` - сервер 1С
-3. `1c-client` - клиент 1С с VNC, `OneScript`, `opm`, `Vanessa ADD`, `vanessa-runner`
+1. `1c-pg` - PostgreSQL 1C
+2. `1c-dev` - один контейнер 1С со всем стеком: GUI/VNC, OneScript, Vanessa tooling, клиентские и серверные бинарники 1С
 
-Поддерживаются сборки для `linux/amd64` и `linux/arm64`.
+## Основная идея
 
-## Как устроена сборка
+Штатный flow теперь такой:
 
-Основной сценарий теперь идет через `docker compose`, а не через ручной порядок shell-скриптов.
+1. Первый запуск: developer-контейнер стартует в режиме `license-ui`
+2. Через VNC вручную проходится получение лицензии
+3. Лицензия сохраняется в общем `/var/1C/licenses`
+4. После этого тот же образ можно запускать:
+   - в режиме `file-db` для обычной работы с файловой ИБ
+   - в режиме `server` для запуска серверного процесса тем же образом
 
-В `docker-compose.yml` описаны не только прикладные сервисы, но и build-only слои:
-
-1. `linux-common-base` - общий системный слой
-2. `linux-desktop-base` - GUI/VNC/Xfce слой для клиента
-3. `linux-onescript-builder` - промежуточный build-слой для сборки `OneScript` из исходников
-4. `linux-onescript` - runtime-слой с готовыми `oscript` и `opm`
-5. `1c-pg`
-6. `1c-server`
-7. `1c-client`
-
-Порядок сборки определяется самим `compose` через `additional_contexts: service:...`.
+Отдельного контейнера `1c-server` в локальном supported flow больше нет.
 
 ## Структура
 
-- `base/linux-common/` - Dockerfile общего base-слоя
-- `base/linux-desktop/` - Dockerfile desktop-слоя
-- `base/linux-onescript-builder/` - Dockerfile builder-слоя `OneScript`
-- `base/linux-onescript/` - Dockerfile runtime-слоя `OneScript`
-- `pg/` - Dockerfile и helper-скрипты для `PostgreSQL 1C`
-- `server/` - Dockerfile серверного контейнера 1С
-- `client/` - Dockerfile клиентского контейнера 1С
-- `scripts/` - вспомогательные shell-скрипты
-- `artifacts/` - overlay, конфиги и вспомогательные файлы для сборки
+- `base/linux-common/` - общий base image
+- `base/linux-desktop/` - GUI/VNC/Xfce base image
+- `base/linux-onescript-builder/` - build image для OneScript
+- `base/linux-onescript/` - runtime image с OneScript
+- `client/` - Dockerfile developer-контейнера 1С
+- `pg/` - Dockerfile и helper-скрипты для PostgreSQL 1C
+- `scripts/` - локальные build/run helper-скрипты
+- `artifacts/` - overlay, конфиги и runtime helper-скрипты
 
-## Что нужно подготовить
+## Подготовка
 
 ```bash
 cp .env.example .env
@@ -46,204 +39,164 @@ cp .env.example .env
 
 Минимально нужно задать:
 
-- `POSTGRES_PASSWORD`
 - `PLATFORM_VERSION`
 
-Для build-time скачивания с ITS нужны:
+Для подготовки архивов платформы с ITS нужны:
 
 - `ITS_LOGIN`
 - `ITS_PASSWORD`
 
-Если `make build` или `make up` запускаются локально из интерактивного терминала и ITS-учетка не задана, скрипт сам спросит логин/пароль и сохранит их в `.env`.
+Если локально запускать `make build`, `make up`, `make up-file-db`, `make up-server` или `make build-server-stack` из интерактивного терминала, недостающие `ITS_LOGIN` / `ITS_PASSWORD` будут запрошены и сохранены в `.env`.
 
-В CI интерактивного prompt нет: там `ITS_LOGIN` и `ITS_PASSWORD` должны быть заданы заранее.
-
-## Основной запуск
+## Основные команды
 
 ```bash
 make up
 ```
 
-Эта команда:
+Готовит staging платформы, при отсутствии локального image собирает нужные сервисы и поднимает:
 
-1. проверяет `.env`
-2. при локальном запуске при необходимости запрашивает ITS-учетку
-3. запускает `docker compose --profile build build 1c-pg 1c-server 1c-client`
-4. затем делает `docker compose --profile build up 1c-pg 1c-server 1c-client`
+- `1c-dev` в режиме `license-ui`
 
-Если нужен только build:
+Это базовый первый запуск, когда нужно вручную получить лицензию через VNC.
 
-```bash
-make build
-```
-
-Если нужен только просмотр итогового конфига:
+После того как лицензия уже есть:
 
 ```bash
-make config
+make up-file-db
 ```
 
-## Make targets
+Поднимает тот же стек, но `1c-dev` стартует сразу в режиме `file-db`. Если developer-image уже собран, повторный запуск не уходит в лишнюю полную пересборку.
 
-- `make env` - создать `.env` из `.env.example`, если его еще нет
-- `make up` - основной сценарий: собрать всю цепочку через `compose` и поднять стенд
-- `make build` - собрать всю цепочку через `compose`, не запуская контейнеры
-- `make config` - проверить итоговый `docker compose --profile build config`
+Если нужно поднять серверный процесс тем же образом:
+
+```bash
+make up-server
+```
+
+Этот сценарий дополнительно поднимает:
+
+- `1c-pg`
+- `1c-dev` в режиме `server`
+
+Полезные команды:
+
+- `make build` - только developer-образ
+- `make build-server-stack` - developer-образ плюс `1c-pg`
+- `make config` - проверить итоговый `docker compose config`
 - `make down` - остановить стенд
-- `make ps` - показать состояние контейнеров
-- `make logs` - смотреть логи
+- `make ps` - список контейнеров
+- `make logs` - логи `1c-pg` и `1c-dev`
+- `make clean-platform` - очистить локальный cache/staging платформы
 
-Низкоуровневые/вспомогательные цели:
+## Runtime modes
 
-- `make build-common-base`
-- `make build-desktop-base`
-- `make build-onescript-builder`
-- `make build-onescript-base`
+Режим контейнера задаётся через `ONEC_RUNTIME_MODE`.
 
-Offline/helper цели:
+Поддерживаются:
 
-- `make download` - скачать архив платформы в `.local/1c/platform/`
-- `make prepare-platform` - подготовить локальные staging-каталоги `.local/1c/server-platform/` и `.local/1c/client-platform/`
-- `make clean-platform` - очистить локальные кэши платформы
+- `license-ui` - default. Запуск штатного GUI/launcher для ручной активации лицензии
+- `file-db` - запуск `1cv8 ENTERPRISE /F <path>`
+- `server` - запуск `ragent`
+- `shell` - idle-режим для ручного входа в контейнер
 
-Основной online-flow не требует `make download` или `make prepare-platform`.
+Дополнительные переменные:
 
-## Build-time скачивание
+- `ONEC_FILE_DB_PATH` - путь к файловой ИБ в режиме `file-db`, по умолчанию `/mnt/data/testdb`
+- `SRV1CV8_PORT`, `SRV1CV8_REGPORT`, `SRV1CV8_RANGE`, `SRV1CV8_DEBUG` - параметры server-mode
 
-### Платформа 1С
+## Платформа 1С
 
-`1c-server` и `1c-client` скачивают дистрибутивы платформы прямо во время `docker build` через ITS secrets.
+Платформа не скачивается внутри `docker build` developer-образа.
 
-Используется [scripts/download-platform-build.sh](/Users/maxon/git/me/clientserver1c/scripts/download-platform-build.sh:1):
+Используется [`scripts/prepare-platform.sh`](scripts/prepare-platform.sh), который:
 
-- логин на `login.1c.ru`
-- поиск релиза на `releases.1c.ru`
-- выбор архива по `PLATFORM_VERSION`, `PLATFORM_ARCH`, `TARGETARCH`
-- кэширование через BuildKit cache `id=1c-platform-cache`
+- логинится на ITS
+- скачивает архив платформы в `.local/1c/platform/`
+- готовит единый staging-каталог `.local/1c/dev-platform/`
 
-Архив не коммитится в git и не остается в финальном образе.
+Это host-side стадия, которая запускается перед `make build`, `make up`, `make up-file-db`, `make up-server`, `make build-server-stack` и `make prepare-platform`.
 
-### PostgreSQL 1C
+Для `amd64` исходный архив `server64_with_all_clients_<version>.zip` хранится в `.local/1c/platform/`, а в `.local/1c/dev-platform/` staging-скрипт раскладывает уже нужные installer-файлы `setup-full-...run` и `all-clients-distr-...run`.
 
-`1c-pg` тоже скачивает пакет во время `docker build` через ITS secrets.
+Для `arm64` в `.local/1c/dev-platform/` раскладываются отдельные server/client zip-архивы `server.arm.deb64_<version>.zip` и `client.arm.deb64_<version>.zip` (или `thin.client.arm.deb64_<version>.zip`), а developer-image при сборке ставит и серверные, и клиентские пакеты из этого staging-каталога.
 
-Используется [pg/download-postgresql-1c.sh](/Users/maxon/git/me/clientserver1c/pg/download-postgresql-1c.sh:1):
+## Лицензия
 
-- логин на `login.1c.ru`
-- поиск релиза в `AddCompPostgre`
-- выбор пакета под нужный дистрибутив и архитектуру
-- установка `.deb` сразу в image
+Лицензия хранится в общем named volume:
 
-Архив также не хранится в репозитории и не остается в финальном image.
-
-## Переменные `.env`
-
-- `POSTGRES_PASSWORD` - пароль PostgreSQL
-- `PG_MAJOR` - major-ветка PostgreSQL, по умолчанию `17`
-- `PG_1C_VERSION` - версия `PostgreSQL 1C`, по умолчанию `17.7-1.1C`
-- `PG_REPO_DIST` - целевой дистрибутив пакета `PostgreSQL 1C`, по умолчанию `bookworm`
-- `PLATFORM_VERSION` - версия платформы 1С
-- `PLATFORM_ARCH` - `amd64` или `arm64`
-- `DOCKER_DEFAULT_PLATFORM` - платформа Docker для явного cross-build, например `linux/amd64` или `linux/arm64`
-- `ONEC_PLATFORM_OVERRIDE` - если `native-arm`, `1c-server` и `1c-client` собираются/запускаются как `linux/arm64`; по умолчанию они идут как `linux/amd64`, а `1c-pg` остается нативным
-- `ITS_LOGIN`, `ITS_PASSWORD` - учетные данные ITS
-
-Внутренние версии слоев и toolchain не вынесены в `.env`: они закреплены в Dockerfile, `docker-compose.yml` и CI workflow как внутренняя часть репозитория.
-
-## Архитектура
-
-По умолчанию:
-
-```bash
-PLATFORM_ARCH=amd64
+```text
+/var/1C/licenses
 ```
 
-На ARM-хосте это означает такую схему:
+Именно этот volume переживает пересоздание контейнера и может быть подключён к другим копиям того же developer-образа.
 
-- build-only слои `linux-common-base`, `linux-desktop-base`, `linux-onescript-builder`, `linux-onescript` идут как `linux/amd64`
-- `1c-pg` остается нативным `arm64`
-- `1c-server` и `1c-client` идут как контейнеры `linux/amd64`
+Первый supported flow намеренно ручной:
 
-Такой режим выбран по умолчанию, потому что ARM-релизы клиента 1С на ITS для проверенных версий `8.5.1.1150` и `8.5.1.1302` фактически содержат только `thin-client`, а не полный клиент.
+1. `make up`
+2. подключение к `localhost:5900`
+3. ручной ввод учётных данных в штатном окне лицензирования 1С
 
-Если все же нужно попробовать нативную ARM-сборку 1С:
+## Volumes
+
+Compose использует:
+
+- `./volumes/1c-dev/data:/mnt/data`
+- `./volumes/1c-dev/cache:/root/.1cv8/1C/1cv8/`
+- `onec-license-store:/var/1C/licenses`
+
+## Порты
+
+- `127.0.0.1:5900` - VNC только на localhost
+- `5432` - PostgreSQL 1C, если поднят `make up-server`
+
+Серверные порты 1С по умолчанию наружу не публикуются. Для первого запуска и `file-db` они не нужны, а сам `server`-mode остаётся доступен тем же образом внутри docker-сети или через отдельный runtime-override, если позже понадобится host exposure.
+
+## Архитектура и платформы
+
+По умолчанию 1С-сервисы собираются как `linux/amd64`.
+
+На ARM-хосте default flow остаётся таким:
+
+- базовые слои можно собирать multi-arch
+- `1c-pg` может остаться нативным
+- `1c-dev` обычно идёт как `linux/amd64`
+
+Если нужно попробовать native ARM:
 
 ```bash
 make build ONEC_PLATFORM_OVERRIDE=native-arm PLATFORM_ARCH=arm64
-```
-
-То же для запуска стенда:
-
-```bash
 make up ONEC_PLATFORM_OVERRIDE=native-arm PLATFORM_ARCH=arm64
-```
-
-Для явного cross-build:
-
-```bash
-make build PLATFORM_ARCH=arm64 DOCKER_DEFAULT_PLATFORM=linux/arm64
-make build PLATFORM_ARCH=amd64 DOCKER_DEFAULT_PLATFORM=linux/amd64
 ```
 
 ## OneScript и Vanessa
 
-`OneScript` собирается из исходников в `linux-onescript-builder`, затем переносится в `linux-onescript`, а пакеты:
-
-- `add`
-- `vanessa-runner`
-
-ставятся уже в `1c-client` штатно через:
-
-```bash
-opm install add
-opm install vanessa-runner
-```
-
-После сборки в клиентском контейнере доступны:
+Внутри `1c-dev` доступны:
 
 - `oscript`
 - `opm`
 - `vrunner`
+- `vanessa-runner`
 
-## GitHub CI
+Пакеты ставятся в процессе сборки образа.
 
-Для публикации образов в `ghcr.io` и `docker.io` в репозитории используется workflow [docker-publish.yml](/Users/maxon/git/me/clientserver1c/.github/workflows/docker-publish.yml:1).
+## CI publish
 
-Что нужно подготовить в GitHub:
+Workflow [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml) публикует:
 
-1. В `Settings -> Secrets and variables -> Actions -> Repository secrets`:
-   - `ITS_LOGIN`
-   - `ITS_PASSWORD`
-   - `DOCKERHUB_TOKEN`
-2. В `Settings -> Secrets and variables -> Actions -> Repository variables`:
-   - `DOCKERHUB_USERNAME`
-   - опционально `DOCKERHUB_NAMESPACE`, если namespace в Docker Hub отличается от `DOCKERHUB_USERNAME`
-   - опционально `GHCR_NAMESPACE`, если namespace в GHCR должен отличаться от `github.repository_owner`
-3. В Docker Hub:
-   - создать access token с правом `Write`
-   - создать нужные репозитории или namespace, если у вас это не делается автоматически
-4. В GitHub Packages / GHCR:
-   - после первого publish при необходимости выставить package visibility
-   - если package живет с granular permissions отдельно от репозитория, проверить `Manage Actions access`
-5. В `Settings -> Actions`:
-   - разрешить запуск workflow
-   - если в организации действует restrictive policy, разрешить используемые official actions `actions/*` и `docker/*`
+- `linux-common-base`
+- `linux-desktop-base`
+- `linux-onescript-builder`
+- `linux-onescript`
+- `postgresql`
+- `1c-developer`
 
-Практический нюанс:
+Publish запускается вручную через `workflow_dispatch` или по git-тегам `v*`.
 
-- workflow публикует multi-arch образы для `linux/amd64` и `linux/arm64` только для базовых слоев и `postgresql`
-- `1c-server` и `1c-client` публикуются только как `linux/amd64`, потому что full Linux-дистрибутивы 1С для ARM в текущих релизах не дают стабильную сборку сервера и полного клиента
-- для внутренних зависимостей цепочки workflow использует GHCR как промежуточный registry через commit tag `build-<sha>`
-- publish запускается на `push` в `main` / `master`, на `v*` tags и вручную через `workflow_dispatch`
-
-## Порты
-
-- `1c-client` VNC: `5900`
-- `1c-server`: `1540-1541`, `1560-1691`, `1545`
-- `1c-pg`: `5432`
+Отдельный publish `1c-server` больше не используется.
 
 ## Замечания
 
 - `artifacts/nethasp.ini` опционален
-- `.env` и `.local/` не коммитятся
-- `docker-compose.yml` настроен под локальный стенд, не под production
+- `.env`, `.local/` и локальные volume-данные не коммитятся
+- compose настроен под локальную разработку, не под production

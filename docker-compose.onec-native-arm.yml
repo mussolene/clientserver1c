@@ -11,8 +11,5 @@ services:
   linux-onescript:
     platform: linux/arm64
 
-  1c-server:
-    platform: linux/arm64
-
-  1c-client:
+  1c-dev:
     platform: linux/arm64

@@ -3,9 +3,6 @@ name: Publish Docker images
 on:
   workflow_dispatch:
   push:
-    branches:
-      - master
-      - main
     tags:
       - "v*"
 
@@ -18,7 +15,47 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  prepare-platform:
+    runs-on: ubuntu-24.04
+    outputs:
+      platform_version: ${{ steps.cfg.outputs.platform_version }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Load build defaults
+        id: cfg
+        shell: bash
+        run: |
+          set -euo pipefail
+          get_var() {
+            local key="$1"
+            grep -E "^${key}=" .env.example | tail -n 1 | cut -d= -f2-
+          }
+          echo "platform_version=$(get_var PLATFORM_VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare staged 1C platform archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          PLATFORM_VERSION="${{ steps.cfg.outputs.platform_version }}" \
+          PLATFORM_ARCH=amd64 \
+          ENV_FILE="$PWD/.env" \
+          bash ./scripts/prepare-platform.sh
+        env:
+          ITS_LOGIN: ${{ secrets.ITS_LOGIN }}
+          ITS_PASSWORD: ${{ secrets.ITS_PASSWORD }}
+
+      - name: Upload staged 1C platform archives
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-staging-${{ steps.cfg.outputs.platform_version }}
+          path: |
+            .local/1c/dev-platform
+          if-no-files-found: error
+
   publish:
+    needs: prepare-platform
     runs-on: ubuntu-24.04
     env:
       BUILD_TAG: build-${{ github.sha }}
@@ -41,6 +78,12 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Download staged 1C platform archives
+        uses: actions/download-artifact@v4
+        with:
+          name: platform-staging-${{ needs.prepare-platform.outputs.platform_version }}
+          path: .local/1c
 
       - name: Load build defaults
         id: cfg
@@ -119,10 +162,6 @@ jobs:
               echo "${dockerhub_base}:${BUILD_TAG}"
               echo "${ghcr_base}:${version_tag}"
               echo "${dockerhub_base}:${version_tag}"
-              if [[ "${REF_TYPE}" == "branch" && "${REF_NAME}" == "${DEFAULT_BRANCH}" ]]; then
-                echo "${ghcr_base}:latest"
-                echo "${dockerhub_base}:latest"
-              fi
               if [[ "${REF_TYPE}" == "tag" ]]; then
                 local release_tag="${REF_NAME#v}"
                 echo "${ghcr_base}:${release_tag}"
@@ -137,8 +176,7 @@ jobs:
           emit_tags onescript_builder_tags linux-onescript-builder "${ONESCRIPT_BUILD_TAG}"
           emit_tags onescript_tags linux-onescript "${ONESCRIPT_BASE_TAG}"
           emit_tags pg_tags postgresql "${{ steps.cfg.outputs.pg_1c_version }}"
-          emit_tags server_tags 1c-server "${{ steps.cfg.outputs.platform_version }}"
-          emit_tags client_tags 1c-client "${{ steps.cfg.outputs.platform_version }}"
+          emit_tags dev_tags 1c-developer "${{ steps.cfg.outputs.platform_version }}"
 
       - name: Build and push linux-common-base
         uses: docker/build-push-action@v6
@@ -237,30 +275,7 @@ jobs:
           cache-from: type=gha,scope=postgresql
           cache-to: type=gha,mode=max,scope=postgresql
 
-      - name: Build and push 1c-server
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./server/Dockerfile
-          platforms: ${{ env.PLATFORMS_ONEC }}
-          pull: true
-          push: true
-          build-args: |
-            COMMON_BASE_IMAGE=common_base
-            PLATFORM_VERSION=${{ steps.cfg.outputs.platform_version }}
-          build-contexts: |
-            common_base=docker-image://${{ env.GHCR_REGISTRY }}/${{ steps.cfg.outputs.ghcr_namespace }}/linux-common-base:${{ env.BUILD_TAG }}
-          secrets: |
-            its_login=${{ secrets.ITS_LOGIN }}
-            its_password=${{ secrets.ITS_PASSWORD }}
-          tags: ${{ steps.tags.outputs.server_tags }}
-          labels: |
-            org.opencontainers.image.source=${{ env.REPO_URL }}
-            org.opencontainers.image.revision=${{ github.sha }}
-          cache-from: type=gha,scope=1c-server
-          cache-to: type=gha,mode=max,scope=1c-server
-
-      - name: Build and push 1c-client
+      - name: Build and push 1c-developer
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -277,12 +292,9 @@ jobs:
           build-contexts: |
             desktop_base=docker-image://${{ env.GHCR_REGISTRY }}/${{ steps.cfg.outputs.ghcr_namespace }}/linux-desktop-base:${{ env.BUILD_TAG }}
             onescript_base=docker-image://${{ env.GHCR_REGISTRY }}/${{ steps.cfg.outputs.ghcr_namespace }}/linux-onescript:${{ env.BUILD_TAG }}
-          secrets: |
-            its_login=${{ secrets.ITS_LOGIN }}
-            its_password=${{ secrets.ITS_PASSWORD }}
-          tags: ${{ steps.tags.outputs.client_tags }}
+          tags: ${{ steps.tags.outputs.dev_tags }}
           labels: |
             org.opencontainers.image.source=${{ env.REPO_URL }}
             org.opencontainers.image.revision=${{ github.sha }}
-          cache-from: type=gha,scope=1c-client
-          cache-to: type=gha,mode=max,scope=1c-client
+          cache-from: type=gha,scope=1c-developer
+          cache-to: type=gha,mode=max,scope=1c-developer
