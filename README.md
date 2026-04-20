@@ -69,7 +69,7 @@ make up
 1. проверяет `.env`
 2. при локальном запуске при необходимости запрашивает ITS-учетку
 3. запускает `docker compose --profile build build 1c-pg 1c-server 1c-client`
-4. затем делает `docker compose up`
+4. затем делает `docker compose --profile build up 1c-pg 1c-server 1c-client`
 
 Если нужен только build:
 
@@ -88,7 +88,7 @@ make config
 - `make env` - создать `.env` из `.env.example`, если его еще нет
 - `make up` - основной сценарий: собрать всю цепочку через `compose` и поднять стенд
 - `make build` - собрать всю цепочку через `compose`, не запуская контейнеры
-- `make config` - проверить итоговый `docker compose config`
+- `make config` - проверить итоговый `docker compose --profile build config`
 - `make down` - остановить стенд
 - `make ps` - показать состояние контейнеров
 - `make logs` - смотреть логи
@@ -145,6 +145,7 @@ Offline/helper цели:
 - `PLATFORM_VERSION` - версия платформы 1С
 - `PLATFORM_ARCH` - `amd64` или `arm64`
 - `DOCKER_DEFAULT_PLATFORM` - платформа Docker для явного cross-build, например `linux/amd64` или `linux/arm64`
+- `ONEC_PLATFORM_OVERRIDE` - если `native-arm`, `1c-server` и `1c-client` собираются/запускаются как `linux/arm64`; по умолчанию они идут как `linux/amd64`, а `1c-pg` остается нативным
 - `ITS_LOGIN`, `ITS_PASSWORD` - учетные данные ITS
 
 Внутренние версии слоев и toolchain не вынесены в `.env`: они закреплены в Dockerfile, `docker-compose.yml` и CI workflow как внутренняя часть репозитория.
@@ -157,10 +158,24 @@ Offline/helper цели:
 PLATFORM_ARCH=amd64
 ```
 
-Для нативной ARM-сборки:
+На ARM-хосте это означает такую схему:
+
+- build-only слои `linux-common-base`, `linux-desktop-base`, `linux-onescript-builder`, `linux-onescript` идут как `linux/amd64`
+- `1c-pg` остается нативным `arm64`
+- `1c-server` и `1c-client` идут как контейнеры `linux/amd64`
+
+Такой режим выбран по умолчанию, потому что ARM-релизы клиента 1С на ITS для проверенных версий `8.5.1.1150` и `8.5.1.1302` фактически содержат только `thin-client`, а не полный клиент.
+
+Если все же нужно попробовать нативную ARM-сборку 1С:
 
 ```bash
-make build PLATFORM_ARCH=arm64
+make build ONEC_PLATFORM_OVERRIDE=native-arm PLATFORM_ARCH=arm64
+```
+
+То же для запуска стенда:
+
+```bash
+make up ONEC_PLATFORM_OVERRIDE=native-arm PLATFORM_ARCH=arm64
 ```
 
 Для явного cross-build:

@@ -226,9 +226,6 @@ jobs:
             PG_MAJOR=${{ steps.cfg.outputs.pg_major }}
             PG_REPO_DIST=${{ steps.cfg.outputs.pg_repo_dist }}
             PG_1C_VERSION=${{ steps.cfg.outputs.pg_1c_version }}
-            COMMON_BASE_IMAGE=common_base
-          build-contexts: |
-            common_base=docker-image://${{ env.GHCR_REGISTRY }}/${{ steps.cfg.outputs.ghcr_namespace }}/linux-common-base:${{ env.BUILD_TAG }}
           secrets: |
             its_login=${{ secrets.ITS_LOGIN }}
             its_password=${{ secrets.ITS_PASSWORD }}

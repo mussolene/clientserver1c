@@ -15,7 +15,7 @@ RUN --mount=type=cache,id=1c-platform-cache,target=/var/cache/1c-platform \
     --mount=type=secret,id=its_login \
     --mount=type=secret,id=its_password \
     chmod +x /usr/local/bin/download-platform-build.sh \
-  && archive_path="$(PLATFORM_COMPONENT=server PLATFORM_VERSION="$PLATFORM_VERSION" PLATFORM_DIST_NAME="$PLATFORM_DIST_NAME" TARGETARCH="$TARGETARCH" /usr/local/bin/download-platform-build.sh)" \
+  && archive_path="$(PLATFORM_COMPONENT=server PLATFORM_VERSION="$PLATFORM_VERSION" PLATFORM_DIST_NAME="$PLATFORM_DIST_NAME" TARGETARCH="$TARGETARCH" PLATFORM_PACKAGE_ARCH="$TARGETARCH" /usr/local/bin/download-platform-build.sh)" \
   && cd /tmp \
   && case "$archive_path" in \
     *.zip) \

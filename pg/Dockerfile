@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 ARG PG_MAJOR=17
-ARG COMMON_BASE_IMAGE=mussolene/linux-common-base:bookworm
+ARG COMMON_BASE_IMAGE=debian:bookworm-slim
 FROM postgres:${PG_MAJOR}-bookworm AS postgres-upstream
 
 FROM ${COMMON_BASE_IMAGE}
@@ -38,7 +38,10 @@ RUN --mount=type=secret,id=its_login,required=true \
     && echo 'create_main_cluster = false' > /etc/postgresql-common/createcluster.conf \
     && apt-get update -o APT::Sandbox::User=root -o Acquire::Retries=5 \
     && apt-get install -y -o APT::Sandbox::User=root --no-install-recommends \
+      ca-certificates \
       bzip2 \
+      curl \
+      locales \
       ssl-cert \
       tzdata \
     && PG_DOWNLOAD_DIR=/tmp/pg1c /usr/local/bin/download-postgresql-1c.sh \

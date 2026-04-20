@@ -13,6 +13,11 @@ fi
 
 env ENV_FILE="$ENV_FILE" bash "$ROOT_DIR/scripts/ensure-its-env.sh"
 
-docker compose --profile build build 1c-pg 1c-server 1c-client
+compose_args=(-f "$ROOT_DIR/docker-compose.yml")
+if [[ "${ONEC_PLATFORM_OVERRIDE:-}" == "native-arm" ]]; then
+  compose_args+=(-f "$ROOT_DIR/docker-compose.onec-native-arm.yml")
+fi
 
-exec docker compose up "$@"
+docker compose "${compose_args[@]}" --profile build build 1c-pg 1c-server 1c-client
+
+exec docker compose "${compose_args[@]}" --profile build up "$@" 1c-pg 1c-server 1c-client

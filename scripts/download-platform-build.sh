@@ -13,6 +13,7 @@ PLATFORM_COMPONENT="${PLATFORM_COMPONENT:?PLATFORM_COMPONENT is required}"
 PLATFORM_DIST_NAME="${PLATFORM_DIST_NAME:-}"
 PLATFORM_DOWNLOAD_URL="${PLATFORM_DOWNLOAD_URL:-}"
 TARGETARCH="${TARGETARCH:-amd64}"
+PLATFORM_PACKAGE_ARCH="${PLATFORM_PACKAGE_ARCH:-$TARGETARCH}"
 
 get_platform_nick() {
   local version="$1"
@@ -57,20 +58,10 @@ resolve_candidates() {
 
   case "$component:$arch" in
     server:amd64)
-      printf '%s\n' \
-        "server64_with_all_clients_${normalized_version}.zip" \
-        "deb64_${normalized_version}.zip" \
-        "server64_${normalized_version}.zip" \
-        "server64_${normalized_version}.tar.gz" \
-        "deb64_${normalized_version}.tar.gz"
+      printf '%s\n' "server64_with_all_clients_${normalized_version}.zip"
       ;;
     client:amd64)
-      printf '%s\n' \
-        "server64_with_all_clients_${normalized_version}.zip" \
-        "client_${normalized_version}.deb64.zip" \
-        "server64_with_clients_${normalized_version}.zip" \
-        "server64_${normalized_version}.tar.gz" \
-        "thin.client_${normalized_version}.deb64.zip"
+      printf '%s\n' "server64_with_all_clients_${normalized_version}.zip"
       ;;
     server:arm64)
       printf '%s\n' "server.arm.deb64_${version}.zip"
@@ -97,10 +88,12 @@ download_via_direct_url() {
   mkdir -p "$PLATFORM_DOWNLOAD_DIR"
 
   if [[ -s "$target_path" ]]; then
+    echo "Using cached platform archive: $(basename "$target_path")" >&2
     printf '%s\n' "$target_path"
     return 0
   fi
 
+  echo "Downloading platform archive via direct URL: ${filename}" >&2
   curl --fail --location --retry 3 --show-error --silent \
     -A "$USER_AGENT" \
     -o "${target_path}.part" \
@@ -133,11 +126,14 @@ download_via_its() {
     exit 1
   fi
 
+  echo "Authorizing on login.1c.ru for platform ${PLATFORM_VERSION} (${PLATFORM_COMPONENT}/${PLATFORM_PACKAGE_ARCH})" >&2
+
   mkdir -p "$PLATFORM_DOWNLOAD_DIR"
-  mapfile -t candidates < <(resolve_candidates "$PLATFORM_VERSION" "$PLATFORM_COMPONENT" "$TARGETARCH")
+  mapfile -t candidates < <(resolve_candidates "$PLATFORM_VERSION" "$PLATFORM_COMPONENT" "$PLATFORM_PACKAGE_ARCH")
 
   for candidate in "${candidates[@]}"; do
     if [[ -s "$PLATFORM_DOWNLOAD_DIR/$candidate" ]]; then
+      echo "Using cached platform archive: ${candidate}" >&2
       printf '%s\n' "$PLATFORM_DOWNLOAD_DIR/$candidate"
       return 0
     fi
@@ -238,6 +234,8 @@ download_via_its() {
 
   target_path="${PLATFORM_DOWNLOAD_DIR}/${selected_candidate}"
 
+  echo "Downloading platform archive from ITS: ${selected_candidate}" >&2
+
   curl --fail --location --retry 3 --show-error --silent \
     -b "$cookie_file" \
     -A "$USER_AGENT" \
@@ -247,10 +245,10 @@ download_via_its() {
   printf '%s\n' "$target_path"
 }
 
-case "$TARGETARCH" in
+case "$PLATFORM_PACKAGE_ARCH" in
   amd64|arm64) ;;
   *)
-    echo "Unsupported TARGETARCH: $TARGETARCH" >&2
+    echo "Unsupported PLATFORM_PACKAGE_ARCH: $PLATFORM_PACKAGE_ARCH" >&2
     exit 1
     ;;
 esac

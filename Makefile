@@ -10,6 +10,9 @@ PLATFORM_VERSION ?=
 PLATFORM_ARCH ?=
 PLATFORM_DIST_NAME ?=
 DOCKER_DEFAULT_PLATFORM ?=
+ONEC_PLATFORM_OVERRIDE ?=
+
+COMPOSE_FILES := -f docker-compose.yml $(if $(filter native-arm,$(ONEC_PLATFORM_OVERRIDE)),-f docker-compose.onec-native-arm.yml)
 
 .PHONY: help env download prepare-platform build-common-base build-desktop-base build-onescript-builder build-onescript-base up build config down ps logs clean-platform clean
 
@@ -40,6 +43,7 @@ help:
 	  '  make build-onescript-builder' \
 	  '  make build-onescript-base' \
 	  '  make build PLATFORM_ARCH=arm64 DOCKER_DEFAULT_PLATFORM=linux/arm64' \
+	  '  make build ONEC_PLATFORM_OVERRIDE=native-arm PLATFORM_ARCH=arm64' \
 	  '  make build PLATFORM_ARCH=amd64 DOCKER_DEFAULT_PLATFORM=linux/amd64' \
 	  '  make up PLATFORM_VERSION=8.3.24.1548' \
 	  '  make download PLATFORM_VERSION=8.3.25.1374'
@@ -96,6 +100,7 @@ up:
 	if [[ -n "$(PLATFORM_VERSION)" ]]; then env_args+=(PLATFORM_VERSION="$(PLATFORM_VERSION)"); fi; \
 	if [[ -n "$(PLATFORM_ARCH)" ]]; then env_args+=(PLATFORM_ARCH="$(PLATFORM_ARCH)"); fi; \
 	if [[ -n "$(PLATFORM_DIST_NAME)" ]]; then env_args+=(PLATFORM_DIST_NAME="$(PLATFORM_DIST_NAME)"); fi; \
+	if [[ -n "$(ONEC_PLATFORM_OVERRIDE)" ]]; then env_args+=(ONEC_PLATFORM_OVERRIDE="$(ONEC_PLATFORM_OVERRIDE)"); fi; \
 	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" ./scripts/up.sh
 
 build:
@@ -108,8 +113,9 @@ build:
 	if [[ -n "$(PLATFORM_VERSION)" ]]; then env_args+=(PLATFORM_VERSION="$(PLATFORM_VERSION)"); fi; \
 	if [[ -n "$(PLATFORM_ARCH)" ]]; then env_args+=(PLATFORM_ARCH="$(PLATFORM_ARCH)"); fi; \
 	if [[ -n "$(PLATFORM_DIST_NAME)" ]]; then env_args+=(PLATFORM_DIST_NAME="$(PLATFORM_DIST_NAME)"); fi; \
+	if [[ -n "$(ONEC_PLATFORM_OVERRIDE)" ]]; then env_args+=(ONEC_PLATFORM_OVERRIDE="$(ONEC_PLATFORM_OVERRIDE)"); fi; \
 	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" bash ./scripts/ensure-its-env.sh; \
-	env "$${env_args[@]}" $(DOCKER_COMPOSE) --profile build build 1c-pg 1c-server 1c-client
+	env "$${env_args[@]}" $(DOCKER_COMPOSE) $(COMPOSE_FILES) --profile build build 1c-pg 1c-server 1c-client
 
 config:
 	@env_args=(POSTGRES_PASSWORD="$(POSTGRES_PASSWORD)"); \
@@ -121,16 +127,17 @@ config:
 	if [[ -n "$(PLATFORM_VERSION)" ]]; then env_args+=(PLATFORM_VERSION="$(PLATFORM_VERSION)"); fi; \
 	if [[ -n "$(PLATFORM_ARCH)" ]]; then env_args+=(PLATFORM_ARCH="$(PLATFORM_ARCH)"); fi; \
 	if [[ -n "$(PLATFORM_DIST_NAME)" ]]; then env_args+=(PLATFORM_DIST_NAME="$(PLATFORM_DIST_NAME)"); fi; \
-	env "$${env_args[@]}" $(DOCKER_COMPOSE) config
+	if [[ -n "$(ONEC_PLATFORM_OVERRIDE)" ]]; then env_args+=(ONEC_PLATFORM_OVERRIDE="$(ONEC_PLATFORM_OVERRIDE)"); fi; \
+	env "$${env_args[@]}" $(DOCKER_COMPOSE) $(COMPOSE_FILES) --profile build config
 
 down:
-	@$(DOCKER_COMPOSE) down
+	@$(DOCKER_COMPOSE) $(COMPOSE_FILES) --profile build down
 
 ps:
-	@$(DOCKER_COMPOSE) ps
+	@$(DOCKER_COMPOSE) $(COMPOSE_FILES) --profile build ps
 
 logs:
-	@$(DOCKER_COMPOSE) logs -f
+	@$(DOCKER_COMPOSE) $(COMPOSE_FILES) --profile build logs -f 1c-pg 1c-server 1c-client
 
 clean-platform:
 	@rm -rf .local/1c/platform
@@ -139,4 +146,4 @@ clean-platform:
 	@echo 'Removed .local/1c platform caches'
 
 clean: clean-platform
-	@$(DOCKER_COMPOSE) down
+	@$(DOCKER_COMPOSE) $(COMPOSE_FILES) --profile build down

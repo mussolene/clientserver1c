@@ -2,6 +2,7 @@ services:
   linux-common-base:
     profiles: ["build"]
     image: mussolene/linux-common-base:bookworm
+    platform: linux/amd64
     build:
       context: .
       dockerfile: base/linux-common/Dockerfile
@@ -11,6 +12,7 @@ services:
   linux-desktop-base:
     profiles: ["build"]
     image: mussolene/linux-desktop-base:bookworm
+    platform: linux/amd64
     build:
       context: .
       dockerfile: base/linux-desktop/Dockerfile
@@ -22,6 +24,7 @@ services:
   linux-onescript-builder:
     profiles: ["build"]
     image: mussolene/linux-onescript-builder:2.0.0
+    platform: linux/amd64
     build:
       context: .
       dockerfile: base/linux-onescript-builder/Dockerfile
@@ -32,6 +35,7 @@ services:
   linux-onescript:
     profiles: ["build"]
     image: mussolene/linux-onescript:2.0.0
+    platform: linux/amd64
     build:
       context: .
       dockerfile: base/linux-onescript/Dockerfile
@@ -46,6 +50,7 @@ services:
     image: mussolene/1c-server:${PLATFORM_VERSION:-8.3.22.1851}
     hostname: srv1c
     privileged: true
+    platform: linux/amd64
     build:
       context: .
       dockerfile: server/Dockerfile
@@ -79,6 +84,7 @@ services:
   1c-client:
     image: mussolene/1c-client:${PLATFORM_VERSION:-8.3.22.1851}
     hostname: client1c
+    platform: linux/amd64
     build:
       context: .
       dockerfile: client/Dockerfile
@@ -112,11 +118,8 @@ services:
     build:
       context: .
       dockerfile: pg/Dockerfile
-      additional_contexts:
-        common_base: service:linux-common-base
       args:
         PG_MAJOR: ${PG_MAJOR:-17}
-        COMMON_BASE_IMAGE: common_base
         PG_REPO_DIST: ${PG_REPO_DIST:-bookworm}
         PG_1C_VERSION: ${PG_1C_VERSION:-17.7-1.1C}
       secrets:

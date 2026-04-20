@@ -1,0 +1,18 @@
+services:
+  linux-common-base:
+    platform: linux/arm64
+
+  linux-desktop-base:
+    platform: linux/arm64
+
+  linux-onescript-builder:
+    platform: linux/arm64
+
+  linux-onescript:
+    platform: linux/arm64
+
+  1c-server:
+    platform: linux/arm64
+
+  1c-client:
+    platform: linux/arm64
