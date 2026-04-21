@@ -9,4 +9,6 @@ volumes
 .local/**
 !.local/1c/
 !.local/1c/dev-platform/
-!.local/1c/dev-platform/**
+!.local/1c/dev-platform/*.zip
+!.local/1c/dev-platform/*.deb
+!.local/1c/dev-platform/setup-full-*.run

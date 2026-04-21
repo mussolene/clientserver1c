@@ -52,10 +52,13 @@ installer_path=""
 
 for archive_path in "${archives[@]}"; do
   case "$archive_path" in
-    *.run)
+    */setup-full-*.run)
       copied_installer_path="$tmp_installer_dir/$(basename "$archive_path")"
       cp "$archive_path" "$copied_installer_path"
       installer_path="$copied_installer_path"
+      ;;
+    *.run)
+      echo "Skipping non-installer run payload: $(basename "$archive_path")"
       ;;
     *.zip)
       archive_name="$(basename "$archive_path" .zip)"
@@ -110,6 +113,7 @@ cd "$tmp_installer_dir"
   --mode unattended \
   --unattendedmodeui none \
   --enable-components "$enable_components"
+find /opt/1cv8 -type d -name distr -prune -exec rm -rf {} +
 rm -rf "$unpack_dir"/* "$tmp_installer_dir"/* /tmp/*.run /tmp/*.tar.gz /tmp/*.zip
 EOF
 

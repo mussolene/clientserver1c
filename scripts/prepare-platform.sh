@@ -88,20 +88,17 @@ if [[ "$PLATFORM_ARCH" == "arm64" ]]; then
 else
   full_client_archive="server64_with_all_clients_${version_underscored}.zip"
   setup_full_run="setup-full-${PLATFORM_VERSION}-x86_64.run"
-  all_clients_run="all-clients-distr-${PLATFORM_VERSION}-x86_64.run"
 
   if [[ ! -f "$PLATFORM_CACHE_DIR/$full_client_archive" ]]; then
     env ENV_FILE="$ENV_FILE" PLATFORM_VERSION="$PLATFORM_VERSION" PLATFORM_ARCH="$PLATFORM_ARCH" PLATFORM_DIST_NAME="$full_client_archive" \
       "$ROOT_DIR/scripts/download-platform.sh"
   fi
 
-  if [[ -f "$PLATFORM_CACHE_DIR/$setup_full_run" && -f "$PLATFORM_CACHE_DIR/$all_clients_run" ]]; then
+  if [[ -f "$PLATFORM_CACHE_DIR/$setup_full_run" ]]; then
     copy_to_staging "$setup_full_run" "$DEV_STAGING_DIR"
-    copy_to_staging "$all_clients_run" "$DEV_STAGING_DIR"
   else
     unzip -j -q "$PLATFORM_CACHE_DIR/$full_client_archive" \
       "$setup_full_run" \
-      "$all_clients_run" \
       -d "$DEV_STAGING_DIR"
   fi
 fi
