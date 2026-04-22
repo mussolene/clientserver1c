@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+project_root="${ONEC_PROJECT_ROOT:-/workspace/project}"
+mode="${BSLLS_MODE:-analyze}"
+src_dir="${BSLLS_SRC_DIR:-${1:-$project_root}}"
+output_dir="${BSLLS_OUTPUT_DIR:-$project_root/.agent/bslls}"
+reporters="${BSLLS_REPORTERS:-json,console}"
+
+if [[ ! -d "$src_dir" ]]; then
+  printf 'BSLLS source directory does not exist: %s\n' "$src_dir" >&2
+  exit 2
+fi
+
+mkdir -p "$output_dir"
+
+case "$mode" in
+  analyze)
+    args=(--analyze --srcDir "$src_dir" --outputDir "$output_dir")
+    IFS=',' read -ra reporter_list <<< "$reporters"
+    for reporter in "${reporter_list[@]}"; do
+      if [[ -n "$reporter" ]]; then
+        args+=(--reporter "$reporter")
+      fi
+    done
+    ;;
+  format)
+    args=(--format --src "$src_dir")
+    ;;
+  *)
+    printf 'Unknown BSLLS mode: %s\n' "$mode" >&2
+    exit 2
+    ;;
+esac
+
+exec bsl-language-server "${args[@]}"

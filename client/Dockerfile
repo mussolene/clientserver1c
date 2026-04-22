@@ -8,6 +8,11 @@ ARG PLATFORM_VERSION=8.5.1.1302
 ARG PLATFORM_DIST_NAME
 ARG VANESSA_ADD_VERSION=6.9.5
 ARG VANESSA_RUNNER_VERSION=2.6.0
+ARG VANESSA_AUTOMATION_VERSION=1.2.043.1
+ARG ONEC_VANESSA_SKILL_REF=58b8e8b4831f4f1457707b037c8a050f5cd32e86
+ARG ONEC_CONTEXT_TOOLKIT_REF=b3ac817fa76d4979ae10bf5806e9d7bbab66e1e0
+ARG ONEC_WORKFLOW_PROOF_REF=29664a56b6eba063982cacc3e200285e09799933
+ARG BSLLS_VERSION=0.25.0
 
 ENV PLATFORM_VERSION=${PLATFORM_VERSION}
 ENV PLATFORM_DIST_NAME=${PLATFORM_DIST_NAME}
@@ -24,9 +29,16 @@ COPY --from=onescript_base /usr/local/bin/opm /usr/local/bin/opm
 
 RUN apt-get update -o APT::Sandbox::User=root \
   && apt-get install --yes --no-install-recommends -o APT::Sandbox::User=root \
+    git \
     imagemagick \
     iproute2 \
     iputils-ping \
+    jq \
+    openjdk-17-jre-headless \
+    python3 \
+    python3-pip \
+    python3-venv \
+    ripgrep \
     xdotool \
   && rm -rf /var/lib/apt/lists/*
 
@@ -154,6 +166,11 @@ EOF
 
 RUN (opm install "add@${VANESSA_ADD_VERSION}" || opm install add) \
   && (opm install "vanessa-runner@${VANESSA_RUNNER_VERSION}" || opm install vanessa-runner) \
+  && if [ -n "${VANESSA_AUTOMATION_VERSION}" ]; then \
+       opm install "vanessa-automation@${VANESSA_AUTOMATION_VERSION}"; \
+     else \
+       opm install vanessa-automation; \
+     fi \
   && mkdir -p /opt/lib \
   && ln -sfn /opt/onescript/lib/add /opt/lib/add \
   && ln -sf /opt/onescript/bin/vrunner /usr/local/bin/vrunner \
@@ -161,6 +178,85 @@ RUN (opm install "add@${VANESSA_ADD_VERSION}" || opm install add) \
   && ln -sf /opt/onescript/bin/vanessa-runner /usr/local/bin/vanessa-runner \
   && command -v vrunner >/dev/null \
   && vrunner help >/dev/null
+
+RUN mkdir -p /opt/bslls \
+  && curl -fsSL \
+    "https://github.com/1c-syntax/bsl-language-server/releases/download/v${BSLLS_VERSION}/bsl-language-server-${BSLLS_VERSION}-exec.jar" \
+    -o /opt/bslls/bsl-language-server.jar \
+  && printf '%s\n' \
+      '#!/usr/bin/env bash' \
+      'set -euo pipefail' \
+      'exec java ${BSLLS_JAVA_OPTS:--Xmx2g} -jar /opt/bslls/bsl-language-server.jar "$@"' \
+    > /usr/local/bin/bsl-language-server \
+  && chmod +x /usr/local/bin/bsl-language-server \
+  && bsl-language-server --version >/dev/null
+
+COPY agent/ /opt/onec-agent/
+
+RUN bash -euxo pipefail <<'EOF'
+skills_root=/opt/onec-skills
+mkdir -p "$skills_root"
+
+clone_skill() {
+  local name="$1"
+  local url="$2"
+  local ref="$3"
+  local target="$skills_root/$name"
+
+  rm -rf "$target"
+  git init "$target"
+  git -C "$target" remote add origin "$url"
+  git -C "$target" fetch --depth 1 origin "$ref" || git -C "$target" fetch origin "$ref"
+  git -C "$target" checkout --detach FETCH_HEAD
+  git -C "$target" rev-parse HEAD
+}
+
+vanessa_commit="$(clone_skill onec-vanessa-skill https://github.com/mussolene/onec-vanessa-skill "${ONEC_VANESSA_SKILL_REF}")"
+context_commit="$(clone_skill onec-context-toolkit https://github.com/mussolene/onec-context-toolkit "${ONEC_CONTEXT_TOOLKIT_REF}")"
+workflow_commit="$(clone_skill onec-workflow-proof https://github.com/mussolene/onec-workflow-proof "${ONEC_WORKFLOW_PROOF_REF}")"
+
+jq -n \
+  --arg vanessa_ref "${ONEC_VANESSA_SKILL_REF}" \
+  --arg vanessa_commit "$vanessa_commit" \
+  --arg context_ref "${ONEC_CONTEXT_TOOLKIT_REF}" \
+  --arg context_commit "$context_commit" \
+  --arg workflow_ref "${ONEC_WORKFLOW_PROOF_REF}" \
+  --arg workflow_commit "$workflow_commit" \
+  --arg bslls_version "${BSLLS_VERSION}" \
+  '{
+    skills_root: "/opt/onec-skills",
+    project_root: "/workspace/project",
+    tools: {
+      "bsl-language-server": {
+        version: $bslls_version,
+        command: "bsl-language-server",
+        jar: "/opt/bslls/bsl-language-server.jar"
+      }
+    },
+    skills: {
+      "onec-vanessa-skill": {
+        source: "https://github.com/mussolene/onec-vanessa-skill",
+        ref: $vanessa_ref,
+        commit: $vanessa_commit,
+        entrypoint: "/opt/onec-skills/onec-vanessa-skill/skill/core/SKILL.md"
+      },
+      "onec-context-toolkit": {
+        source: "https://github.com/mussolene/onec-context-toolkit",
+        ref: $context_ref,
+        commit: $context_commit,
+        entrypoint: "/opt/onec-skills/onec-context-toolkit/skill/SKILL.md"
+      },
+      "onec-workflow-proof": {
+        source: "https://github.com/mussolene/onec-workflow-proof",
+        ref: $workflow_ref,
+        commit: $workflow_commit,
+        entrypoint: "/opt/onec-skills/onec-workflow-proof/onec-atomic-proof-loop/SKILL.md"
+      }
+    }
+  }' > /opt/onec-agent/registry.json
+
+chmod +x /opt/onec-agent/bin/*
+EOF
 
 RUN chmod +x /etc/services.d/onec/run \
   && if ! getent group grp1cv8 >/dev/null; then \

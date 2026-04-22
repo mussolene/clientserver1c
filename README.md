@@ -186,8 +186,97 @@ make up ONEC_PLATFORM_OVERRIDE=native-arm PLATFORM_ARCH=arm64
 - `opm`
 - `vrunner`
 - `vanessa-runner`
+- `vanessa-automation`
+- `python3`
+- `bsl-language-server`
 
 Пакеты ставятся в процессе сборки образа.
+
+## Agent-ready режим
+
+`1c-dev` также содержит слой 1C skills для IDE-агентов. Агент не запускается внутри контейнера: он остаётся в Cursor/Codex/VS Code на host, редактирует открытый репозиторий, а 1С-зависимые команды выполняет внутри `1c-dev`.
+
+В контейнере:
+
+- проект монтируется в `/workspace/project`
+- инструкции для агента лежат в `/opt/onec-agent/AGENTS.md`
+- registry skills лежит в `/opt/onec-agent/registry.json`
+- skill repos лежат в `/opt/onec-skills`
+
+Слой skills собирается из:
+
+- `https://github.com/mussolene/onec-vanessa-skill`
+- `https://github.com/mussolene/onec-context-toolkit`
+- `https://github.com/mussolene/onec-workflow-proof`
+
+Refs задаются через `.env`:
+
+```env
+VANESSA_ADD_VERSION=6.9.5
+VANESSA_RUNNER_VERSION=2.6.0
+VANESSA_AUTOMATION_VERSION=1.2.043.1
+BSLLS_VERSION=0.25.0
+
+ONEC_VANESSA_SKILL_REF=58b8e8b4831f4f1457707b037c8a050f5cd32e86
+ONEC_CONTEXT_TOOLKIT_REF=b3ac817fa76d4979ae10bf5806e9d7bbab66e1e0
+ONEC_WORKFLOW_PROOF_REF=29664a56b6eba063982cacc3e200285e09799933
+```
+
+По умолчанию skills закреплены на commit refs, чтобы image build был повторяемым. Для обновления слоя замените refs в `.env` и пересоберите `1c-dev`.
+
+Запуск из репозитория проекта:
+
+```bash
+make -C /path/to/clientserver1c agent-up PROJECT_PATH="$PWD"
+```
+
+Проверка готовности:
+
+```bash
+make -C /path/to/clientserver1c agent-doctor PROJECT_PATH="$PWD"
+```
+
+Посмотреть registry skills:
+
+```bash
+make -C /path/to/clientserver1c agent-skills PROJECT_PATH="$PWD"
+```
+
+Прочитать конкретный skill:
+
+```bash
+make -C /path/to/clientserver1c agent-skill PROJECT_PATH="$PWD" NAME=context
+make -C /path/to/clientserver1c agent-skill PROJECT_PATH="$PWD" NAME=testing
+make -C /path/to/clientserver1c agent-skill PROJECT_PATH="$PWD" NAME=proof-loop
+```
+
+Выполнить команду внутри контейнера в `/workspace/project`:
+
+```bash
+make -C /path/to/clientserver1c agent-exec PROJECT_PATH="$PWD" CMD="oscript --version"
+```
+
+Запустить статическую диагностику BSL Language Server:
+
+```bash
+make -C /path/to/clientserver1c agent-bslls PROJECT_PATH="$PWD" SRC_DIR=src/cf
+```
+
+По умолчанию отчёты пишутся в `.agent/bslls` внутри смонтированного проекта. Можно переопределить:
+
+```bash
+make -C /path/to/clientserver1c agent-bslls PROJECT_PATH="$PWD" SRC_DIR=src/cf OUTPUT_DIR=.agent/bslls REPORTERS=json,console
+```
+
+Отформатировать BSL-файлы через BSL Language Server:
+
+```bash
+make -C /path/to/clientserver1c agent-bslls-format PROJECT_PATH="$PWD" SRC_DIR=src/cf
+```
+
+Форматтер меняет файлы в смонтированном проекте, поэтому агент должен запускать его только как явное действие и после этого показывать diff.
+
+Правило для IDE-агента: файлы редактируются в host-репозитории, а сборка, разборка, Vanessa/xUnit и platform-dependent проверки запускаются через `agent-exec` внутри контейнера.
 
 ## UI smoke через Vanessa
 

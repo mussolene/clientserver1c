@@ -1,0 +1,18 @@
+{
+  "skills_root": "/opt/onec-skills",
+  "project_root": "/workspace/project",
+  "skills": {
+    "onec-vanessa-skill": {
+      "source": "https://github.com/mussolene/onec-vanessa-skill",
+      "entrypoint": "/opt/onec-skills/onec-vanessa-skill/skill/core/SKILL.md"
+    },
+    "onec-context-toolkit": {
+      "source": "https://github.com/mussolene/onec-context-toolkit",
+      "entrypoint": "/opt/onec-skills/onec-context-toolkit/skill/SKILL.md"
+    },
+    "onec-workflow-proof": {
+      "source": "https://github.com/mussolene/onec-workflow-proof",
+      "entrypoint": "/opt/onec-skills/onec-workflow-proof/onec-atomic-proof-loop/SKILL.md"
+    }
+  }
+}

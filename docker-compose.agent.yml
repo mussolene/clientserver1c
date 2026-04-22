@@ -1,0 +1,7 @@
+services:
+  1c-dev:
+    environment:
+      ONEC_PROJECT_ROOT: /workspace/project
+      ONEC_AGENT_REGISTRY: /opt/onec-agent/registry.json
+    volumes:
+      - ${ONEC_PROJECT_PATH:?set ONEC_PROJECT_PATH to the host project repository}:/workspace/project

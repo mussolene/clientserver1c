@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+name="${1:-}"
+registry_path="${ONEC_AGENT_REGISTRY:-/opt/onec-agent/registry.json}"
+
+case "$name" in
+  context)
+    key="onec-context-toolkit"
+    ;;
+  testing|vanessa)
+    key="onec-vanessa-skill"
+    ;;
+  proof-loop|proof)
+    key="onec-workflow-proof"
+    ;;
+  ""|-h|--help)
+    printf 'Usage: onec-agent-skill <context|testing|proof-loop>\n'
+    exit 0
+    ;;
+  *)
+    printf 'Unknown skill alias: %s\n' "$name" >&2
+    exit 2
+    ;;
+esac
+
+entrypoint="$(jq -r --arg key "$key" '.skills[$key].entrypoint // empty' "$registry_path")"
+if [[ -z "$entrypoint" || ! -f "$entrypoint" ]]; then
+  printf 'Skill entrypoint is missing for %s: %s\n' "$key" "${entrypoint:-<empty>}" >&2
+  exit 1
+fi
+
+cat "$entrypoint"

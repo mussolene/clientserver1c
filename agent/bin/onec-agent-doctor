@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+project_root="${ONEC_PROJECT_ROOT:-/workspace/project}"
+registry_path="${ONEC_AGENT_REGISTRY:-/opt/onec-agent/registry.json}"
+
+status=0
+
+check_path() {
+  local label="$1"
+  local path="$2"
+
+  if [[ -e "$path" ]]; then
+    printf '%-28s OK %s\n' "$label:" "$path"
+  else
+    printf '%-28s MISSING %s\n' "$label:" "$path"
+    status=1
+  fi
+}
+
+printf '1C agent runtime doctor\n'
+printf '=======================\n'
+check_path "project mount" "$project_root"
+check_path "agent registry" "$registry_path"
+check_path "skills root" "/opt/onec-skills"
+check_path "1C current symlink" "/opt/1cv8/current"
+
+printf '%-28s ' "python3:"
+if command -v python3 >/dev/null 2>&1; then
+  python3 --version
+else
+  printf 'MISSING\n'
+  status=1
+fi
+
+printf '%-28s ' "oscript:"
+if command -v oscript >/dev/null 2>&1; then
+  oscript --version
+else
+  printf 'MISSING\n'
+  status=1
+fi
+
+printf '%-28s ' "vrunner:"
+if command -v vrunner >/dev/null 2>&1; then
+  vrunner version 2>/dev/null || vrunner help >/dev/null && printf 'OK\n'
+else
+  printf 'MISSING\n'
+  status=1
+fi
+
+printf '%-28s ' "bsl-language-server:"
+if command -v bsl-language-server >/dev/null 2>&1; then
+  bsl-language-server --version
+else
+  printf 'MISSING\n'
+  status=1
+fi
+
+if [[ -f "$registry_path" ]]; then
+  printf '\nskills\n'
+  while IFS= read -r line; do
+    entrypoint="${line#*: }"
+    if [[ -f "$entrypoint" ]]; then
+      printf '  OK      %s\n' "$line"
+    else
+      printf '  MISSING %s\n' "$line"
+      status=1
+    fi
+  done < <(jq -r '.skills | to_entries[] | "\(.key): \(.value.entrypoint)"' "$registry_path")
+fi
+
+exit "$status"
