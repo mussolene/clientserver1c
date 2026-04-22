@@ -174,6 +174,7 @@ jobs:
             local output_name="$1"
             local image_name="$2"
             local version_tag="$3"
+            local publish_latest="${4:-0}"
             local ghcr_base="${GHCR_REGISTRY}/${{ steps.cfg.outputs.ghcr_namespace }}/${image_name}"
             local dockerhub_base="docker.io/${{ steps.cfg.outputs.dockerhub_namespace }}/${image_name}"
             {
@@ -186,6 +187,10 @@ jobs:
                 local release_tag="${REF_NAME#v}"
                 echo "${ghcr_base}:${release_tag}"
                 echo "${dockerhub_base}:${release_tag}"
+                if [[ "${publish_latest}" == "1" ]]; then
+                  echo "${ghcr_base}:latest"
+                  echo "${dockerhub_base}:latest"
+                fi
               fi
               echo "EOF"
             } >> "$GITHUB_OUTPUT"
@@ -196,7 +201,7 @@ jobs:
           emit_tags onescript_builder_tags linux-onescript-builder "${ONESCRIPT_BUILD_TAG}"
           emit_tags onescript_tags linux-onescript "${ONESCRIPT_BASE_TAG}"
           emit_tags pg_tags postgresql "${{ steps.cfg.outputs.pg_1c_version }}"
-          emit_tags dev_tags 1c-developer "${{ steps.cfg.outputs.platform_version }}"
+          emit_tags dev_tags 1c-developer "${{ steps.cfg.outputs.platform_version }}" 1
 
       - name: Build and push linux-common-base
         uses: docker/build-push-action@v6
