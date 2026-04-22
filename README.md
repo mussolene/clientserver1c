@@ -1,24 +1,69 @@
 # clientserver1c
 
-Локальный Docker-стенд для 1С с одним developer-контейнером платформы. `PostgreSQL 1C` остаётся опциональным сервисом только для server/client-server сценариев.
+Повторяемая локальная среда для 1С-разработки и тестирования в Docker.
 
-Основные сервисы:
+Главный контейнер `1c-dev` содержит платформу 1С, GUI/VNC, OneScript, Vanessa tooling, BSL Language Server и слой 1C skills для IDE-агентов. `PostgreSQL 1C` подключается только когда нужен server/client-server сценарий.
 
-1. `1c-pg` - PostgreSQL 1C
-2. `1c-dev` - один контейнер 1С со всем стеком: GUI/VNC, OneScript, Vanessa tooling, клиентские и серверные бинарники 1С
+## Быстрый старт
 
-## Основная идея
+```bash
+make env
+make doctor
+make first-start
+```
 
-Штатный flow теперь такой:
+Дальше:
 
-1. Первый запуск: developer-контейнер стартует в режиме `license-ui`
-2. Через VNC вручную проходится получение лицензии
-3. Лицензия сохраняется в общем `/var/1C/licenses`
-4. После этого тот же образ можно запускать:
-   - в режиме `file-db` для обычной работы с файловой ИБ
-   - в режиме `server` для запуска серверного процесса тем же образом
+1. Подключитесь к VNC: `localhost:5900`.
+2. Активируйте лицензию 1С вручную.
+3. После активации запускайте обычный файловый режим:
 
-Отдельного контейнера `1c-server` в локальном supported flow больше нет.
+```bash
+make up-file-db
+```
+
+4. Когда runtime готов, проверьте smoke:
+
+```bash
+make ui-smoke
+```
+
+Лицензия хранится в Docker volume `onec-license-store`. Не удаляйте этот volume после активации.
+
+## Работа из IDE с агентом
+
+Агент остаётся в Cursor/Codex/VS Code на host, а текущий проект монтируется в `1c-dev` как `/workspace/project`.
+
+Из репозитория 1С-проекта:
+
+```bash
+make -C /path/to/clientserver1c agent-up PROJECT_PATH="$PWD"
+make -C /path/to/clientserver1c agent-doctor PROJECT_PATH="$PWD"
+```
+
+Частые проверки:
+
+```bash
+make -C /path/to/clientserver1c agent-bslls PROJECT_PATH="$PWD" SRC_DIR=src/cf
+make -C /path/to/clientserver1c agent-bslls-format PROJECT_PATH="$PWD" SRC_DIR=src/cf
+make -C /path/to/clientserver1c agent-exec PROJECT_PATH="$PWD" CMD="oscript --version"
+```
+
+Подробнее: [docs/agent-ready.md](docs/agent-ready.md).
+
+## Основные команды
+
+| Команда | Назначение |
+| --- | --- |
+| `make env` | создать `.env` из `.env.example`, если его ещё нет |
+| `make doctor` | показать готовность host, Docker, staging, image, license volume и agent mode |
+| `make first-start` | создать `.env`, затем запустить первый license UI старт |
+| `make up` | подготовить platform staging, собрать image при необходимости и открыть license UI |
+| `make up-file-db` | запустить `1c-dev` в файловом режиме после активации лицензии |
+| `make ui-smoke` | прогнать минимальный Vanessa UI smoke |
+| `make up-server` | запустить server mode вместе с PostgreSQL 1C |
+
+Расширенные детали runtime: [docs/runtime-details.md](docs/runtime-details.md).
 
 ## Структура
 
@@ -31,63 +76,16 @@
 - `scripts/` - локальные build/run helper-скрипты
 - `artifacts/` - overlay, конфиги и runtime helper-скрипты
 
-## Подготовка
+## Первый запуск и credentials
 
-```bash
-cp .env.example .env
-```
+Минимально нужен `PLATFORM_VERSION` в `.env`. Если platform archive ещё не подготовлен, `make up`/`make first-start` запустит host-side staging.
 
-Минимально нужно задать:
-
-- `PLATFORM_VERSION`
-
-Для подготовки архивов платформы с ITS нужны:
+Для скачивания платформы с ITS нужны:
 
 - `ITS_LOGIN`
 - `ITS_PASSWORD`
 
-Если локально запускать `make build`, `make up`, `make up-file-db`, `make up-server` или `make build-server-stack` из интерактивного терминала, недостающие `ITS_LOGIN` / `ITS_PASSWORD` будут запрошены и сохранены в `.env`.
-
-## Основные команды
-
-```bash
-make up
-```
-
-Готовит staging платформы, при отсутствии локального image собирает нужные сервисы и поднимает:
-
-- `1c-dev` в режиме `license-ui`
-
-Это базовый первый запуск, когда нужно вручную получить лицензию через VNC.
-
-После того как лицензия уже есть:
-
-```bash
-make up-file-db
-```
-
-Поднимает тот же стек, но `1c-dev` стартует сразу в режиме `file-db`. Если developer-image уже собран, повторный запуск не уходит в лишнюю полную пересборку.
-
-Если нужно поднять серверный процесс тем же образом:
-
-```bash
-make up-server
-```
-
-Этот сценарий дополнительно поднимает:
-
-- `1c-pg`
-- `1c-dev` в режиме `server`
-
-Полезные команды:
-
-- `make build` - только developer-образ
-- `make build-server-stack` - developer-образ плюс `1c-pg`
-- `make config` - проверить итоговый `docker compose config`
-- `make down` - остановить стенд
-- `make ps` - список контейнеров
-- `make logs` - логи `1c-pg` и `1c-dev`
-- `make clean-platform` - очистить локальный cache/staging платформы
+Если они пустые, интерактивные targets запросят их один раз и сохранят в `.env`. Не коммитьте `.env`.
 
 ## Runtime modes
 
@@ -194,89 +192,7 @@ make up ONEC_PLATFORM_OVERRIDE=native-arm PLATFORM_ARCH=arm64
 
 ## Agent-ready режим
 
-`1c-dev` также содержит слой 1C skills для IDE-агентов. Агент не запускается внутри контейнера: он остаётся в Cursor/Codex/VS Code на host, редактирует открытый репозиторий, а 1С-зависимые команды выполняет внутри `1c-dev`.
-
-В контейнере:
-
-- проект монтируется в `/workspace/project`
-- инструкции для агента лежат в `/opt/onec-agent/AGENTS.md`
-- registry skills лежит в `/opt/onec-agent/registry.json`
-- skill repos лежат в `/opt/onec-skills`
-
-Слой skills собирается из:
-
-- `https://github.com/mussolene/onec-vanessa-skill`
-- `https://github.com/mussolene/onec-context-toolkit`
-- `https://github.com/mussolene/onec-workflow-proof`
-
-Refs задаются через `.env`:
-
-```env
-VANESSA_ADD_VERSION=6.9.5
-VANESSA_RUNNER_VERSION=2.6.0
-VANESSA_AUTOMATION_VERSION=1.2.043.1
-BSLLS_VERSION=0.25.0
-
-ONEC_VANESSA_SKILL_REF=58b8e8b4831f4f1457707b037c8a050f5cd32e86
-ONEC_CONTEXT_TOOLKIT_REF=b3ac817fa76d4979ae10bf5806e9d7bbab66e1e0
-ONEC_WORKFLOW_PROOF_REF=29664a56b6eba063982cacc3e200285e09799933
-```
-
-По умолчанию skills закреплены на commit refs, чтобы image build был повторяемым. Для обновления слоя замените refs в `.env` и пересоберите `1c-dev`.
-
-Запуск из репозитория проекта:
-
-```bash
-make -C /path/to/clientserver1c agent-up PROJECT_PATH="$PWD"
-```
-
-Проверка готовности:
-
-```bash
-make -C /path/to/clientserver1c agent-doctor PROJECT_PATH="$PWD"
-```
-
-Посмотреть registry skills:
-
-```bash
-make -C /path/to/clientserver1c agent-skills PROJECT_PATH="$PWD"
-```
-
-Прочитать конкретный skill:
-
-```bash
-make -C /path/to/clientserver1c agent-skill PROJECT_PATH="$PWD" NAME=context
-make -C /path/to/clientserver1c agent-skill PROJECT_PATH="$PWD" NAME=testing
-make -C /path/to/clientserver1c agent-skill PROJECT_PATH="$PWD" NAME=proof-loop
-```
-
-Выполнить команду внутри контейнера в `/workspace/project`:
-
-```bash
-make -C /path/to/clientserver1c agent-exec PROJECT_PATH="$PWD" CMD="oscript --version"
-```
-
-Запустить статическую диагностику BSL Language Server:
-
-```bash
-make -C /path/to/clientserver1c agent-bslls PROJECT_PATH="$PWD" SRC_DIR=src/cf
-```
-
-По умолчанию отчёты пишутся в `.agent/bslls` внутри смонтированного проекта. Можно переопределить:
-
-```bash
-make -C /path/to/clientserver1c agent-bslls PROJECT_PATH="$PWD" SRC_DIR=src/cf OUTPUT_DIR=.agent/bslls REPORTERS=json,console
-```
-
-Отформатировать BSL-файлы через BSL Language Server:
-
-```bash
-make -C /path/to/clientserver1c agent-bslls-format PROJECT_PATH="$PWD" SRC_DIR=src/cf
-```
-
-Форматтер меняет файлы в смонтированном проекте, поэтому агент должен запускать его только как явное действие и после этого показывать diff.
-
-Правило для IDE-агента: файлы редактируются в host-репозитории, а сборка, разборка, Vanessa/xUnit и platform-dependent проверки запускаются через `agent-exec` внутри контейнера.
+`1c-dev` содержит слой 1C skills и helper tools для IDE-агентов. Быстрый путь есть в начале README, подробности лежат в [docs/agent-ready.md](docs/agent-ready.md).
 
 ## UI smoke через Vanessa
 

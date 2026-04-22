@@ -14,53 +14,43 @@ ONEC_PLATFORM_OVERRIDE ?=
 
 COMPOSE_FILES := -f docker-compose.yml $(if $(filter native-arm,$(ONEC_PLATFORM_OVERRIDE)),-f docker-compose.onec-native-arm.yml)
 
-.PHONY: help env download prepare-platform build-common-base build-desktop-base build-onescript-builder build-onescript-base up up-file-db up-server build build-server-stack ui-smoke agent-up agent-exec agent-doctor agent-skills agent-skill agent-bslls agent-bslls-format config down ps logs clean-platform clean
+.PHONY: help env doctor first-start download prepare-platform build-common-base build-desktop-base build-onescript-builder build-onescript-base up up-file-db up-server build build-server-stack ui-smoke agent-up agent-exec agent-doctor agent-skills agent-skill agent-bslls agent-bslls-format config down ps logs clean-platform clean
 
 help:
 	@printf '%s\n' \
-	  'Targets:' \
+	  'Common targets:' \
 	  '  make env             - create .env from .env.example if missing' \
-	  '  make download        - optional: download the 1C platform archive into .local/1c/platform for local cache/offline work' \
-	  '  make prepare-platform - optional: prepare local staging inputs in .local/1c/dev-platform' \
-	  '  make build-common-base - build only the shared common base image' \
-	  '  make build-desktop-base - build only the shared desktop GUI base image' \
-	  '  make build-onescript-builder - build only the intermediate OneScript source-build image' \
-	  '  make build-onescript-base - build only the reusable OneScript runtime image' \
-	  '  make up              - prepare staged platform archives, build missing images if needed, and start the first-run license UI' \
-	  '  make up-file-db      - start the developer container directly in file-db mode, building missing images if needed' \
-	  '  make up-server       - start the developer container in server mode together with PostgreSQL 1C, building missing images if needed' \
-	  '  make build           - prepare staged platform archives and build only the developer image' \
-	  '  make build-server-stack - prepare staged platform archives and build developer image plus PostgreSQL 1C' \
-	  '  make ui-smoke        - start 1c-dev in shell mode and run the tracked Vanessa smoke against the file DB' \
-	  '  make agent-up PROJECT_PATH=$$PWD - start 1c-dev with a host project mounted at /workspace/project' \
-	  '  make agent-exec CMD="..."       - run a command in /workspace/project inside 1c-dev' \
-	  '  make agent-doctor               - check agent-ready runtime and skills inside 1c-dev' \
-	  '  make agent-skills               - print the container skill registry' \
-	  '  make agent-skill NAME=context   - print one skill entrypoint from the container' \
-	  '  make agent-bslls SRC_DIR=src/cf - run BSL Language Server diagnostics in the mounted project' \
-	  '  make agent-bslls-format SRC_DIR=src/cf - format BSL files in the mounted project' \
+	  '  make doctor          - check local readiness and print next commands' \
+	  '  make first-start     - create .env if needed, then start the license UI' \
+	  '  make up              - prepare platform, build missing image, start license UI' \
+	  '  make up-file-db      - start 1c-dev in file DB mode after license activation' \
+	  '  make ui-smoke        - run the tracked Vanessa UI smoke' \
+	  '' \
+	  'IDE-agent targets:' \
+	  '  make agent-up PROJECT_PATH=$$PWD       - start 1c-dev with project mounted' \
+	  '  make agent-doctor PROJECT_PATH=$$PWD   - check agent-ready runtime inside 1c-dev' \
+	  '  make agent-exec CMD="..."             - run command in /workspace/project' \
+	  '  make agent-bslls SRC_DIR=src/cf       - run BSL Language Server diagnostics' \
+	  '  make agent-bslls-format SRC_DIR=src/cf - format BSL files' \
+	  '' \
+	  'Advanced targets:' \
+	  '  make download        - download the 1C platform archive into .local/1c/platform' \
+	  '  make prepare-platform - prepare local staging inputs in .local/1c/dev-platform' \
+	  '  make build           - prepare platform and build only the developer image' \
+	  '  make up-server       - start server mode with PostgreSQL 1C' \
+	  '  make build-server-stack - build developer image plus PostgreSQL 1C' \
+	  '  make build-common-base / build-desktop-base / build-onescript-*' \
 	  '  make config          - validate docker compose config' \
-	  '  make down            - stop containers' \
-	  '  make ps              - show container status' \
-	  '  make logs            - follow logs' \
-	  '  make clean-platform  - remove local platform caches and staging directories' \
-	  '  make clean           - remove local platform caches and stop the stack' \
+	  '  make down / ps / logs / clean-platform / clean' \
 	  '' \
 	  'Examples:' \
-	  '  make config PG_MAJOR=17 PG_1C_VERSION=17.7-1.1C PG_REPO_DIST=bookworm' \
-	  '  make up PG_MAJOR=17 PG_1C_VERSION=17.7-1.1C' \
+	  '  make doctor' \
+	  '  make first-start' \
 	  '  make up-file-db' \
-	  '  make build-common-base' \
-	  '  make build-desktop-base' \
-	  '  make build-onescript-builder' \
-	  '  make build-onescript-base' \
-	  '  make build PLATFORM_ARCH=arm64 DOCKER_DEFAULT_PLATFORM=linux/arm64' \
-	  '  make build ONEC_PLATFORM_OVERRIDE=native-arm PLATFORM_ARCH=arm64' \
-	  '  make build PLATFORM_ARCH=amd64 DOCKER_DEFAULT_PLATFORM=linux/amd64' \
-	  '  make up PLATFORM_VERSION=8.3.24.1548' \
-	  '  make download PLATFORM_VERSION=8.3.25.1374' \
 	  '  make agent-up PROJECT_PATH=/path/to/1c-project' \
-	  '  make agent-exec PROJECT_PATH=/path/to/1c-project CMD="oscript --version"'
+	  '  make agent-bslls PROJECT_PATH=/path/to/1c-project SRC_DIR=src/cf' \
+	  '' \
+	  'See README.md and docs/ for advanced build and runtime options.'
 
 env:
 	@if [[ ! -f "$(ENV_FILE)" ]]; then \
@@ -69,6 +59,12 @@ env:
 	else \
 	  echo "$(ENV_FILE) already exists"; \
 	fi
+
+doctor:
+	@env ENV_FILE="$(abspath $(ENV_FILE))" DOCTOR_STRICT="$(DOCTOR_STRICT)" bash ./scripts/doctor.sh
+
+first-start: env
+	@$(MAKE) --no-print-directory up
 
 download:
 	@env_args=(); \
