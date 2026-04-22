@@ -47,12 +47,18 @@ jobs:
           ITS_PASSWORD: ${{ secrets.ITS_PASSWORD }}
 
       - name: Upload staged 1C platform archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -cf platform-staging.tar -C .local/1c dev-platform
+
+      - name: Upload staged 1C platform artifact
         uses: actions/upload-artifact@v4
         with:
           name: platform-staging-${{ steps.cfg.outputs.platform_version }}
-          path: |
-            .local/1c/dev-platform
+          path: platform-staging.tar
           if-no-files-found: error
+          compression-level: 0
 
   publish:
     needs: prepare-platform
@@ -89,6 +95,15 @@ jobs:
         with:
           name: platform-staging-${{ needs.prepare-platform.outputs.platform_version }}
           path: .local/1c
+
+      - name: Restore staged 1C platform archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .local/1c/platform-staging.tar
+          tar -xf .local/1c/platform-staging.tar -C .local/1c
+          test -d .local/1c/dev-platform
+          find .local/1c/dev-platform -mindepth 1 -maxdepth 1 | grep -q .
 
       - name: Load build defaults
         id: cfg
