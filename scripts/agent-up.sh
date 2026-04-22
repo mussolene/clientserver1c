@@ -24,20 +24,32 @@ fi
 
 export ONEC_PROJECT_PATH="$(cd "$project_path" && pwd)"
 
-env ENV_FILE="$ENV_FILE" bash "$ROOT_DIR/scripts/prepare-platform.sh"
+compose_args=()
+while IFS= read -r -d '' compose_arg; do
+  compose_args+=("$compose_arg")
+done < <(ONEC_PLATFORM_OVERRIDE="${ONEC_PLATFORM_OVERRIDE:-}" bash "$ROOT_DIR/scripts/agent-compose-args.sh")
+
+# shellcheck source=scripts/image-refs.sh
+. "$ROOT_DIR/scripts/image-refs.sh"
+
+needs_build=0
+if ! docker image inspect "$ONEC_DEV_IMAGE" >/dev/null 2>&1; then
+  docker pull "$ONEC_DEV_IMAGE" >/dev/null 2>&1 || needs_build=1
+fi
+
+if [[ "$needs_build" == "0" ]] \
+  && { ! docker run --rm --entrypoint test "$ONEC_DEV_IMAGE" -f /opt/onec-agent/registry.json >/dev/null 2>&1 \
+    || ! docker run --rm --entrypoint test "$ONEC_DEV_IMAGE" -f /opt/bslls/bsl-language-server.jar >/dev/null 2>&1; }; then
+  needs_build=1
+fi
+
+if [[ "$needs_build" == "1" ]]; then
+  env ENV_FILE="$ENV_FILE" bash "$ROOT_DIR/scripts/prepare-platform.sh"
+  docker compose "${compose_args[@]}" --profile build build 1c-dev
+fi
 
 if ! docker volume inspect onec-license-store >/dev/null 2>&1; then
   docker volume create onec-license-store >/dev/null
-fi
-
-mapfile -d '' compose_args < <(ONEC_PLATFORM_OVERRIDE="${ONEC_PLATFORM_OVERRIDE:-}" bash "$ROOT_DIR/scripts/agent-compose-args.sh")
-
-image_namespace="${IMAGE_NAMESPACE:-mussolene}"
-dev_image="${image_namespace}/1c-developer:${PLATFORM_VERSION:-8.5.1.1302}"
-if ! docker image inspect "$dev_image" >/dev/null 2>&1 \
-  || ! docker run --rm --entrypoint test "$dev_image" -f /opt/onec-agent/registry.json >/dev/null 2>&1 \
-  || ! docker run --rm --entrypoint test "$dev_image" -f /opt/bslls/bsl-language-server.jar >/dev/null 2>&1; then
-  docker compose "${compose_args[@]}" --profile build build 1c-dev
 fi
 
 exec docker compose "${compose_args[@]}" --profile build up --no-build "$@" 1c-dev

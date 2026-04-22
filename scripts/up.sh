@@ -11,44 +11,47 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-env ENV_FILE="$ENV_FILE" bash "$ROOT_DIR/scripts/prepare-platform.sh"
-
-if ! docker volume inspect onec-license-store >/dev/null 2>&1; then
-  docker volume create onec-license-store >/dev/null
-fi
-
 compose_args=(-f "$ROOT_DIR/docker-compose.yml")
 if [[ "${ONEC_PLATFORM_OVERRIDE:-}" == "native-arm" ]]; then
   compose_args+=(-f "$ROOT_DIR/docker-compose.onec-native-arm.yml")
 fi
 
-image_namespace="${IMAGE_NAMESPACE:-mussolene}"
-dev_image="${image_namespace}/1c-developer:${PLATFORM_VERSION:-8.5.1.1302}"
-pg_image="${image_namespace}/postgresql:${PG_1C_VERSION:-17.7-1.1C}"
+# shellcheck source=scripts/image-refs.sh
+. "$ROOT_DIR/scripts/image-refs.sh"
 services=(1c-dev)
-images_to_check=("$dev_image")
+images_to_check=("$ONEC_DEV_IMAGE")
 
 if [[ "${ONEC_WITH_PG:-0}" == "1" ]]; then
   services=(1c-pg "${services[@]}")
-  images_to_check=("$pg_image" "${images_to_check[@]}")
+  images_to_check=("$ONEC_PG_IMAGE" "${images_to_check[@]}")
 fi
 
 missing_services=()
 for image_ref in "${images_to_check[@]}"; do
-  if ! docker image inspect "$image_ref" >/dev/null 2>&1; then
-    case "$image_ref" in
-      "$pg_image")
-        missing_services+=(1c-pg)
-        ;;
-      "$dev_image")
-        missing_services+=(1c-dev)
-        ;;
-    esac
+  if docker image inspect "$image_ref" >/dev/null 2>&1; then
+    continue
   fi
+  if docker pull "$image_ref" >/dev/null 2>&1; then
+    continue
+  fi
+
+  case "$image_ref" in
+    "$ONEC_PG_IMAGE")
+      missing_services+=(1c-pg)
+      ;;
+    "$ONEC_DEV_IMAGE")
+      missing_services+=(1c-dev)
+      ;;
+  esac
 done
 
 if [[ "${#missing_services[@]}" -gt 0 ]]; then
+  env ENV_FILE="$ENV_FILE" bash "$ROOT_DIR/scripts/prepare-platform.sh"
   docker compose "${compose_args[@]}" --profile build build "${missing_services[@]}"
+fi
+
+if ! docker volume inspect onec-license-store >/dev/null 2>&1; then
+  docker volume create onec-license-store >/dev/null
 fi
 
 exec docker compose "${compose_args[@]}" --profile build up --no-build "$@" "${services[@]}"

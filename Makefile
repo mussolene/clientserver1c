@@ -19,15 +19,16 @@ endif
 
 COMPOSE_FILES := -f docker-compose.yml $(if $(filter native-arm,$(ONEC_PLATFORM_OVERRIDE)),-f docker-compose.onec-native-arm.yml)
 
-.PHONY: help env doctor first-start download prepare-platform build-common-base build-desktop-base build-onescript-builder build-onescript-base up up-file-db up-server build build-server-stack ui-smoke agent-up agent-exec agent-doctor agent-skills agent-skill agent-bslls agent-bslls-format config down ps logs clean-platform clean
+.PHONY: help env doctor first-start pull download prepare-platform build-common-base build-desktop-base build-onescript-builder build-onescript-base up up-file-db up-server build build-server-stack ui-smoke agent-up agent-exec agent-doctor agent-skills agent-skill agent-bslls agent-bslls-format config down ps logs clean-platform clean
 
 help:
 	@printf '%s\n' \
 	  'Common targets:' \
 	  '  make env             - create .env from .env.example if missing' \
 	  '  make doctor          - check local readiness and print next commands' \
+	  '  make pull            - pull configured prebuilt developer image' \
 	  '  make first-start     - create .env if needed, then start the license UI' \
-	  '  make up              - prepare platform, build missing image, start license UI' \
+	  '  make up              - reuse/pull image, build only as fallback, start license UI' \
 	  '  make up-file-db      - start 1c-dev in file DB mode after license activation' \
 	  '  make ui-smoke        - run the tracked Vanessa UI smoke' \
 	  '' \
@@ -70,6 +71,14 @@ doctor:
 
 first-start: env
 	@$(MAKE) --no-print-directory up
+
+pull:
+	@env_args=(); \
+	if [[ -n "$(PLATFORM_VERSION)" ]]; then env_args+=(PLATFORM_VERSION="$(PLATFORM_VERSION)"); fi; \
+	if [[ -n "$(PG_1C_VERSION)" ]]; then env_args+=(PG_1C_VERSION="$(PG_1C_VERSION)"); fi; \
+	if [[ -n "$(IMAGE_NAMESPACE)" ]]; then env_args+=(IMAGE_NAMESPACE="$(IMAGE_NAMESPACE)"); fi; \
+	if [[ -n "$(ONEC_WITH_PG)" ]]; then env_args+=(ONEC_WITH_PG="$(ONEC_WITH_PG)"); fi; \
+	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" ./scripts/pull-images.sh
 
 download:
 	@env_args=(); \

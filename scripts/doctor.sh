@@ -12,8 +12,9 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 platform_version="${PLATFORM_VERSION:-8.5.1.1302}"
-image_namespace="${IMAGE_NAMESPACE:-mussolene}"
-dev_image="${image_namespace}/1c-developer:${platform_version}"
+# shellcheck source=scripts/image-refs.sh
+. "$ROOT_DIR/scripts/image-refs.sh"
+dev_image="$ONEC_DEV_IMAGE"
 project_path="${PROJECT_PATH:-${ONEC_PROJECT_PATH:-}}"
 status=0
 strict="${DOCTOR_STRICT:-0}"
@@ -60,14 +61,21 @@ else
   warn_missing ".env" "Run: make env"
 fi
 
+image_exists=0
+if docker image inspect "$dev_image" >/dev/null 2>&1; then
+  image_exists=1
+fi
+
 if [[ -d "$ROOT_DIR/.local/1c/dev-platform" ]] \
   && find "$ROOT_DIR/.local/1c/dev-platform" -mindepth 1 -maxdepth 1 | read -r; then
   require_ok "platform staging" ".local/1c/dev-platform"
+elif [[ "$image_exists" == "1" ]]; then
+  print_check "platform staging" "OPTIONAL" "Only needed for local build fallback."
 else
   warn_missing "platform staging" "Run: make prepare-platform or make up"
 fi
 
-if docker image inspect "$dev_image" >/dev/null 2>&1; then
+if [[ "$image_exists" == "1" ]]; then
   require_ok "developer image" "$dev_image"
   if docker run --rm --entrypoint test "$dev_image" -f /opt/onec-agent/registry.json >/dev/null 2>&1; then
     require_ok "agent layer" "/opt/onec-agent/registry.json"
@@ -99,6 +107,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
   printf '  make env\n'
 fi
 printf '  make up              # first license UI start\n'
+printf '  make pull            # optional: pre-pull configured image before first start\n'
 printf '  make up-file-db      # normal file DB mode after license activation\n'
 printf '  make ui-smoke        # Vanessa smoke when runtime is ready\n'
 printf '  make agent-up PROJECT_PATH=/path/to/project\n'

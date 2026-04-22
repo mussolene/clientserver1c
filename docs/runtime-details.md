@@ -32,6 +32,12 @@ make prepare-platform
 
 Staging directory: `.local/1c/dev-platform`. Она намеренно ignored by git.
 
+Runtime targets are pull-first:
+
+- if the configured image exists locally, it is reused;
+- if it is missing, scripts try `docker pull`;
+- local platform staging and build run only as fallback when the image cannot be pulled or is not suitable.
+
 ## Image namespace
 
 Compose и helper-скрипты читают `IMAGE_NAMESPACE`.

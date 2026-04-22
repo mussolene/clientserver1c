@@ -26,7 +26,10 @@ if [[ -z "$cmd" ]]; then
   cmd="bash"
 fi
 
-mapfile -d '' compose_args < <(ONEC_PLATFORM_OVERRIDE="${ONEC_PLATFORM_OVERRIDE:-}" bash "$ROOT_DIR/scripts/agent-compose-args.sh")
+compose_args=()
+while IFS= read -r -d '' compose_arg; do
+  compose_args+=("$compose_arg")
+done < <(ONEC_PLATFORM_OVERRIDE="${ONEC_PLATFORM_OVERRIDE:-}" bash "$ROOT_DIR/scripts/agent-compose-args.sh")
 
 exec docker compose "${compose_args[@]}" --profile build exec 1c-dev \
   bash -lc "cd /workspace/project && $cmd"

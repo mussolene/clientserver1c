@@ -8,6 +8,7 @@
 
 ```bash
 make env
+make pull
 make doctor
 make first-start
 ```
@@ -57,8 +58,9 @@ make -C /path/to/clientserver1c agent-exec PROJECT_PATH="$PWD" CMD="oscript --ve
 | --- | --- |
 | `make env` | создать `.env` из `.env.example`, если его ещё нет |
 | `make doctor` | показать готовность host, Docker, staging, image, license volume и agent mode |
+| `make pull` | скачать настроенный готовый developer image из registry |
 | `make first-start` | создать `.env`, затем запустить первый license UI старт |
-| `make up` | подготовить platform staging, собрать image при необходимости и открыть license UI |
+| `make up` | использовать локальный/pulled image, собрать только если image недоступен |
 | `make up-file-db` | запустить `1c-dev` в файловом режиме после активации лицензии |
 | `make ui-smoke` | прогнать минимальный Vanessa UI smoke |
 | `make up-server` | запустить server mode вместе с PostgreSQL 1C |
@@ -87,6 +89,8 @@ make -C /path/to/clientserver1c agent-exec PROJECT_PATH="$PWD" CMD="oscript --ve
 
 Если они пустые, интерактивные targets запросят их один раз и сохранят в `.env`. Не коммитьте `.env`.
 
+Если готовый image уже есть локально или доступен в registry, `make up`/`make first-start` не скачивает платформу и не собирает образ. Host-side staging запускается только как fallback для локальной сборки, когда image нельзя использовать или скачать.
+
 ## Образы и private registry
 
 По умолчанию compose и helper-скрипты используют namespace `mussolene`:
@@ -102,6 +106,22 @@ IMAGE_NAMESPACE=ghcr.io/acme
 ```
 
 Тогда `1c-dev` будет использовать `ghcr.io/acme/1c-developer:<PLATFORM_VERSION>`, а base/PostgreSQL images - тот же namespace. Это позволяет публиковать готовые образы в закрытый registry и не менять compose-файлы в fork/company setup.
+
+Минимальный pull-based onboarding:
+
+```bash
+docker login ghcr.io
+make env
+make pull
+make first-start
+```
+
+Для IDE-агента:
+
+```bash
+make -C /path/to/clientserver1c pull
+make -C /path/to/clientserver1c agent-up PROJECT_PATH="$PWD"
+```
 
 ## Runtime modes
 
