@@ -17,7 +17,7 @@ ARG BSLLS_VERSION=0.25.0
 ENV PLATFORM_VERSION=${PLATFORM_VERSION}
 ENV PLATFORM_DIST_NAME=${PLATFORM_DIST_NAME}
 ENV ONESCRIPT_ROOT=/opt/onescript
-ENV PATH=/opt/onescript:/opt/onescript/bin:${PATH}
+ENV PATH=/opt/onec-agent/bin:/opt/onescript:/opt/onescript/bin:${PATH}
 ENV OSCRIPT_CONFIG=lib.system=/opt/onescript/lib
 ENV OPM_CONFIG=/opt/onescript/opm.cfg
 ENV OSCRIPTBIN=/opt/onescript/bin
@@ -204,10 +204,10 @@ clone_skill() {
   local target="$skills_root/$name"
 
   rm -rf "$target"
-  git init "$target"
+  git init -q "$target"
   git -C "$target" remote add origin "$url"
   git -C "$target" fetch --depth 1 origin "$ref" || git -C "$target" fetch origin "$ref"
-  git -C "$target" checkout --detach FETCH_HEAD
+  git -C "$target" checkout --quiet --detach FETCH_HEAD
   git -C "$target" rev-parse HEAD
 }
 
@@ -256,6 +256,12 @@ jq -n \
   }' > /opt/onec-agent/registry.json
 
 chmod +x /opt/onec-agent/bin/*
+ln -sf /opt/onec-agent/bin/* /usr/local/bin/
+command -v onec-agent-doctor >/dev/null
+command -v onec-agent-skill >/dev/null
+command -v onec-agent-bslls >/dev/null
+ONEC_PROJECT_ROOT=/tmp onec-agent-doctor >/dev/null
+onec-agent-skill list >/dev/null
 EOF
 
 RUN chmod +x /etc/services.d/onec/run \

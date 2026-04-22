@@ -5,6 +5,10 @@ name="${1:-}"
 registry_path="${ONEC_AGENT_REGISTRY:-/opt/onec-agent/registry.json}"
 
 case "$name" in
+  list)
+    jq -r '.skills | keys[]' "$registry_path"
+    exit 0
+    ;;
   context)
     key="onec-context-toolkit"
     ;;
@@ -15,7 +19,7 @@ case "$name" in
     key="onec-workflow-proof"
     ;;
   ""|-h|--help)
-    printf 'Usage: onec-agent-skill <context|testing|proof-loop>\n'
+    printf 'Usage: onec-agent-skill <list|context|testing|proof-loop>\n'
     exit 0
     ;;
   *)
