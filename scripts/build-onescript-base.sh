@@ -11,11 +11,12 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-ONESCRIPT_BASE_IMAGE="mussolene/linux-onescript"
+IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-mussolene}"
+ONESCRIPT_BASE_IMAGE="${IMAGE_NAMESPACE}/linux-onescript"
 ONESCRIPT_BASE_TAG="2.0.0"
-ONESCRIPT_BUILD_IMAGE="mussolene/linux-onescript-builder"
+ONESCRIPT_BUILD_IMAGE="${IMAGE_NAMESPACE}/linux-onescript-builder"
 ONESCRIPT_BUILD_TAG="2.0.0"
-COMMON_BASE_IMAGE="mussolene/linux-common-base"
+COMMON_BASE_IMAGE="${IMAGE_NAMESPACE}/linux-common-base"
 COMMON_BASE_TAG="bookworm"
 
 build_args=(

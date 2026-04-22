@@ -22,8 +22,9 @@ if [[ "${ONEC_PLATFORM_OVERRIDE:-}" == "native-arm" ]]; then
   compose_args+=(-f "$ROOT_DIR/docker-compose.onec-native-arm.yml")
 fi
 
-dev_image="mussolene/1c-developer:${PLATFORM_VERSION:-8.5.1.1302}"
-pg_image="mussolene/postgresql:${PG_1C_VERSION:-17.7-1.1C}"
+image_namespace="${IMAGE_NAMESPACE:-mussolene}"
+dev_image="${image_namespace}/1c-developer:${PLATFORM_VERSION:-8.5.1.1302}"
+pg_image="${image_namespace}/postgresql:${PG_1C_VERSION:-17.7-1.1C}"
 services=(1c-dev)
 images_to_check=("$dev_image")
 

@@ -32,6 +32,24 @@ make prepare-platform
 
 Staging directory: `.local/1c/dev-platform`. Она намеренно ignored by git.
 
+## Image namespace
+
+Compose и helper-скрипты читают `IMAGE_NAMESPACE`.
+
+Default:
+
+```env
+IMAGE_NAMESPACE=mussolene
+```
+
+Для private registry:
+
+```env
+IMAGE_NAMESPACE=ghcr.io/acme
+```
+
+Имена образов остаются стабильными: `1c-developer`, `linux-common-base`, `linux-desktop-base`, `linux-onescript-builder`, `linux-onescript`, `postgresql`.
+
 ## Advanced build pins
 
 `.env.example` содержит pinned версии для повторяемой сборки:

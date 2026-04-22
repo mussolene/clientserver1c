@@ -12,7 +12,8 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 platform_version="${PLATFORM_VERSION:-8.5.1.1302}"
-dev_image="mussolene/1c-developer:${platform_version}"
+image_namespace="${IMAGE_NAMESPACE:-mussolene}"
+dev_image="${image_namespace}/1c-developer:${platform_version}"
 project_path="${PROJECT_PATH:-${ONEC_PROJECT_PATH:-}}"
 status=0
 strict="${DOCTOR_STRICT:-0}"

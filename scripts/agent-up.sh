@@ -32,7 +32,8 @@ fi
 
 mapfile -d '' compose_args < <(ONEC_PLATFORM_OVERRIDE="${ONEC_PLATFORM_OVERRIDE:-}" bash "$ROOT_DIR/scripts/agent-compose-args.sh")
 
-dev_image="mussolene/1c-developer:${PLATFORM_VERSION:-8.5.1.1302}"
+image_namespace="${IMAGE_NAMESPACE:-mussolene}"
+dev_image="${image_namespace}/1c-developer:${PLATFORM_VERSION:-8.5.1.1302}"
 if ! docker image inspect "$dev_image" >/dev/null 2>&1 \
   || ! docker run --rm --entrypoint test "$dev_image" -f /opt/onec-agent/registry.json >/dev/null 2>&1 \
   || ! docker run --rm --entrypoint test "$dev_image" -f /opt/bslls/bsl-language-server.jar >/dev/null 2>&1; then

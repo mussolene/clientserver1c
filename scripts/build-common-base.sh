@@ -11,7 +11,8 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-COMMON_BASE_IMAGE="mussolene/linux-common-base"
+IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-mussolene}"
+COMMON_BASE_IMAGE="${IMAGE_NAMESPACE}/linux-common-base"
 COMMON_BASE_TAG="bookworm"
 COMMON_BASE_DIST="bookworm"
 

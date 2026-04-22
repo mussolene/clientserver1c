@@ -11,6 +11,11 @@ PLATFORM_ARCH ?=
 PLATFORM_DIST_NAME ?=
 DOCKER_DEFAULT_PLATFORM ?=
 ONEC_PLATFORM_OVERRIDE ?=
+IMAGE_NAMESPACE ?=
+
+ifneq ($(IMAGE_NAMESPACE),)
+export IMAGE_NAMESPACE
+endif
 
 COMPOSE_FILES := -f docker-compose.yml $(if $(filter native-arm,$(ONEC_PLATFORM_OVERRIDE)),-f docker-compose.onec-native-arm.yml)
 

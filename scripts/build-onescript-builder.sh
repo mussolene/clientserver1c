@@ -11,7 +11,8 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-ONESCRIPT_BUILD_IMAGE="mussolene/linux-onescript-builder"
+IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-mussolene}"
+ONESCRIPT_BUILD_IMAGE="${IMAGE_NAMESPACE}/linux-onescript-builder"
 ONESCRIPT_BUILD_TAG="2.0.0"
 ONESCRIPT_SDK_IMAGE="mcr.microsoft.com/dotnet/sdk:8.0"
 ONESCRIPT_VERSION="2.0.0"

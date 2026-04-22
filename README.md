@@ -87,6 +87,22 @@ make -C /path/to/clientserver1c agent-exec PROJECT_PATH="$PWD" CMD="oscript --ve
 
 Если они пустые, интерактивные targets запросят их один раз и сохранят в `.env`. Не коммитьте `.env`.
 
+## Образы и private registry
+
+По умолчанию compose и helper-скрипты используют namespace `mussolene`:
+
+```env
+IMAGE_NAMESPACE=mussolene
+```
+
+Для pull-based onboarding из private registry задайте namespace в `.env`:
+
+```env
+IMAGE_NAMESPACE=ghcr.io/acme
+```
+
+Тогда `1c-dev` будет использовать `ghcr.io/acme/1c-developer:<PLATFORM_VERSION>`, а base/PostgreSQL images - тот же namespace. Это позволяет публиковать готовые образы в закрытый registry и не менять compose-файлы в fork/company setup.
+
 ## Runtime modes
 
 Режим контейнера задаётся через `ONEC_RUNTIME_MODE`.

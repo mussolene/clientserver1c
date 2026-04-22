@@ -1,7 +1,7 @@
 services:
   linux-common-base:
     profiles: ["build"]
-    image: mussolene/linux-common-base:bookworm
+    image: ${IMAGE_NAMESPACE:-mussolene}/linux-common-base:${COMMON_BASE_TAG:-bookworm}
     platform: linux/amd64
     build:
       context: .
@@ -11,7 +11,7 @@ services:
 
   linux-desktop-base:
     profiles: ["build"]
-    image: mussolene/linux-desktop-base:bookworm
+    image: ${IMAGE_NAMESPACE:-mussolene}/linux-desktop-base:${DESKTOP_BASE_TAG:-bookworm}
     platform: linux/amd64
     build:
       context: .
@@ -23,7 +23,7 @@ services:
 
   linux-onescript-builder:
     profiles: ["build"]
-    image: mussolene/linux-onescript-builder:2.0.0
+    image: ${IMAGE_NAMESPACE:-mussolene}/linux-onescript-builder:${ONESCRIPT_BUILD_TAG:-2.0.0}
     platform: linux/amd64
     build:
       context: .
@@ -34,7 +34,7 @@ services:
 
   linux-onescript:
     profiles: ["build"]
-    image: mussolene/linux-onescript:2.0.0
+    image: ${IMAGE_NAMESPACE:-mussolene}/linux-onescript:${ONESCRIPT_BASE_TAG:-2.0.0}
     platform: linux/amd64
     build:
       context: .
@@ -47,7 +47,7 @@ services:
         ONESCRIPT_BUILD_IMAGE: onescript_build
 
   1c-dev:
-    image: mussolene/1c-developer:${PLATFORM_VERSION:-8.5.1.1302}
+    image: ${IMAGE_NAMESPACE:-mussolene}/1c-developer:${PLATFORM_VERSION:-8.5.1.1302}
     hostname: onecdev
     platform: linux/amd64
     build:
@@ -87,7 +87,7 @@ services:
       - ./volumes/1c-dev/cache:/root/.1cv8/1C/1cv8/
 
   1c-pg:
-    image: mussolene/postgresql:${PG_1C_VERSION:-17.7-1.1C}
+    image: ${IMAGE_NAMESPACE:-mussolene}/postgresql:${PG_1C_VERSION:-17.7-1.1C}
     build:
       context: .
       dockerfile: pg/Dockerfile
