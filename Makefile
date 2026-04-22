@@ -163,6 +163,7 @@ build:
 	if [[ -n "$(PLATFORM_ARCH)" ]]; then env_args+=(PLATFORM_ARCH="$(PLATFORM_ARCH)"); fi; \
 	if [[ -n "$(PLATFORM_DIST_NAME)" ]]; then env_args+=(PLATFORM_DIST_NAME="$(PLATFORM_DIST_NAME)"); fi; \
 	if [[ -n "$(ONEC_PLATFORM_OVERRIDE)" ]]; then env_args+=(ONEC_PLATFORM_OVERRIDE="$(ONEC_PLATFORM_OVERRIDE)"); fi; \
+	if [[ -n "$(IMAGE_NAMESPACE)" ]]; then env_args+=(IMAGE_NAMESPACE="$(IMAGE_NAMESPACE)"); fi; \
 	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" bash ./scripts/prepare-platform.sh; \
 	env "$${env_args[@]}" $(DOCKER_COMPOSE) $(COMPOSE_FILES) --profile build build 1c-dev
 
@@ -177,6 +178,7 @@ build-server-stack:
 	if [[ -n "$(PLATFORM_ARCH)" ]]; then env_args+=(PLATFORM_ARCH="$(PLATFORM_ARCH)"); fi; \
 	if [[ -n "$(PLATFORM_DIST_NAME)" ]]; then env_args+=(PLATFORM_DIST_NAME="$(PLATFORM_DIST_NAME)"); fi; \
 	if [[ -n "$(ONEC_PLATFORM_OVERRIDE)" ]]; then env_args+=(ONEC_PLATFORM_OVERRIDE="$(ONEC_PLATFORM_OVERRIDE)"); fi; \
+	if [[ -n "$(IMAGE_NAMESPACE)" ]]; then env_args+=(IMAGE_NAMESPACE="$(IMAGE_NAMESPACE)"); fi; \
 	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" bash ./scripts/prepare-platform.sh; \
 	env "$${env_args[@]}" $(DOCKER_COMPOSE) $(COMPOSE_FILES) --profile build build 1c-pg 1c-dev
 
@@ -257,6 +259,7 @@ config:
 	if [[ -n "$(PLATFORM_ARCH)" ]]; then env_args+=(PLATFORM_ARCH="$(PLATFORM_ARCH)"); fi; \
 	if [[ -n "$(PLATFORM_DIST_NAME)" ]]; then env_args+=(PLATFORM_DIST_NAME="$(PLATFORM_DIST_NAME)"); fi; \
 	if [[ -n "$(ONEC_PLATFORM_OVERRIDE)" ]]; then env_args+=(ONEC_PLATFORM_OVERRIDE="$(ONEC_PLATFORM_OVERRIDE)"); fi; \
+	if [[ -n "$(IMAGE_NAMESPACE)" ]]; then env_args+=(IMAGE_NAMESPACE="$(IMAGE_NAMESPACE)"); fi; \
 	env "$${env_args[@]}" $(DOCKER_COMPOSE) $(COMPOSE_FILES) --profile build config
 
 down:

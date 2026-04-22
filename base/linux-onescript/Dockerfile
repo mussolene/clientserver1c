@@ -1,5 +1,5 @@
-ARG ONESCRIPT_BUILD_IMAGE=mussolene/linux-onescript-builder:2.0.0
-ARG COMMON_BASE_IMAGE=mussolene/linux-common-base:bookworm
+ARG ONESCRIPT_BUILD_IMAGE=ghcr.io/mussolene/linux-onescript-builder:2.0.0
+ARG COMMON_BASE_IMAGE=ghcr.io/mussolene/linux-common-base:bookworm
 
 FROM ${ONESCRIPT_BUILD_IMAGE} AS onescript_build
 FROM ${COMMON_BASE_IMAGE}

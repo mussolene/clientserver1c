@@ -1,4 +1,4 @@
-ARG COMMON_BASE_IMAGE=mussolene/linux-common-base:bookworm
+ARG COMMON_BASE_IMAGE=ghcr.io/mussolene/linux-common-base:bookworm
 FROM ${COMMON_BASE_IMAGE}
 
 ARG TARGETARCH

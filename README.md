@@ -7,6 +7,7 @@
 ## Быстрый старт
 
 ```bash
+docker login ghcr.io
 make env
 make pull
 make doctor
@@ -93,19 +94,25 @@ make -C /path/to/clientserver1c agent-exec PROJECT_PATH="$PWD" CMD="oscript --ve
 
 ## Образы и private registry
 
-По умолчанию compose и helper-скрипты используют namespace `mussolene`:
+По умолчанию compose и helper-скрипты используют опубликованные GHCR images:
 
 ```env
-IMAGE_NAMESPACE=mussolene
+IMAGE_NAMESPACE=ghcr.io/mussolene
 ```
 
-Для pull-based onboarding из private registry задайте namespace в `.env`:
+Для своего private registry задайте namespace в `.env`:
 
 ```env
 IMAGE_NAMESPACE=ghcr.io/acme
 ```
 
 Тогда `1c-dev` будет использовать `ghcr.io/acme/1c-developer:<PLATFORM_VERSION>`, а base/PostgreSQL images - тот же namespace. Это позволяет публиковать готовые образы в закрытый registry и не менять compose-файлы в fork/company setup.
+
+Для Docker Hub явно задайте:
+
+```env
+IMAGE_NAMESPACE=mussolene
+```
 
 Минимальный pull-based onboarding:
 

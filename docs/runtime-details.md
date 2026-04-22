@@ -45,13 +45,19 @@ Compose и helper-скрипты читают `IMAGE_NAMESPACE`.
 Default:
 
 ```env
-IMAGE_NAMESPACE=mussolene
+IMAGE_NAMESPACE=ghcr.io/mussolene
 ```
 
-Для private registry:
+Для своего private registry:
 
 ```env
 IMAGE_NAMESPACE=ghcr.io/acme
+```
+
+Для Docker Hub:
+
+```env
+IMAGE_NAMESPACE=mussolene
 ```
 
 Имена образов остаются стабильными: `1c-developer`, `linux-common-base`, `linux-desktop-base`, `linux-onescript-builder`, `linux-onescript`, `postgresql`.

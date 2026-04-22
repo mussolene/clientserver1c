@@ -1,5 +1,5 @@
-ARG DESKTOP_BASE_IMAGE=mussolene/linux-desktop-base:bookworm
-ARG ONESCRIPT_BASE_IMAGE=mussolene/linux-onescript:2.0.0
+ARG DESKTOP_BASE_IMAGE=ghcr.io/mussolene/linux-desktop-base:bookworm
+ARG ONESCRIPT_BASE_IMAGE=ghcr.io/mussolene/linux-onescript:2.0.0
 FROM ${ONESCRIPT_BASE_IMAGE} AS onescript_base
 FROM ${DESKTOP_BASE_IMAGE}
 

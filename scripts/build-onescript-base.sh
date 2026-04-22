@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${ENV_FILE:-$ROOT_DIR/.env}"
+INPUT_IMAGE_NAMESPACE="${IMAGE_NAMESPACE-}"
 
 if [[ -f "$ENV_FILE" ]]; then
   set -a
@@ -11,7 +12,8 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-mussolene}"
+IMAGE_NAMESPACE="${INPUT_IMAGE_NAMESPACE:-${IMAGE_NAMESPACE:-}}"
+IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-ghcr.io/mussolene}"
 ONESCRIPT_BASE_IMAGE="${IMAGE_NAMESPACE}/linux-onescript"
 ONESCRIPT_BASE_TAG="2.0.0"
 ONESCRIPT_BUILD_IMAGE="${IMAGE_NAMESPACE}/linux-onescript-builder"

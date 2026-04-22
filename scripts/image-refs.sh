@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-image_namespace="${IMAGE_NAMESPACE:-mussolene}"
+image_namespace="${IMAGE_NAMESPACE:-ghcr.io/mussolene}"
 platform_version="${PLATFORM_VERSION:-8.5.1.1302}"
 pg_1c_version="${PG_1C_VERSION:-17.7-1.1C}"
 
