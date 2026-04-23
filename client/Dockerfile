@@ -10,7 +10,7 @@ ARG VANESSA_ADD_VERSION=6.9.5
 ARG VANESSA_RUNNER_VERSION=2.6.0
 ARG VANESSA_AUTOMATION_VERSION=1.2.043.1
 ARG ONEC_VANESSA_SKILL_REF=58b8e8b4831f4f1457707b037c8a050f5cd32e86
-ARG ONEC_CONTEXT_TOOLKIT_REF=b3ac817fa76d4979ae10bf5806e9d7bbab66e1e0
+ARG ONEC_CONTEXT_TOOLKIT_REF=2b4be5c5b6f033f77716c0911275bf342a93ab10
 ARG ONEC_WORKFLOW_PROOF_REF=29664a56b6eba063982cacc3e200285e09799933
 ARG BSLLS_VERSION=0.25.0
 
@@ -193,7 +193,9 @@ RUN mkdir -p /opt/bslls \
 
 COPY agent/ /opt/onec-agent/
 
-RUN bash -euxo pipefail <<'EOF'
+RUN --mount=type=secret,id=its_login,required=false \
+  --mount=type=secret,id=its_password,required=false \
+  bash -euxo pipefail <<'EOF'
 skills_root=/opt/onec-skills
 mkdir -p "$skills_root"
 
@@ -215,6 +217,40 @@ vanessa_commit="$(clone_skill onec-vanessa-skill https://github.com/mussolene/on
 context_commit="$(clone_skill onec-context-toolkit https://github.com/mussolene/onec-context-toolkit "${ONEC_CONTEXT_TOOLKIT_REF}")"
 workflow_commit="$(clone_skill onec-workflow-proof https://github.com/mussolene/onec-workflow-proof "${ONEC_WORKFLOW_PROOF_REF}")"
 
+context_root="$skills_root/onec-context-toolkit"
+context_workspace=/opt/onec-agent/context-workspace
+context_manifest="$context_workspace/.onec/workspace.manifest.json"
+
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'set -euo pipefail' \
+  'exec /opt/onec-skills/onec-context-toolkit/bin/onec-context "$@"' \
+  > /usr/local/bin/onec-context
+chmod +x /usr/local/bin/onec-context "$context_root/bin/onec-context"
+
+onec-context doctor --workspace-init --hbk-base /opt/1cv8
+onec-context init \
+  --workspace-root "$context_workspace" \
+  --source-path "$context_workspace" \
+  --profile base \
+  --hbk-base /opt/1cv8 \
+  --platform "${PLATFORM_VERSION}" \
+  --with-standards \
+  --fetch-its-standards
+context_platform_pack="$(onec-context resolve-packs \
+  --workspace-root "$context_workspace" \
+  --role platform \
+  --path-only)"
+context_standards_pack="$(onec-context resolve-packs \
+  --workspace-root "$context_workspace" \
+  --role standards \
+  --path-only)"
+context_standards_manifest="$context_workspace/.onec/manifests/standards.its-v8std.kb.manifest.json"
+test -f "$context_manifest"
+test -f "$context_platform_pack"
+test -f "$context_standards_pack"
+test -f "$context_standards_manifest"
+
 jq -n \
   --arg vanessa_ref "${ONEC_VANESSA_SKILL_REF}" \
   --arg vanessa_commit "$vanessa_commit" \
@@ -223,6 +259,11 @@ jq -n \
   --arg workflow_ref "${ONEC_WORKFLOW_PROOF_REF}" \
   --arg workflow_commit "$workflow_commit" \
   --arg bslls_version "${BSLLS_VERSION}" \
+  --arg context_workspace "$context_workspace" \
+  --arg context_manifest "$context_manifest" \
+  --arg context_platform_pack "$context_platform_pack" \
+  --arg context_standards_pack "$context_standards_pack" \
+  --arg context_standards_manifest "$context_standards_manifest" \
   '{
     skills_root: "/opt/onec-skills",
     project_root: "/workspace/project",
@@ -231,7 +272,19 @@ jq -n \
         version: $bslls_version,
         command: "bsl-language-server",
         jar: "/opt/bslls/bsl-language-server.jar"
+      },
+      "onec-context": {
+        command: "onec-context",
+        workspace: $context_workspace,
+        manifest: $context_manifest
       }
+    },
+    packs: {
+      platform: $context_platform_pack,
+      standards: $context_standards_pack
+    },
+    manifests: {
+      standards: $context_standards_manifest
     },
     skills: {
       "onec-vanessa-skill": {
@@ -260,6 +313,7 @@ ln -sf /opt/onec-agent/bin/* /usr/local/bin/
 command -v onec-agent-doctor >/dev/null
 command -v onec-agent-skill >/dev/null
 command -v onec-agent-bslls >/dev/null
+command -v onec-context >/dev/null
 ONEC_PROJECT_ROOT=/tmp onec-agent-doctor >/dev/null
 onec-agent-skill list >/dev/null
 EOF

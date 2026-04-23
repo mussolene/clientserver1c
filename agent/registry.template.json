@@ -1,6 +1,20 @@
 {
   "skills_root": "/opt/onec-skills",
   "project_root": "/workspace/project",
+  "tools": {
+    "onec-context": {
+      "command": "onec-context",
+      "workspace": "/opt/onec-agent/context-workspace",
+      "manifest": "/opt/onec-agent/context-workspace/.onec/workspace.manifest.json"
+    }
+  },
+  "packs": {
+    "platform": "/opt/onec-agent/context-workspace/.onec/packs/platform.<version>.kb.db.zst",
+    "standards": "/opt/onec-agent/context-workspace/.onec/packs/standards.kb.db.zst"
+  },
+  "manifests": {
+    "standards": "/opt/onec-agent/context-workspace/.onec/manifests/standards.kb.manifest.json"
+  },
   "skills": {
     "onec-vanessa-skill": {
       "source": "https://github.com/mussolene/onec-vanessa-skill",

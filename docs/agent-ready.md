@@ -55,6 +55,15 @@ make -C /path/to/clientserver1c agent-bslls-format PROJECT_PATH="$PWD" SRC_DIR=s
 - инструкции для агента: `/opt/onec-agent/AGENTS.md`
 - registry skills: `/opt/onec-agent/registry.json`
 - skill repositories: `/opt/onec-skills`
+- prebuilt context workspace: `/opt/onec-agent/context-workspace`
+
+## Prebuilt context packs
+
+Во время сборки `1c-dev` после установки платформы и клонирования skills запускается `onec-context init` для контейнерного workspace `/opt/onec-agent/context-workspace`. Он собирает platform help pack из HBK под `/opt/1cv8` для версии `PLATFORM_VERSION`; путь к pack записывается в `/opt/onec-agent/registry.json`.
+
+Следом `onec-context init --with-standards --fetch-its-standards` из установленного `onec-context-toolkit` скачивает ITS `v8std` и собирает standards pack в тот же SQLite/FTS `.db.zst` формат. Публичный ITS `v8std` crawler работает без логина; BuildKit secrets `its_login` и `its_password` доступны контейнерной сборке, если позже понадобятся закрытые страницы.
+
+Project-specific packs (`metadata`, `code`, `full`) строятся отдельно из смонтированного `/workspace/project`, потому что зависят от конкретной конфигурации.
 
 ## Закреплённые версии
 

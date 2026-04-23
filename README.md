@@ -2,7 +2,7 @@
 
 Повторяемая локальная среда для 1С-разработки и тестирования в Docker.
 
-Главный контейнер `1c-dev` содержит платформу 1С, GUI/VNC, OneScript, Vanessa tooling, BSL Language Server и слой 1C skills для IDE-агентов. `PostgreSQL 1C` подключается только когда нужен server/client-server сценарий.
+Главный контейнер `1c-dev` содержит платформу 1С, GUI/VNC, OneScript, Vanessa tooling, BSL Language Server и слой 1C skills для IDE-агентов. Во время сборки слоя skills он предсобирает platform help pack из установленной HBK платформы и standards pack в локальном SQLite/FTS формате. `PostgreSQL 1C` подключается только когда нужен server/client-server сценарий.
 
 ## Быстрый старт
 
@@ -236,6 +236,8 @@ make up ONEC_PLATFORM_OVERRIDE=native-arm PLATFORM_ARCH=arm64
 ## Agent-ready режим
 
 `1c-dev` содержит слой 1C skills и helper tools для IDE-агентов. Быстрый путь есть в начале README, подробности лежат в [docs/agent-ready.md](docs/agent-ready.md).
+
+Agent-ready слой также содержит `onec-context` и контейнерный workspace `/opt/onec-agent/context-workspace` с prebuilt packs. Platform help pack строится во время Docker build из HBK, установленной вместе с платформой в `/opt/1cv8`. Standards pack строится в тот же SQLite/FTS `.db.zst` формат из ITS `v8std`; доступ к публичным страницам работает без логина, а `ITS_LOGIN`/`ITS_PASSWORD` secrets используются только если доступны.
 
 ## UI smoke через Vanessa
 

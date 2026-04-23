@@ -2,7 +2,7 @@
 
 Репозиторий даёт один основной developer-контейнер:
 
-- `1c-dev`: платформа 1С, GUI/VNC, OneScript, Vanessa tooling, BSL diagnostics и agent-ready skills layer.
+- `1c-dev`: платформа 1С, GUI/VNC, OneScript, Vanessa tooling, BSL diagnostics и agent-ready skills layer с предсобранными platform help и standards packs.
 - `1c-pg`: опциональный PostgreSQL 1C для server/client-server сценариев.
 
 ## Runtime modes

@@ -57,7 +57,49 @@ else
   status=1
 fi
 
+printf '%-28s ' "onec-context:"
+if command -v onec-context >/dev/null 2>&1; then
+  onec-context --help | head -n 1
+else
+  printf 'MISSING\n'
+  status=1
+fi
+
 if [[ -f "$registry_path" ]]; then
+  context_manifest="$(jq -r '.tools["onec-context"].manifest // empty' "$registry_path")"
+  context_platform_pack="$(jq -r '.packs.platform // empty' "$registry_path")"
+  context_standards_pack="$(jq -r '.packs.standards // empty' "$registry_path")"
+  context_standards_manifest="$(jq -r '.manifests.standards // empty' "$registry_path")"
+
+  printf '\ncontext packs\n'
+  if [[ -n "$context_manifest" ]]; then
+    check_path "context manifest" "$context_manifest"
+  else
+    printf '%-28s MISSING registry tools.onec-context.manifest\n' "context manifest:"
+    status=1
+  fi
+
+  if [[ -n "$context_platform_pack" ]]; then
+    check_path "platform pack" "$context_platform_pack"
+  else
+    printf '%-28s MISSING registry packs.platform\n' "platform pack:"
+    status=1
+  fi
+
+  if [[ -n "$context_standards_pack" ]]; then
+    check_path "standards pack" "$context_standards_pack"
+  else
+    printf '%-28s MISSING registry packs.standards\n' "standards pack:"
+    status=1
+  fi
+
+  if [[ -n "$context_standards_manifest" ]]; then
+    check_path "standards manifest" "$context_standards_manifest"
+  else
+    printf '%-28s MISSING registry manifests.standards\n' "standards manifest:"
+    status=1
+  fi
+
   printf '\nskills\n'
   while IFS= read -r line; do
     entrypoint="${line#*: }"
