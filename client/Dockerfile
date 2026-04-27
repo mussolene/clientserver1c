@@ -171,6 +171,7 @@ RUN (opm install "add@${VANESSA_ADD_VERSION}" || opm install add) \
      else \
        opm install vanessa-automation; \
      fi \
+  && opm install vanessa-automation-single \
   && mkdir -p /opt/lib \
   && ln -sfn /opt/onescript/lib/add /opt/lib/add \
   && ln -sf /opt/onescript/bin/vrunner /usr/local/bin/vrunner \

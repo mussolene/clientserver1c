@@ -228,6 +228,7 @@ make up ONEC_PLATFORM_OVERRIDE=native-arm PLATFORM_ARCH=arm64
 - `vrunner`
 - `vanessa-runner`
 - `vanessa-automation`
+- `vanessa-automation-single`
 - `python3`
 - `bsl-language-server`
 
