@@ -17,12 +17,7 @@ IDE-агент на host
 Главный интерфейс Portable Agent Infrastructure находится внутри image:
 
 ```bash
-onec-agent doctor
-onec-agent registry
-onec-agent skill context
-onec-agent bslls src/cf
-onec-agent context --task "json_writer_question" --query "ЗаписьJSON" --pack platform
-onec-agent context-mcp-config
+onec-agent --help
 ```
 
 Host-side `make agent-*` targets остаются удобными wrappers для запуска этих команд через Docker Compose, но они не являются основной частью Portable Agent Infrastructure runtime.
@@ -34,16 +29,6 @@ Host-side `make agent-*` targets остаются удобными wrappers дл
 ```bash
 make -C /path/to/clientserver1c agent-up PROJECT_PATH="$PWD"
 make -C /path/to/clientserver1c agent-doctor PROJECT_PATH="$PWD"
-```
-
-Если helper-репозиторий не нужен, можно использовать скачанный image напрямую:
-
-```bash
-docker run --rm -it \
-  -v "$PWD":/workspace/project \
-  -e ONEC_PROJECT_ROOT=/workspace/project \
-  ghcr.io/mussolene/1c-developer:<PLATFORM_VERSION> \
-  onec-agent doctor
 ```
 
 ## Прочитать skills
@@ -79,32 +64,22 @@ onec-agent bslls-format src/cf
 
 `agent-bslls-format` меняет файлы проекта. После запуска агент должен показать diff.
 
-## OACS memory/context слой
+## OACS Memory/Context
 
 OACS входит в Portable Agent Infrastructure image как обязательный слой.
 
-```bash
-make -C /path/to/clientserver1c agent-up PROJECT_PATH="$PWD"
-```
+State хранится в смонтированном проекте: `.agent/oacs/oacs.db`. Для shared/private проектов задавайте `OACS_PASSPHRASE` или `ONEC_OACS_PASSPHRASE` явно и не коммитьте `.agent/oacs/`.
 
-OACS state хранится в смонтированном проекте:
+OACS здесь state/governance backend, а не оркестратор. `onec-context` остаётся retrieval engine для platform help, ITS standards и project packs.
 
-```text
-.agent/oacs/oacs.db
-```
-
-Для локального dev wrapper использует default passphrase `clientserver1c-local-oacs`, если не задан `OACS_PASSPHRASE` или `ONEC_OACS_PASSPHRASE`. Для shared/private проектов задавайте passphrase явно через environment и не коммитьте `.agent/oacs/`.
-
-Слой использует OACS как state/governance backend, а не как оркестратор. `onec-context` остаётся canonical retrieval engine для platform help, ITS standards и project packs. Wrapper записывает результаты lookup как OACS `tool_result` evidence и связывает их с project memory перед сборкой context capsule.
-
-Свежий `onec-context-toolkit` также включает stdio MCP server `onec-context-mcp`. В контейнере OACS регистрирует wrapper `onec-agent-context-mcp`, чтобы default workspace указывал на предсобранную справку и standards pack. Для регистрации в OACS:
+MCP import внутри контейнера:
 
 ```bash
 onec-agent context-mcp-config > /tmp/onec-context-mcp.json
 acs mcp import /tmp/onec-context-mcp.json
 ```
 
-После import OACS видит MCP tools (`onec_status`, `onec_ensure`, `onec_resolve_packs`, `onec_query_kb`, `onec_query_code`, `onec_query_config`) как governed tools. Их можно вызывать внутри контейнера через `acs tool call <tool> --execute-mcp --payload ...`.
+После import OACS видит `onec_status`, `onec_ensure`, `onec_resolve_packs`, `onec_query_kb`, `onec_query_code`, `onec_query_config` как governed tools.
 
 Собрать task context:
 
@@ -135,15 +110,6 @@ make -C /path/to/clientserver1c agent-memory-capture PROJECT_PATH="$PWD" SUMMARY
 - skill repositories: `/opt/onec-skills`
 - prebuilt context workspace: `/opt/onec-agent/context-workspace`
 
-## Prebuilt context packs
-
-Во время сборки `1c-dev` после установки платформы и клонирования skills запускается `onec-context init` для контейнерного workspace `/opt/onec-agent/context-workspace`. Он собирает platform help pack из HBK под `/opt/1cv8` для версии `PLATFORM_VERSION`; путь к pack записывается в `/opt/onec-agent/registry.json`.
-
-Следом `onec-context init --with-standards --fetch-its-standards` из установленного `onec-context-toolkit` скачивает ITS `v8std` и собирает standards pack в тот же SQLite/FTS `.db.zst` формат. Публичный ITS `v8std` crawler работает без логина; BuildKit secrets `its_login` и `its_password` доступны контейнерной сборке, если позже понадобятся закрытые страницы.
-
-Project-specific packs (`metadata`, `code`, `full`) строятся отдельно из смонтированного `/workspace/project`, потому что зависят от конкретной конфигурации.
-OACS не заменяет эти packs: он хранит только project memory, evidence refs, audit и context capsules вокруг найденных фактов.
-
 ## Закреплённые версии
 
-Image закрепляет версии инструментов и skills через build variables из `.env`. Не меняйте их без необходимости: так сборка остаётся повторяемой.
+Image закрепляет версии инструментов и skills через build variables из `.env`. Build/runtime детали и prebuilt packs описаны в [runtime-details.md](runtime-details.md).

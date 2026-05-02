@@ -45,25 +45,20 @@ done < <(ONEC_PLATFORM_OVERRIDE="${ONEC_PLATFORM_OVERRIDE:-}" bash "$ROOT_DIR/sc
 # shellcheck source=scripts/image-refs.sh
 . "$ROOT_DIR/scripts/image-refs.sh"
 
-needs_build=0
 if ! docker image inspect "$ONEC_DEV_IMAGE" >/dev/null 2>&1; then
-  docker pull "$ONEC_DEV_IMAGE" >/dev/null 2>&1 || needs_build=1
+  docker pull "$ONEC_DEV_IMAGE" >/dev/null 2>&1 || {
+    printf 'Developer image is not available locally or in registry: %s\n' "$ONEC_DEV_IMAGE" >&2
+    printf 'Run: make build\n' >&2
+    exit 1
+  }
 fi
 
-if [[ "$needs_build" == "0" ]] \
-  && { ! docker run --rm --entrypoint test "$ONEC_DEV_IMAGE" -f /opt/onec-agent/registry.json >/dev/null 2>&1 \
-    || ! docker run --rm --entrypoint test "$ONEC_DEV_IMAGE" -f /opt/bslls/bsl-language-server.jar >/dev/null 2>&1; }; then
-  needs_build=1
-fi
-
-if [[ "$needs_build" == "0" ]] \
-  && ! docker run --rm --entrypoint sh "$ONEC_DEV_IMAGE" -c 'command -v acs' >/dev/null 2>&1; then
-  needs_build=1
-fi
-
-if [[ "$needs_build" == "1" ]]; then
-  env ENV_FILE="$ENV_FILE" bash "$ROOT_DIR/scripts/prepare-platform.sh"
-  docker compose "${compose_args[@]}" --profile build build 1c-dev
+if ! docker run --rm --entrypoint test "$ONEC_DEV_IMAGE" -f /opt/onec-agent/registry.json >/dev/null 2>&1 \
+  || ! docker run --rm --entrypoint test "$ONEC_DEV_IMAGE" -f /opt/bslls/bsl-language-server.jar >/dev/null 2>&1 \
+  || ! docker run --rm --entrypoint sh "$ONEC_DEV_IMAGE" -c 'command -v acs' >/dev/null 2>&1; then
+  printf 'Developer image is not agent-ready: %s\n' "$ONEC_DEV_IMAGE" >&2
+  printf 'Run: make build\n' >&2
+  exit 1
 fi
 
 if ! docker volume inspect onec-license-store >/dev/null 2>&1; then

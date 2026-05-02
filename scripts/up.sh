@@ -37,7 +37,7 @@ if [[ "${ONEC_WITH_PG:-0}" == "1" ]]; then
   images_to_check=("$ONEC_PG_IMAGE" "${images_to_check[@]}")
 fi
 
-missing_services=()
+missing_images=()
 for image_ref in "${images_to_check[@]}"; do
   if docker image inspect "$image_ref" >/dev/null 2>&1; then
     continue
@@ -46,24 +46,21 @@ for image_ref in "${images_to_check[@]}"; do
     continue
   fi
 
-  case "$image_ref" in
-    "$ONEC_PG_IMAGE")
-      missing_services+=(1c-pg)
-      ;;
-    "$ONEC_DEV_IMAGE")
-      missing_services+=(1c-dev)
-      ;;
-  esac
+  missing_images+=("$image_ref")
 done
 
 if docker image inspect "$ONEC_DEV_IMAGE" >/dev/null 2>&1 \
   && ! docker run --rm --entrypoint sh "$ONEC_DEV_IMAGE" -c 'command -v acs' >/dev/null 2>&1; then
-  missing_services+=(1c-dev)
+  printf 'Developer image is not agent-ready: %s\n' "$ONEC_DEV_IMAGE" >&2
+  printf 'Run: make build\n' >&2
+  exit 1
 fi
 
-if [[ "${#missing_services[@]}" -gt 0 ]]; then
-  env ENV_FILE="$ENV_FILE" bash "$ROOT_DIR/scripts/prepare-platform.sh"
-  docker compose "${compose_args[@]}" --profile build build "${missing_services[@]}"
+if [[ "${#missing_images[@]}" -gt 0 ]]; then
+  printf 'Required image is not available locally or in registry:\n' >&2
+  printf '  %s\n' "${missing_images[@]}" >&2
+  printf 'Run: make build%s\n' "$([[ "${ONEC_WITH_PG:-0}" == "1" ]] && printf -- '-server-stack' || true)" >&2
+  exit 1
 fi
 
 if ! docker volume inspect onec-license-store >/dev/null 2>&1; then

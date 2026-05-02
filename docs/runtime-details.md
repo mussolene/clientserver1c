@@ -32,11 +32,18 @@ make prepare-platform
 
 Staging directory: `.local/1c/dev-platform`. Она намеренно ignored by git.
 
-Runtime targets are pull-first:
+Runtime targets используют готовый image:
 
-- if the configured image exists locally, it is reused;
-- if it is missing, scripts try `docker pull`;
-- local platform staging and build run only when the image cannot be pulled or is not suitable.
+- если настроенный image есть локально, он используется как есть;
+- если image отсутствует, scripts пробуют `docker pull`;
+- если image нельзя скачать или он не agent-ready, команда падает с явной подсказкой `make build`.
+
+Local platform staging запускается только в явных build-командах:
+
+```bash
+make prepare-platform
+make build
+```
 
 ## Image namespace
 
@@ -67,7 +74,7 @@ IMAGE_NAMESPACE=mussolene
 `.env.example` содержит pinned версии для повторяемой сборки:
 
 ```env
-VANESSA_ADD_VERSION=6.9.5
+VANESSA_ADD_VERSION=6.8.0
 VANESSA_RUNNER_VERSION=2.6.0
 VANESSA_AUTOMATION_VERSION=1.2.043.1
 BSLLS_VERSION=0.25.0
@@ -76,3 +83,13 @@ OACS_VERSION=0.3.1a2
 
 Skills закреплены по commit SHA. Обновляйте эти значения только при осознанном refresh agent-ready слоя.
 OACS является обязательным agent-layer dependency для Portable Agent Infrastructure memory/context/evidence.
+
+## Agent Context Packs
+
+Во время сборки `1c-dev` `onec-context` создаёт workspace `/opt/onec-agent/context-workspace`:
+
+- platform help pack строится из HBK под `/opt/1cv8`;
+- standards pack строится из ITS `v8std` в SQLite/FTS `.db.zst`;
+- пути записываются в `/opt/onec-agent/registry.json`.
+
+Project-specific packs (`metadata`, `code`, `full`) строятся отдельно из смонтированного `/workspace/project`. OACS хранит memory, evidence refs, audit и context capsules вокруг найденных фактов, но не заменяет сами packs.

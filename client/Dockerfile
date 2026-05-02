@@ -6,7 +6,7 @@ FROM ${DESKTOP_BASE_IMAGE}
 ARG TARGETARCH
 ARG PLATFORM_VERSION=8.5.1.1302
 ARG PLATFORM_DIST_NAME
-ARG VANESSA_ADD_VERSION=6.9.5
+ARG VANESSA_ADD_VERSION=6.8.0
 ARG VANESSA_RUNNER_VERSION=2.6.0
 ARG VANESSA_AUTOMATION_VERSION=1.2.043.1
 ARG ONEC_VANESSA_SKILL_REF=58b8e8b4831f4f1457707b037c8a050f5cd32e86
@@ -165,14 +165,10 @@ if [[ -z "$uiproxy_path" ]]; then
 fi
 EOF
 
-RUN (opm install "add@${VANESSA_ADD_VERSION}" || opm install add) \
-  && (opm install "vanessa-runner@${VANESSA_RUNNER_VERSION}" || opm install vanessa-runner) \
-  && if [ -n "${VANESSA_AUTOMATION_VERSION}" ]; then \
-       opm install "vanessa-automation@${VANESSA_AUTOMATION_VERSION}"; \
-     else \
-       opm install vanessa-automation; \
-     fi \
-  && opm install vanessa-automation-single \
+RUN opm install "add@${VANESSA_ADD_VERSION}" \
+  && opm install "vanessa-runner@${VANESSA_RUNNER_VERSION}" \
+  && opm install "vanessa-automation@${VANESSA_AUTOMATION_VERSION}" \
+  && opm install "vanessa-automation-single@${VANESSA_AUTOMATION_VERSION}" \
   && mkdir -p /opt/lib \
   && ln -sfn /opt/onescript/lib/add /opt/lib/add \
   && ln -sf /opt/onescript/bin/vrunner /usr/local/bin/vrunner \
@@ -236,6 +232,13 @@ printf '%s\n' \
 chmod +x /usr/local/bin/onec-context "$context_root/bin/onec-context"
 
 onec-context doctor --workspace-init --hbk-base /opt/1cv8
+test -x "$context_root/.venv/bin/onec-context-mcp"
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'set -euo pipefail' \
+  'exec /opt/onec-skills/onec-context-toolkit/.venv/bin/onec-context-mcp "$@"' \
+  > /usr/local/bin/onec-context-mcp
+chmod +x /usr/local/bin/onec-context-mcp
 onec-context init \
   --workspace-root "$context_workspace" \
   --source-path "$context_workspace" \

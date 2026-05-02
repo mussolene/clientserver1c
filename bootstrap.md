@@ -3,32 +3,35 @@
 Скопируй этот промпт агенту целиком. Это не runbook для человека: агент должен сам создать файл `run-bootstrap.sh`, запустить его, собрать артефакты и вернуть короткий отчет.
 
 ````text
-Ты DevOps/QA инженер по 1С. Твоя задача — максимально быстро получить первый проверяемый smoke/BDD результат в автономной Docker-среде 1С.
+Ты DevOps/QA инженер по 1С. Твоя задача — максимально быстро получить первый проверяемый agent-ready результат в автономной Docker-среде 1С. Restore/smoke добавляй только когда задан `DT_PATH`.
 
-Цель TTM:
-- Сначала доведи до первого meaningful результата, потом улучшай детали.
+Цель onboarding:
+- Сначала доведи нового пользователя до первого проверяемого agent-ready результата, потом улучшай детали.
 - Создай один файл `run-bootstrap.sh` в изолированной папке `ONEC_BOOTSTRAP_HOME` и запусти его.
 - Не создавай runtime-файлы в текущем проекте пользователя.
-- Если не хватает `DT_PATH`, спроси только абсолютный путь к DT и продолжай.
+- Если не хватает `DT_PATH`, не блокируй первый результат: сначала проверь container-side agent/OACS и верни report с командой продолжения для restore/smoke.
 
 Параметры, которые можно переопределять через env:
 - `ONEC_BOOTSTRAP_HOME`, default: `$HOME/onec-bootstrap-runtime`
-- `IMAGE`, default: `ghcr.io/mussolene/1c-developer:8.5.1.1302`
+- `IMAGE`, default: `ghcr.io/mussolene/1c-developer:8.5.1.1302`; image должен уже существовать локально или быть заранее скачан
 - `CONTAINER`, default: `onec-runtime`
 - `PLATFORM`, default: `auto` (`linux/amd64` on amd64 and arm64 hosts). This is intentional: the agent-ready toolchain is built and validated for amd64 because not every required utility is available for arm64.
 - `PROJECT_DIR`, default: `$ONEC_BOOTSTRAP_HOME/project`
 - `LICENSE_SERVER_ADDR`, default: `192.168.0.0`
 - `LICENSE_PORT`, default: `475`
+- `VNC_PORT`, host port для VNC publish; default: `5900`
 - `OACS_PASSPHRASE`, default: `clientserver1c-bootstrap-oacs`
 - `DT_PATH`, required for restore/smoke
 - `VANESSA_ADD_PATH`, default: `/opt/onescript/lib/add/bddRunner.epf`
-- `ONLY_STEP`, optional: `setup`, `restore`, `agent`, `smoke`, `report`
+- `ONLY_STEP`, default: `quickstart`; допустимые значения: `quickstart`, `all`, `setup`, `agent`, `restore`, `smoke`, `report`
 
 Правила надежности:
 - Не скрывай ошибки через `|| true` в статусных шагах.
+- Не делай скрытый pull/build внутри bootstrap: он проверяет ровно указанный `IMAGE`.
 - На любой ошибке выведи: шаг, точную команду повтора, путь к логам/артефактам.
 - Контейнер должен работать как Portable Agent Infrastructure сам по себе: обязательно смонтируй `PROJECT_DIR` в `/workspace/project` и все agent/OACS проверки выполняй внутри контейнера через `onec-agent` и `acs`.
 - Даже на ARM-host используй `linux/amd64`, если явно не предоставлен другой полноценно agent-ready image. Это намеренно: часть 1C/agent утилит не собирается и не поставляется под arm64.
+- Quickstart result: running container + `onec-agent doctor` + OACS/MCP checks + report. RestoreIB/smoke выполняй только когда задан `DT_PATH` или явно выбран `ONLY_STEP=restore|smoke|all`.
 - RestoreIB считай успешным только если команда завершилась успешно, лог скопирован на хост, каталог `/mnt/data/testdb` непустой, а лог не содержит явных маркеров ошибок.
 - Проверку agent layer считай успешной только если есть `onec-agent`, `onec-agent-skill`, `acs`, `onec-agent-context-mcp`, `/opt/onec-agent/registry.json` и ожидаемые `SKILL.md`.
 - Smoke запускай только после проверки восстановленной базы, `vrunner` и `VANESSA_ADD_PATH`.
@@ -44,8 +47,9 @@
 2. Запиши туда `run-bootstrap.sh` с содержимым ниже.
 3. Сделай `chmod +x run-bootstrap.sh`.
 4. Запусти:
+   - первый onboarding проход: `./run-bootstrap.sh`
    - если `DT_PATH` уже известен: `DT_PATH="/absolute/path/to/base.dt" ./run-bootstrap.sh`
-   - если `DT_PATH` неизвестен: спроси путь и запусти с ним.
+   - если `DT_PATH` неизвестен: не жди его для первого отчёта; после PASS по agent/OACS спроси путь и продолжи `ONLY_STEP=all DT_PATH="/absolute/path/to/base.dt" ./run-bootstrap.sh`.
 5. Если упал отдельный шаг, после исправления перезапусти только его через `ONLY_STEP=<step> ./run-bootstrap.sh`.
 6. Верни краткий отчет и путь к `$ONEC_BOOTSTRAP_HOME/report.md`.
 
@@ -62,10 +66,11 @@ ONEC_BOOTSTRAP_HOME="${ONEC_BOOTSTRAP_HOME:-$HOME/onec-bootstrap-runtime}"
 PROJECT_DIR="${PROJECT_DIR:-$ONEC_BOOTSTRAP_HOME/project}"
 LICENSE_SERVER_ADDR="${LICENSE_SERVER_ADDR:-192.168.0.0}"
 LICENSE_PORT="${LICENSE_PORT:-475}"
+VNC_PORT="${VNC_PORT:-5900}"
 OACS_PASSPHRASE="${OACS_PASSPHRASE:-clientserver1c-bootstrap-oacs}"
 DT_PATH="${DT_PATH:-}"
 VANESSA_ADD_PATH="${VANESSA_ADD_PATH:-/opt/onescript/lib/add/bddRunner.epf}"
-ONLY_STEP="${ONLY_STEP:-all}"
+ONLY_STEP="${ONLY_STEP:-quickstart}"
 
 mkdir -p "$ONEC_BOOTSTRAP_HOME" "$PROJECT_DIR"
 ONEC_BOOTSTRAP_HOME="$(cd "$ONEC_BOOTSTRAP_HOME" && pwd)"
@@ -113,12 +118,35 @@ want_step() {
   [ "$ONLY_STEP" = "all" ] || [ "$ONLY_STEP" = "$1" ]
 }
 
+run_restore_smoke_in_quickstart() {
+  [ "$ONLY_STEP" = "quickstart" ] && [ -n "$DT_PATH" ]
+}
+
 require_container() {
   docker ps --format '{{.Names}}' | grep -Fxq "$CONTAINER" || fail "container is not running: $CONTAINER"
 }
 
 container_sh() {
   docker exec "$CONTAINER" sh -lc "$1"
+}
+
+wait_for_container_shell() {
+  current_step="setup"
+  local attempt=0
+  until container_sh 'true' >/dev/null 2>"$LOG_DIR/container-shell-wait.err"; do
+    attempt=$((attempt + 1))
+    if [ "$attempt" -ge 15 ]; then
+      sed -n '1,120p' "$LOG_DIR/container-shell-wait.err" >&2 || true
+      fail "container shell did not become available"
+    fi
+    sleep 1
+  done
+}
+
+require_agent_binaries() {
+  current_step="setup"
+  container_sh 'command -v onec-agent >/dev/null && command -v acs >/dev/null && command -v onec-agent-context-mcp >/dev/null' \
+    || fail "image is not agent-ready: missing onec-agent, acs, or onec-agent-context-mcp; use a freshly built/published 1c-dev image"
 }
 
 container_agent() {
@@ -147,6 +175,7 @@ setup_runtime() {
   current_step="setup"
   command -v docker >/dev/null 2>&1 || fail "docker is not installed or not in PATH"
   docker info >/dev/null 2>&1 || fail "docker daemon is not available"
+  docker image inspect "$IMAGE" >/dev/null 2>&1 || fail "Docker image is not available locally: $IMAGE"
   case "$HOST_OS" in
     Linux|Darwin)
       ;;
@@ -154,14 +183,6 @@ setup_runtime() {
       fail "unsupported host OS for this bootstrap script: $HOST_OS"
       ;;
   esac
-
-  docker pull --platform "$PLATFORM" "$IMAGE" 2>&1 | tee "$LOG_DIR/docker-pull.log"
-
-  if ! docker run --rm --platform "$PLATFORM" --entrypoint sh -v "$PROJECT_DIR:/workspace/project" "$IMAGE" \
-      -lc 'test -d /workspace/project' >/dev/null 2>"$LOG_DIR/docker-mount-check.err"; then
-    sed -n '1,120p' "$LOG_DIR/docker-mount-check.err" >&2 || true
-    fail "Docker cannot mount PROJECT_DIR into /workspace/project; check Docker Desktop file sharing or PROJECT_DIR"
-  fi
 
   cat > "$ONEC_BOOTSTRAP_HOME/nethasp.ini" <<EOF_NETHASP
 [NH_COMMON]
@@ -180,22 +201,28 @@ EOF_NETHASP
     docker rm -f "$CONTAINER" >/dev/null
   fi
 
-  docker run -d \
-    --name "$CONTAINER" \
-    --platform "$PLATFORM" \
-    -p 127.0.0.1:5900:5900 \
-    -e ONEC_RUNTIME_MODE=shell \
-    -e ONEC_PROJECT_ROOT=/workspace/project \
-    -e ONEC_AGENT_REGISTRY=/opt/onec-agent/registry.json \
-    -e OACS_PASSPHRASE="$OACS_PASSPHRASE" \
-    -e ONEC_FILE_DB_PATH=/mnt/data/testdb \
-    -e ONEC_DISABLE_UNSAFE_ACTION_PROTECTION='.*' \
-    -v onec-license-store:/var/1C/licenses \
-    -v "$PROJECT_DIR:/workspace/project" \
-    -v "$RUNTIME_DIR/data:/mnt/data" \
-    -v "$RUNTIME_DIR/cache:/root/.1cv8/1C/1cv8" \
-    "$IMAGE" >/dev/null
+  docker_run_args=(run -d --name "$CONTAINER" --platform "$PLATFORM")
+  docker_run_args+=(-p "127.0.0.1:${VNC_PORT}:5900")
+  docker_run_args+=(
+    -e ONEC_RUNTIME_MODE=shell
+    -e ONEC_PROJECT_ROOT=/workspace/project
+    -e ONEC_AGENT_REGISTRY=/opt/onec-agent/registry.json
+    -e OACS_PASSPHRASE="$OACS_PASSPHRASE"
+    -e ONEC_FILE_DB_PATH=/mnt/data/testdb
+    -e ONEC_DISABLE_UNSAFE_ACTION_PROTECTION='.*'
+    -v onec-license-store:/var/1C/licenses
+    -v "$PROJECT_DIR:/workspace/project"
+    -v "$RUNTIME_DIR/data:/mnt/data"
+    -v "$RUNTIME_DIR/cache:/root/.1cv8/1C/1cv8"
+    "$IMAGE"
+  )
 
+  docker "${docker_run_args[@]}" >/dev/null
+
+  wait_for_container_shell
+  container_sh 'test -d /workspace/project' \
+    || fail "Docker cannot mount PROJECT_DIR into /workspace/project; check Docker Desktop file sharing or PROJECT_DIR"
+  require_agent_binaries
   wait_for_agent
 
   container_sh 'mkdir -p /opt/1cv8/conf /home/usr1cv8/.1cv8/1C/1cv8/conf /workspace/project/.agent/oacs'
@@ -245,9 +272,6 @@ inspect_agent_layer() {
   container_agent doctor | tee "$ART_DIR/agent/onec-agent-doctor.txt"
   container_agent registry | tee "$ART_DIR/agent/registry.json" >/dev/null
   container_agent skills | tee "$ART_DIR/agent/onec-agent-skill-list.txt"
-  container_agent skill context > "$ART_DIR/agent/skill-context.md"
-  container_agent skill testing > "$ART_DIR/agent/skill-testing.md"
-  container_agent skill memory > "$ART_DIR/agent/skill-memory.md"
   container_agent context-mcp-config | tee "$ART_DIR/agent/onec-context-mcp.json" >/dev/null
   container_agent context --task "bootstrap_agent_check" --query "ЗаписьJSON" --pack platform --limit 1 \
     | tee "$ART_DIR/agent/onec-agent-context.json" >/dev/null
@@ -341,6 +365,7 @@ write_report() {
     echo "OS: $HOST_OS"
     echo "Arch: $HOST_ARCH"
     echo "Docker platform: $PLATFORM"
+    echo "VNC port: $VNC_PORT"
     echo
     echo "## Project Mount"
     echo "Host: $PROJECT_DIR"
@@ -367,6 +392,7 @@ write_report() {
     echo '```bash'
     echo "cd \"$ONEC_BOOTSTRAP_HOME\""
     echo "DT_PATH=\"/absolute/path/to/base.dt\" ./run-bootstrap.sh"
+    echo "ONLY_STEP=all DT_PATH=\"/absolute/path/to/base.dt\" ./run-bootstrap.sh"
     echo "ONLY_STEP=agent ./run-bootstrap.sh"
     echo "ONLY_STEP=smoke DT_PATH=\"/absolute/path/to/base.dt\" ./run-bootstrap.sh"
     echo '```'
@@ -374,11 +400,34 @@ write_report() {
 }
 
 cd "$ONEC_BOOTSTRAP_HOME"
-want_step setup && setup_runtime
-want_step restore && restore_db
-want_step agent && inspect_agent_layer
-want_step smoke && run_smoke
-want_step report && write_report
+case "$ONLY_STEP" in
+  quickstart)
+    setup_runtime
+    inspect_agent_layer
+    if run_restore_smoke_in_quickstart; then
+      restore_db
+      run_smoke
+    fi
+    write_report
+    ;;
+  all)
+    setup_runtime
+    inspect_agent_layer
+    restore_db
+    run_smoke
+    write_report
+    ;;
+  setup|agent|restore|smoke|report)
+    want_step setup && setup_runtime
+    want_step agent && inspect_agent_layer
+    want_step restore && restore_db
+    want_step smoke && run_smoke
+    want_step report && write_report
+    ;;
+  *)
+    fail "unknown ONLY_STEP: $ONLY_STEP"
+    ;;
+esac
 
 echo "OK: bootstrap finished. Report: $REPORT"
 ```

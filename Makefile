@@ -28,7 +28,7 @@ help:
 	  '  make doctor          - check local readiness and print next commands' \
 	  '  make pull            - pull configured prebuilt developer image' \
 	  '  make first-start     - create .env if needed, then start the license UI' \
-	  '  make up              - reuse/pull image, build locally only when required, start license UI' \
+	  '  make up              - use local/pulled developer image, start license UI' \
 	  '  make up-file-db      - start 1c-dev in file DB mode after license activation' \
 	  '  make ui-smoke        - run the tracked Vanessa UI smoke' \
 	  '' \

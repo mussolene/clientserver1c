@@ -72,7 +72,7 @@ if [[ -d "$ROOT_DIR/.local/1c/dev-platform" ]] \
 elif [[ "$image_exists" == "1" ]]; then
   print_check "platform staging" "OPTIONAL" "Only needed for local image build."
 else
-  warn_missing "platform staging" "Run: make prepare-platform or make up"
+  warn_missing "platform staging" "Only needed for local build. Run: make prepare-platform"
 fi
 
 if [[ "$image_exists" == "1" ]]; then
@@ -83,7 +83,7 @@ if [[ "$image_exists" == "1" ]]; then
     warn_missing "agent layer" "Rebuild: make build"
   fi
 else
-  warn_missing "developer image" "Run: make build or make up"
+  warn_missing "developer image" "Run: make pull or make build"
 fi
 
 if docker volume inspect onec-license-store >/dev/null 2>&1; then
@@ -106,8 +106,8 @@ printf '\nNext commands:\n'
 if [[ ! -f "$ENV_FILE" ]]; then
   printf '  make env\n'
 fi
-printf '  make up              # first license UI start\n'
-printf '  make pull            # optional: pre-pull configured image before first start\n'
+printf '  make pull            # pull configured developer image\n'
+printf '  make first-start     # first license UI start\n'
 printf '  make up-file-db      # normal file DB mode after license activation\n'
 printf '  make ui-smoke        # Vanessa smoke when runtime is ready\n'
 printf '  make agent-up PROJECT_PATH=/path/to/project\n'
