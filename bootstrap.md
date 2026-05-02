@@ -15,7 +15,7 @@
 - `ONEC_BOOTSTRAP_HOME`, default: `$HOME/onec-bootstrap-runtime`
 - `IMAGE`, default: `ghcr.io/mussolene/1c-developer:8.5.1.1302`
 - `CONTAINER`, default: `onec-runtime`
-- `PLATFORM`, default: `linux/amd64`
+- `PLATFORM`, default: `auto` (`linux/amd64` on amd64 and arm64 hosts). This is intentional: the agent-ready toolchain is built and validated for amd64 because not every required utility is available for arm64.
 - `PROJECT_DIR`, default: `$ONEC_BOOTSTRAP_HOME/project`
 - `LICENSE_SERVER_ADDR`, default: `192.168.0.0`
 - `LICENSE_PORT`, default: `475`
@@ -28,6 +28,7 @@
 - Не скрывай ошибки через `|| true` в статусных шагах.
 - На любой ошибке выведи: шаг, точную команду повтора, путь к логам/артефактам.
 - Контейнер должен работать как Portable Agent Infrastructure сам по себе: обязательно смонтируй `PROJECT_DIR` в `/workspace/project` и все agent/OACS проверки выполняй внутри контейнера через `onec-agent` и `acs`.
+- Даже на ARM-host используй `linux/amd64`, если явно не предоставлен другой полноценно agent-ready image. Это намеренно: часть 1C/agent утилит не собирается и не поставляется под arm64.
 - RestoreIB считай успешным только если команда завершилась успешно, лог скопирован на хост, каталог `/mnt/data/testdb` непустой, а лог не содержит явных маркеров ошибок.
 - Проверку agent layer считай успешной только если есть `onec-agent`, `onec-agent-skill`, `acs`, `onec-agent-context-mcp`, `/opt/onec-agent/registry.json` и ожидаемые `SKILL.md`.
 - Smoke запускай только после проверки восстановленной базы, `vrunner` и `VANESSA_ADD_PATH`.
@@ -56,7 +57,7 @@ set -euo pipefail
 
 IMAGE="${IMAGE:-ghcr.io/mussolene/1c-developer:8.5.1.1302}"
 CONTAINER="${CONTAINER:-onec-runtime}"
-PLATFORM="${PLATFORM:-linux/amd64}"
+PLATFORM="${PLATFORM:-auto}"
 ONEC_BOOTSTRAP_HOME="${ONEC_BOOTSTRAP_HOME:-$HOME/onec-bootstrap-runtime}"
 PROJECT_DIR="${PROJECT_DIR:-$ONEC_BOOTSTRAP_HOME/project}"
 LICENSE_SERVER_ADDR="${LICENSE_SERVER_ADDR:-192.168.0.0}"
@@ -87,6 +88,26 @@ fail() {
   echo "Artifacts: $ART_DIR" >&2
   exit 1
 }
+
+HOST_OS="$(uname -s 2>/dev/null || echo unknown)"
+HOST_ARCH="$(uname -m 2>/dev/null || echo unknown)"
+case "$PLATFORM" in
+  auto)
+    case "$HOST_ARCH" in
+      x86_64|amd64|arm64|aarch64)
+        PLATFORM=linux/amd64
+        ;;
+      *)
+        fail "unsupported host architecture for PLATFORM=auto: $HOST_ARCH; set PLATFORM explicitly"
+        ;;
+    esac
+    ;;
+  linux/amd64)
+    ;;
+  *)
+    fail "unsupported PLATFORM for bootstrap: $PLATFORM. Use linux/amd64; arm hosts run it through Docker emulation."
+    ;;
+esac
 
 want_step() {
   [ "$ONLY_STEP" = "all" ] || [ "$ONLY_STEP" = "$1" ]
@@ -126,6 +147,21 @@ setup_runtime() {
   current_step="setup"
   command -v docker >/dev/null 2>&1 || fail "docker is not installed or not in PATH"
   docker info >/dev/null 2>&1 || fail "docker daemon is not available"
+  case "$HOST_OS" in
+    Linux|Darwin)
+      ;;
+    *)
+      fail "unsupported host OS for this bootstrap script: $HOST_OS"
+      ;;
+  esac
+
+  docker pull --platform "$PLATFORM" "$IMAGE" 2>&1 | tee "$LOG_DIR/docker-pull.log"
+
+  if ! docker run --rm --platform "$PLATFORM" --entrypoint sh -v "$PROJECT_DIR:/workspace/project" "$IMAGE" \
+      -lc 'test -d /workspace/project' >/dev/null 2>"$LOG_DIR/docker-mount-check.err"; then
+    sed -n '1,120p' "$LOG_DIR/docker-mount-check.err" >&2 || true
+    fail "Docker cannot mount PROJECT_DIR into /workspace/project; check Docker Desktop file sharing or PROJECT_DIR"
+  fi
 
   cat > "$ONEC_BOOTSTRAP_HOME/nethasp.ini" <<EOF_NETHASP
 [NH_COMMON]
@@ -144,7 +180,6 @@ EOF_NETHASP
     docker rm -f "$CONTAINER" >/dev/null
   fi
 
-  docker pull --platform "$PLATFORM" "$IMAGE" 2>&1 | tee "$LOG_DIR/docker-pull.log"
   docker run -d \
     --name "$CONTAINER" \
     --platform "$PLATFORM" \
@@ -289,7 +324,7 @@ vrunner vanessa \
 EOS_SMOKE
 
   docker cp "$CONTAINER:/mnt/data/workspace/artifacts/." "$ART_DIR/smoke/" || fail "failed to copy smoke artifacts"
-  find "$ART_DIR/smoke" -maxdepth 3 -type f | sort | tee "$LOG_DIR/smoke-artifacts.txt"
+  find "$ART_DIR/smoke" -type f | sort | tee "$LOG_DIR/smoke-artifacts.txt"
 }
 
 write_report() {
@@ -301,6 +336,11 @@ write_report() {
     echo
     echo "## Container"
     docker ps --filter "name=$CONTAINER" --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
+    echo
+    echo "## Host"
+    echo "OS: $HOST_OS"
+    echo "Arch: $HOST_ARCH"
+    echo "Docker platform: $PLATFORM"
     echo
     echo "## Project Mount"
     echo "Host: $PROJECT_DIR"
@@ -318,10 +358,10 @@ write_report() {
     fi
     echo
     echo "## Agent/OACS Artifacts"
-    find "$ART_DIR/agent" -maxdepth 2 -type f | sort
+    find "$ART_DIR/agent" -type f | sort
     echo
     echo "## Smoke Artifacts"
-    find "$ART_DIR/smoke" -maxdepth 3 -type f | sort
+    find "$ART_DIR/smoke" -type f | sort
     echo
     echo "## Rerun"
     echo '```bash'
