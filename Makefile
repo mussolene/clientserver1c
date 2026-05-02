@@ -10,7 +10,6 @@ PLATFORM_VERSION ?=
 PLATFORM_ARCH ?=
 PLATFORM_DIST_NAME ?=
 DOCKER_DEFAULT_PLATFORM ?=
-ONEC_PLATFORM_OVERRIDE ?=
 IMAGE_NAMESPACE ?=
 OACS_VERSION ?=
 ONEC_RUNTIME_MODE ?=
@@ -19,19 +18,19 @@ ifneq ($(IMAGE_NAMESPACE),)
 export IMAGE_NAMESPACE
 endif
 
-COMPOSE_FILES := -f docker-compose.yml $(if $(filter native-arm,$(ONEC_PLATFORM_OVERRIDE)),-f docker-compose.onec-native-arm.yml)
+COMPOSE_FILES := -f docker-compose.yml
 env_var = $(if $($(1)),$(1)="$($(1))")
 runtime_mode = $(if $(ONEC_RUNTIME_MODE),$(ONEC_RUNTIME_MODE),shell)
 
 PLATFORM_ENV := $(foreach v,PLATFORM_VERSION PLATFORM_ARCH PLATFORM_DIST_NAME DOCKER_DEFAULT_PLATFORM,$(call env_var,$(v)))
 IMAGE_ENV := $(foreach v,PLATFORM_VERSION PG_1C_VERSION IMAGE_NAMESPACE ONEC_WITH_PG,$(call env_var,$(v)))
-RUNTIME_ENV := $(foreach v,DOCKER_DEFAULT_PLATFORM PG_MAJOR PG_1C_VERSION PG_REPO_DIST PLATFORM_VERSION PLATFORM_ARCH PLATFORM_DIST_NAME ONEC_PLATFORM_OVERRIDE OACS_VERSION,$(call env_var,$(v)))
+RUNTIME_ENV := $(foreach v,DOCKER_DEFAULT_PLATFORM PG_MAJOR PG_1C_VERSION PG_REPO_DIST PLATFORM_VERSION PLATFORM_ARCH PLATFORM_DIST_NAME OACS_VERSION,$(call env_var,$(v)))
 BUILD_ENV := $(RUNTIME_ENV) $(call env_var,IMAGE_NAMESPACE)
-AGENT_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH PLATFORM_VERSION PLATFORM_ARCH PLATFORM_DIST_NAME ONEC_PLATFORM_OVERRIDE OACS_VERSION,$(call env_var,$(v)))
-AGENT_CMD_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH ONEC_PLATFORM_OVERRIDE,$(call env_var,$(v)))
+AGENT_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH PLATFORM_VERSION PLATFORM_ARCH PLATFORM_DIST_NAME OACS_VERSION,$(call env_var,$(v)))
+AGENT_CMD_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH,$(call env_var,$(v)))
 CONFIG_ENV := $(BUILD_ENV) POSTGRES_PASSWORD="$(POSTGRES_PASSWORD)"
 
-.PHONY: help env doctor first-start pull download prepare-platform build-common-base build-desktop-base build-onescript-builder build-onescript-base up up-file-db up-server build build-server-stack ui-smoke agent-up agent-exec agent-doctor agent-skills agent-skill agent-context agent-memory-query agent-memory-capture agent-bslls agent-bslls-format config down ps logs clean-platform clean
+.PHONY: help env doctor first-start pull download prepare-platform build-common-base build-desktop-base build-onescript-builder build-onescript-base up up-file-db up-server build build-server-stack ui-smoke agent-up agent-exec agent-doctor agent-skills agent-skill agent-context agent-bslls agent-bslls-format config down ps logs clean-platform clean
 
 help:
 	@printf '%s\n' \
@@ -41,7 +40,7 @@ help:
 	  '  make pull            - pull configured prebuilt developer image' \
 	  '  make first-start     - create .env if needed, then start the license UI' \
 	  '  make up              - use local/pulled developer image, start shell/agent-ready runtime' \
-	  '  make up-file-db      - start 1c-dev in file DB mode after license activation' \
+	  '  make up-file-db      - start 1c-dev in file DB mode after licensing is configured' \
 	  '  make ui-smoke        - run the tracked Vanessa UI smoke' \
 	  '' \
 	  'IDE-agent targets:' \
@@ -49,8 +48,6 @@ help:
 	  '  make agent-doctor PROJECT_PATH=$$PWD   - check agent-ready runtime inside 1c-dev' \
 	  '  make agent-exec CMD="..."             - run command in /workspace/project' \
 	  '  make agent-context TASK="..."         - build OACS task context capsule' \
-	  '  make agent-memory-query QUERY="..."   - query OACS project memory' \
-	  '  make agent-memory-capture SUMMARY="..." - capture OACS project memory' \
 	  '  make agent-bslls SRC_DIR=src/cf       - run BSL Language Server diagnostics' \
 	  '  make agent-bslls-format SRC_DIR=src/cf - format BSL files' \
 	  '' \
@@ -147,12 +144,6 @@ agent-skill:
 
 agent-context:
 	@env $(AGENT_CMD_ENV) $(foreach v,TASK QUERY PACK LIMIT,$(call env_var,$(v))) bash ./scripts/agent-context.sh build
-
-agent-memory-query:
-	@env $(AGENT_CMD_ENV) $(call env_var,QUERY) bash ./scripts/agent-context.sh query
-
-agent-memory-capture:
-	@env $(AGENT_CMD_ENV) $(foreach v,SUMMARY TYPE DEPTH EVIDENCE,$(call env_var,$(v))) bash ./scripts/agent-context.sh capture
 
 agent-bslls:
 	@env $(AGENT_CMD_ENV) $(foreach v,SRC_DIR OUTPUT_DIR REPORTERS,$(call env_var,$(v))) bash ./scripts/agent-bslls.sh

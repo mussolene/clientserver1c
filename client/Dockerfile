@@ -22,6 +22,8 @@ ENV OSCRIPT_CONFIG=lib.system=/opt/onescript/lib
 ENV OPM_CONFIG=/opt/onescript/opm.cfg
 ENV OSCRIPTBIN=/opt/onescript/bin
 ENV OACS_VERSION=${OACS_VERSION}
+ENV OACS_DB=/workspace/project/.agent/oacs/oacs.db
+ENV OACS_PASSPHRASE=clientserver1c-local-oacs
 COPY artifacts/ /tmp/build-artifacts/
 COPY artifacts/client-vnc/rootfs/etc/services.d/onec/run /etc/services.d/onec/run
 COPY --from=onescript_base /opt/onescript /opt/onescript
@@ -295,7 +297,7 @@ jq -n \
         enabled: true,
         version: env.OACS_VERSION,
         command: "acs",
-        wrapper: "/opt/onec-agent/bin/onec-agent-context",
+        context_adapter: "/opt/onec-agent/bin/onec-agent-context",
         default_db: "/workspace/project/.agent/oacs/oacs.db"
       }
     },
@@ -319,7 +321,7 @@ jq -n \
         commit: $context_commit,
         entrypoint: "/opt/onec-skills/onec-context-toolkit/skill/SKILL.md"
       },
-      "onec-agent-memory": {
+      "oacs-memory": {
         source: "local",
         ref: env.OACS_VERSION,
         commit: env.OACS_VERSION,

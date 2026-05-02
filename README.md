@@ -29,12 +29,12 @@ docker exec -it 1c-dev onec-agent bootstrap
 После этого:
 
 1. Откройте VNC: `localhost:5900`.
-2. Дайте агенту инструкцию читать `.agent/bootstrap-report.md` и `.agent/AGENTS.md`.
+2. Дайте агенту инструкцию читать `.agent/bootstrap-report.md` и `.agent/instructions/pai-agent-instructions.md`.
 3. Для всех дальнейших команд используйте работающий контейнер:
 
 ```bash
 docker exec -it 1c-dev onec-agent doctor
-docker exec -it 1c-dev onec-agent memory-query --query "текущая задача"
+docker exec -it 1c-dev acs memory query --query "текущая задача" --scope project --json
 docker exec -it 1c-dev onec-agent context --task "текущая задача" --query "ЗаписьJSON" --pack platform --limit 5
 ```
 
@@ -71,7 +71,7 @@ make agent-context PROJECT_PATH="$PWD" TASK="текущая задача"
 
 Агент остаётся в Cursor/Codex/VS Code на host, а текущий проект монтируется в `1c-dev` как `/workspace/project`.
 
-Portable Agent Infrastructure интерфейс находится внутри самого image. Host-side `make agent-*` targets являются только удобными transport wrappers вокруг контейнерного CLI `onec-agent`.
+Portable Agent Infrastructure интерфейс находится внутри самого image. Host-side `make agent-*` targets являются только transport-командами для Docker Compose и не заменяют container-side CLI.
 
 Bootstrap создает project-local артефакты для агента:
 
@@ -79,7 +79,13 @@ Bootstrap создает project-local артефакты для агента:
 - `.agent/mcp/onec-context-mcp.json`
 - `.agent/context-capsules/bootstrap-context-capsule.json`
 - `.agent/bootstrap-report.md`
-- `.agent/AGENTS.md`
+- `.agent/instructions/pai-agent-instructions.md`
+- `.agent/instructions/oacs-memory-call-loop.md`
+- `.agent/reports/onec-agent-doctor.txt`
+- `.agent/reports/oacs-bootstrap-context.json`
+- `.agent/reports/oacs-standards-context.json`
+
+Если `.agent/AGENTS.md` еще нет, bootstrap создаст IDE entrypoint. Если файл уже существует, bootstrap его не перезаписывает.
 
 Минимальная проверка без постоянного контейнера:
 
@@ -115,8 +121,6 @@ make -C /path/to/clientserver1c agent-doctor PROJECT_PATH="$PWD"
 | `make ui-smoke` | прогнать минимальный Vanessa UI smoke |
 | `make up-server` | запустить server mode вместе с PostgreSQL 1C |
 | `make agent-context` | собрать OACS task context capsule |
-| `make agent-memory-query` | найти OACS project memory |
-| `make agent-memory-capture` | записать проверенный OACS project memory вывод |
 
 Расширенные детали runtime: [docs/runtime-details.md](docs/runtime-details.md).
 

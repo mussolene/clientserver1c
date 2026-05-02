@@ -79,13 +79,12 @@ jobs:
       ONESCRIPT_BASE_TAG: "2.0.0"
       ONESCRIPT_SDK_IMAGE: mcr.microsoft.com/dotnet/sdk:8.0
       ONESCRIPT_VERSION: "2.0.0"
-      VANESSA_ADD_VERSION: "6.9.5"
+      VANESSA_ADD_VERSION: "6.8.0"
       VANESSA_RUNNER_VERSION: "2.6.0"
       VANESSA_AUTOMATION_VERSION: "1.2.043.1"
       BSLLS_VERSION: "0.25.0"
       ONEC_VANESSA_SKILL_REF: "58b8e8b4831f4f1457707b037c8a050f5cd32e86"
-      ONEC_CONTEXT_TOOLKIT_REF: "8b7705f5094b9652dd843be2a2c044183c069400"
-      ONEC_WORKFLOW_PROOF_REF: "29664a56b6eba063982cacc3e200285e09799933"
+      ONEC_CONTEXT_TOOLKIT_REF: "6a1df34b06a7a71c65876298070cb13525896ee3"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -318,7 +317,6 @@ jobs:
             BSLLS_VERSION=${{ env.BSLLS_VERSION }}
             ONEC_VANESSA_SKILL_REF=${{ env.ONEC_VANESSA_SKILL_REF }}
             ONEC_CONTEXT_TOOLKIT_REF=${{ env.ONEC_CONTEXT_TOOLKIT_REF }}
-            ONEC_WORKFLOW_PROOF_REF=${{ env.ONEC_WORKFLOW_PROOF_REF }}
           build-contexts: |
             desktop_base=docker-image://${{ env.GHCR_REGISTRY }}/${{ steps.cfg.outputs.ghcr_namespace }}/linux-desktop-base:${{ env.BUILD_TAG }}
             onescript_base=docker-image://${{ env.GHCR_REGISTRY }}/${{ steps.cfg.outputs.ghcr_namespace }}/linux-onescript:${{ env.BUILD_TAG }}

@@ -29,7 +29,7 @@ fi
 compose_args=()
 while IFS= read -r -d '' compose_arg; do
   compose_args+=("$compose_arg")
-done < <(ONEC_PLATFORM_OVERRIDE="${ONEC_PLATFORM_OVERRIDE:-}" bash "$ROOT_DIR/scripts/agent-compose-args.sh")
+done < <(bash "$ROOT_DIR/scripts/agent-compose-args.sh")
 
 exec docker compose "${compose_args[@]}" --profile build exec 1c-dev \
   bash -lc "cd /workspace/project && $cmd"

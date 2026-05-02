@@ -15,15 +15,15 @@ case "$name" in
   testing|vanessa)
     key="onec-vanessa-skill"
     ;;
-  memory|agent-context|oacs)
-    key="onec-agent-memory"
+memory|agent-context|oacs)
+    key="oacs-memory"
     ;;
   ""|-h|--help)
     printf 'Usage: onec-agent-skill <list|context|testing|memory>\n'
     exit 0
     ;;
   *)
-    printf 'Unknown skill alias: %s\n' "$name" >&2
+    printf 'Unknown skill name: %s\n' "$name" >&2
     exit 2
     ;;
 esac

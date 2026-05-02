@@ -17,7 +17,7 @@ Before a non-trivial 1C task, build context:
 onec-agent context --task "short_task_intent"
 ```
 
-Host wrapper equivalent:
+Host transport command:
 
 ```bash
 make -C /path/to/clientserver1c agent-context PROJECT_PATH="$PWD" TASK="short_task_intent"
@@ -29,13 +29,13 @@ When the task needs a specific 1C help or standards lookup, include a query:
 onec-agent context --task "json_writer_question" --query "ЗаписьJSON" --pack platform --limit 5
 ```
 
-Host wrapper equivalent:
+Host transport command:
 
 ```bash
 make -C /path/to/clientserver1c agent-context PROJECT_PATH="$PWD" TASK="json_writer_question" QUERY="ЗаписьJSON" PACK=platform LIMIT=5
 ```
 
-This performs an external `onec-context` lookup, ingests the result as OACS `tool_result` evidence, links that evidence to a project memory, and builds a context capsule.
+This performs an external `onec-context` lookup, ingests the result as OACS `tool_result` evidence, and builds a context capsule. Promote durable conclusions to memory explicitly with `acs memory`.
 
 For agents that support MCP, register the container MCP server with OACS from inside the container:
 
@@ -49,27 +49,16 @@ The imported MCP tools are governed OACS tools and can be called through `acs to
 Query project memory:
 
 ```bash
-onec-agent memory-query --query "json writer"
-onec-agent memory-capture --summary "Use file-db runtime before UI smoke in this project."
-```
-
-Host wrapper equivalent:
-
-```bash
-make -C /path/to/clientserver1c agent-memory-query PROJECT_PATH="$PWD" QUERY="json writer"
-make -C /path/to/clientserver1c agent-memory-capture PROJECT_PATH="$PWD" SUMMARY="Use file-db runtime before UI smoke in this project."
+acs memory query --query "json writer" --scope project --json
 ```
 
 If you have a specific `ev_...` from a lookup, attach it:
 
 ```bash
-onec-agent memory-capture --summary "Use ЗаписьJSON for sequential JSON writes." --evidence "ev_..."
-```
-
-Host wrapper equivalent:
-
-```bash
-make -C /path/to/clientserver1c agent-memory-capture PROJECT_PATH="$PWD" SUMMARY="Use ЗаписьJSON for sequential JSON writes." EVIDENCE="ev_..."
+candidate="$(acs memory propose --type procedure --depth 2 --scope project --text "Use ЗаписьJSON for sequential JSON writes." --json)"
+memory_id="$(printf '%s' "$candidate" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
+acs memory commit "$memory_id" --json
+acs memory sharpen "$memory_id" --evidence "ev_..." --json
 ```
 
 ## Policy

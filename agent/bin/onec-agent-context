@@ -12,8 +12,6 @@ usage() {
 Usage:
   onec-agent-context doctor
   onec-agent-context lookup --query <text> [--pack platform|standards] [--limit n]
-  onec-agent-context query --query <text>
-  onec-agent-context capture --summary <text> [--type procedure] [--depth 2] [--evidence ev_...]
   onec-agent-context build [--task <text>] [--query <text>] [--pack platform|standards] [--limit n]
   onec-agent-context mcp-config
 
@@ -44,10 +42,6 @@ ensure_oacs() {
     acs init --json >/dev/null
     acs key init --passphrase "$oacs_passphrase" --json >/dev/null
   fi
-}
-
-json_field() {
-  python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' "$1"
 }
 
 url_quote() {
@@ -134,46 +128,16 @@ PY
     --json
 }
 
-cmd_query() {
-  ensure_oacs
-  local query
-  query="$(arg_value query "$@" || true)"
-  [[ -n "$query" ]] || die "Set --query."
-  acs memory query --query "$query" --scope "$scope" --json
-}
-
-cmd_capture() {
-  ensure_oacs
-  local summary type depth evidence candidate commit_json memory_id
-  summary="$(arg_value summary "$@" || true)"
-  type="$(arg_value type "$@" || printf 'procedure')"
-  depth="$(arg_value depth "$@" || printf '2')"
-  evidence="$(arg_value evidence "$@" || true)"
-  [[ -n "$summary" ]] || die "Set --summary."
-
-  candidate="$(acs memory propose --type "$type" --depth "$depth" --scope "$scope" --text "$summary" --json | json_field id)"
-  commit_json="$(acs memory commit "$candidate" --json)"
-  if [[ -n "$evidence" ]]; then
-    memory_id="$(printf '%s' "$commit_json" | json_field id)"
-    acs memory sharpen "$memory_id" --evidence "$evidence" --json
-  else
-    printf '%s\n' "$commit_json"
-  fi
-}
-
 cmd_build() {
   ensure_oacs
-  local task query pack limit lookup_json evidence summary
+  local task query pack limit
   task="$(arg_value task "$@" || printf 'agent_task')"
   query="$(arg_value query "$@" || true)"
   pack="$(arg_value pack "$@" || printf 'platform')"
   limit="$(arg_value limit "$@" || printf '5')"
 
   if [[ -n "$query" ]]; then
-    lookup_json="$(cmd_lookup --query "$query" --pack "$pack" --limit "$limit")"
-    evidence="$(printf '%s' "$lookup_json" | json_field evidence_ref)"
-    summary="Task context evidence for '$task': use $pack lookup '$query' via $evidence as canonical evidence, not fuzzy memory."
-    cmd_capture --summary "$summary" --type procedure --depth 2 --evidence "$evidence" >/dev/null
+    cmd_lookup --query "$query" --pack "$pack" --limit "$limit" >/dev/null
   fi
 
   acs context build --intent "$task" --scope "$scope" --budget "${ONEC_OACS_CONTEXT_BUDGET:-4000}" --json
@@ -219,8 +183,6 @@ shift || true
 case "$mode" in
   doctor) cmd_doctor "$@" ;;
   lookup) cmd_lookup "$@" ;;
-  query) cmd_query "$@" ;;
-  capture) cmd_capture "$@" ;;
   build) cmd_build "$@" ;;
   mcp-config) cmd_mcp_config "$@" ;;
   ""|-h|--help) usage ;;

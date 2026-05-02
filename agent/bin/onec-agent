@@ -16,8 +16,6 @@ Usage:
   onec-agent context [--task text] [--query text] [--pack platform|standards] [--limit n]
   onec-agent context-mcp [--debug]
   onec-agent context-mcp-config
-  onec-agent memory-query --query text
-  onec-agent memory-capture --summary text [--type procedure] [--depth 2] [--evidence ev_...]
   onec-agent exec -- <command...>
 
 Run inside the Portable Agent Infrastructure container with a project mounted at /workspace/project,
@@ -72,12 +70,6 @@ case "$mode" in
     ;;
   context-mcp-config)
     exec onec-agent-context mcp-config "$@"
-    ;;
-  memory-query)
-    exec onec-agent-context query "$@"
-    ;;
-  memory-capture)
-    exec onec-agent-context capture "$@"
     ;;
   exec)
     cd_project

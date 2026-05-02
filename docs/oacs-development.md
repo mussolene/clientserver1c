@@ -1,7 +1,7 @@
 # OACS Repo Workflow
 
 This repository uses OACS directly through `acs` for project memory, context,
-and evidence during repository work. Container runtime wrappers are product
+and evidence during repository work. Container runtime commands are product
 surfaces; they are not required for ordinary repository development of this
 infrastructure repo.
 
@@ -75,7 +75,7 @@ acs memory sharpen "$memory_id" --evidence "<ev_...>" --json
 
 - Use `acs` for repo memory, context capsules, and evidence references.
 - Use shell, Docker, Make, and git for execution.
-- Do not route repository development through container runtime wrappers.
+- Do not route repository development through container runtime commands.
 - Do not store local paths, credentials, license data, `nethasp.ini` contents,
   platform archives, or complete platform help content in OACS.
 - Keep `.agent/` ignored. OACS state, capsules, and local reports are runtime

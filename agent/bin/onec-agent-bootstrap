@@ -38,10 +38,6 @@ require_project() {
   [[ -d "$project_root" ]] || die "Project mount is missing: $project_root"
 }
 
-json_string() {
-  python3 -c 'import json,sys; print(json.dumps(sys.argv[1], ensure_ascii=False))' "$1"
-}
-
 write_agent_instructions() {
   local target="$1"
   cat >"$target" <<'EOF'
@@ -52,17 +48,16 @@ Work from the host IDE, but use the mounted Portable Agent Infrastructure contai
 Before changing 1C metadata, BSL, tests, or runtime scripts:
 
 1. Read `.agent/bootstrap-report.md`.
-2. Query project memory:
-   `onec-agent memory-query --query "<task intent>"`
-3. Build a task context capsule:
+2. Query project memory with ACS:
+   `acs memory query --query "<task intent>" --scope project --json`
+3. Build a 1C task context capsule:
    `onec-agent context --task "<task intent>" --query "<exact 1C term>" --pack platform --limit 5`
 4. Use the relevant skill instructions from:
    - `/opt/onec-skills/onec-context-toolkit/skill/SKILL.md`
    - `/opt/onec-skills/onec-vanessa-skill/skill/core/SKILL.md`
    - `/opt/onec-agent/skills/memory/SKILL.md`
 5. Run focused checks inside the container.
-6. Capture durable conclusions only after verification:
-   `onec-agent memory-capture --summary "<verified reusable fact>" --evidence "<evidence ref>"`
+6. Capture durable conclusions only after verification with direct ACS memory commands.
 
 Rules:
 
@@ -80,18 +75,21 @@ write_memory_loop() {
 
 Use this loop for every non-trivial task.
 
-1. `memory-query`: find prior project decisions and constraints.
-2. `context`: build a fresh task context capsule with exact platform, standards, metadata, or code facts.
+1. `acs memory query`: find prior project decisions and constraints.
+2. `onec-agent context`: build a fresh 1C task context capsule with exact platform, standards, metadata, or code facts.
 3. Work against the current project files.
 4. Verify with the narrowest relevant command.
-5. `memory-capture`: save only reusable verified conclusions, linked to evidence.
+5. `acs memory propose` / `commit` / `sharpen`: save only reusable verified conclusions, linked to evidence.
 
 Minimal commands:
 
 ```bash
-onec-agent memory-query --query "<task intent>"
+acs memory query --query "<task intent>" --scope project --json
 onec-agent context --task "<task intent>" --query "<1C term>" --pack platform --limit 5
-onec-agent memory-capture --summary "<verified conclusion>" --evidence "<evidence ref>"
+candidate="$(acs memory propose --type procedure --depth 2 --scope project --text "<verified conclusion>" --json)"
+memory_id="$(printf '%s' "$candidate" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
+acs memory commit "$memory_id" --json
+acs memory sharpen "$memory_id" --evidence "<evidence ref>" --json
 ```
 EOF
 }
@@ -176,8 +174,10 @@ main() {
     metadata_status="not-available"
   fi
 
-  write_agent_instructions "$agent_dir/AGENTS.md"
   write_agent_instructions "$instructions_dir/pai-agent-instructions.md"
+  if [[ ! -e "$agent_dir/AGENTS.md" ]]; then
+    write_agent_instructions "$agent_dir/AGENTS.md"
+  fi
   write_memory_loop "$instructions_dir/oacs-memory-call-loop.md"
 
   local project_files_json
@@ -216,14 +216,15 @@ main() {
       },
       project_metadata_sample: $project_files,
       instructions: [
-        ".agent/AGENTS.md",
         ".agent/instructions/pai-agent-instructions.md",
+        ".agent/AGENTS.md",
         ".agent/instructions/oacs-memory-call-loop.md"
       ],
       reports: [
         ".agent/reports/onec-agent-doctor.txt",
         ".agent/reports/oacs-bootstrap-context.json",
-        ".agent/reports/oacs-standards-context.json"
+        ".agent/reports/oacs-standards-context.json",
+        ".agent/reports/onec-context-metadata-ensure.log"
       ]
     }' >"$capsule_path"
 
@@ -236,17 +237,20 @@ Project root: \`$project_root\`
 OACS DB: \`$oacs_db\`
 MCP config: \`.agent/mcp/onec-context-mcp.json\`
 Context capsule: \`.agent/context-capsules/bootstrap-context-capsule.json\`
-Agent instructions: \`.agent/AGENTS.md\`
+Agent instructions: \`.agent/instructions/pai-agent-instructions.md\`
 Memory loop: \`.agent/instructions/oacs-memory-call-loop.md\`
 
 ## Agent Start
 
-Read \`.agent/AGENTS.md\`, then use:
+Read \`.agent/instructions/pai-agent-instructions.md\`. If bootstrap created \`.agent/AGENTS.md\`, read it as the IDE entrypoint too. Then use:
 
 \`\`\`bash
-onec-agent memory-query --query "<task intent>"
+acs memory query --query "<task intent>" --scope project --json
 onec-agent context --task "<task intent>" --query "<exact 1C term>" --pack platform --limit 5
-onec-agent memory-capture --summary "<verified reusable fact>" --evidence "<evidence ref>"
+candidate_json=\$(acs memory propose --type procedure --depth 2 --scope project --text "<verified reusable fact>" --json)
+memory_id=\$(printf '%s' "\$candidate_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
+acs memory commit "\$memory_id" --json
+acs memory sharpen "\$memory_id" --evidence "<evidence ref>" --json
 \`\`\`
 
 ## Required Context
@@ -256,13 +260,13 @@ onec-agent memory-capture --summary "<verified reusable fact>" --evidence "<evid
 - Metadata pack status: \`$metadata_status\`
 - Skills registry: \`$registry_path\`
 
-Do not restart or recreate the container for normal agent work. Keep it running in shell mode and use \`docker exec\`, compose wrappers, or IDE tool calls to invoke \`onec-agent\`.
+Do not restart or recreate the container for normal agent work. Keep it running in shell mode and use \`docker exec\`, Compose transport commands, or IDE tool calls to invoke \`onec-agent\`.
 EOF
 
   printf 'PAI bootstrap: PASS\n'
   printf 'Report: %s\n' "$report_path"
   printf 'Capsule: %s\n' "$capsule_path"
-  printf 'Instructions: %s\n' "$agent_dir/AGENTS.md"
+  printf 'Instructions: %s\n' "$instructions_dir/pai-agent-instructions.md"
   printf 'MCP config: %s\n' "$mcp_dir/onec-context-mcp.json"
 }
 

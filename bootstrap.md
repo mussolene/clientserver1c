@@ -44,8 +44,13 @@ docker cp ./nethasp.ini 1c-dev:/home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini
 - writes `.agent/mcp/onec-context-mcp.json`;
 - builds `.agent/context-capsules/bootstrap-context-capsule.json`;
 - writes `.agent/bootstrap-report.md`;
-- writes `.agent/AGENTS.md`;
+- writes `.agent/instructions/pai-agent-instructions.md`;
 - writes `.agent/instructions/oacs-memory-call-loop.md`;
+- writes `.agent/AGENTS.md` only when it does not already exist;
+- writes `.agent/reports/onec-agent-doctor.txt`;
+- writes `.agent/reports/oacs-bootstrap-context.json`;
+- writes `.agent/reports/oacs-standards-context.json`;
+- writes `.agent/reports/onec-context-metadata-ensure.log`;
 - records references to platform help, standards packs, project metadata status, registry, and skills.
 
 ## Agent Loop
@@ -53,9 +58,14 @@ docker cp ./nethasp.ini 1c-dev:/home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini
 After bootstrap, agents should use the same running container and follow the memory/context/evidence loop:
 
 ```bash
-docker exec -it 1c-dev onec-agent memory-query --query "<task intent>"
+docker exec -it 1c-dev acs memory query --query "<task intent>" --scope project --json
 docker exec -it 1c-dev onec-agent context --task "<task intent>" --query "<exact 1C term>" --pack platform --limit 5
-docker exec -it 1c-dev onec-agent memory-capture --summary "<verified reusable fact>" --evidence "<evidence ref>"
+docker exec -it 1c-dev sh -lc '
+candidate_json=$(acs memory propose --type procedure --depth 2 --scope project --text "<verified reusable fact>" --json)
+memory_id=$(printf "%s" "$candidate_json" | python3 -c "import json,sys; print(json.load(sys.stdin)[\"id\"])")
+acs memory commit "$memory_id" --json
+acs memory sharpen "$memory_id" --evidence "<evidence ref>" --json
+'
 ```
 
-Do not recreate the container for normal agent work. Keep it in `shell` runtime and run 1C-dependent commands through `docker exec`, compose wrappers, or IDE tooling.
+Do not recreate the container for normal agent work. Keep it in `shell` runtime and run 1C-dependent commands through `docker exec`, Compose transport commands, or IDE tooling.

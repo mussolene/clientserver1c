@@ -20,7 +20,7 @@ IDE-агент на host
 onec-agent --help
 ```
 
-Host-side `make agent-*` targets остаются удобными wrappers для запуска этих команд через Docker Compose, но они не являются основной частью Portable Agent Infrastructure runtime.
+Host-side `make agent-*` targets остаются transport-командами для Docker Compose, но они не являются основной частью Portable Agent Infrastructure runtime.
 
 ## Bootstrap
 
@@ -36,10 +36,16 @@ Bootstrap создает в смонтированном проекте:
 - `.agent/mcp/onec-context-mcp.json` - MCP config для context tools.
 - `.agent/context-capsules/bootstrap-context-capsule.json` - минимальный capsule со ссылками на help/standards packs, metadata scan, registry и skills.
 - `.agent/bootstrap-report.md` - короткий отчет и следующий шаг для агента.
-- `.agent/AGENTS.md` - инструкции для IDE-агента.
+- `.agent/instructions/pai-agent-instructions.md` - инструкции для IDE-агента.
 - `.agent/instructions/oacs-memory-call-loop.md` - обязательный memory/context/evidence loop.
+- `.agent/reports/onec-agent-doctor.txt` - снимок readiness-check.
+- `.agent/reports/oacs-bootstrap-context.json` - bootstrap context capsule.
+- `.agent/reports/oacs-standards-context.json` - standards context capsule.
+- `.agent/reports/onec-context-metadata-ensure.log` - результат подготовки metadata pack.
 
-После bootstrap агент должен начинать каждую нетривиальную задачу с `memory-query`, затем строить свежий `context` capsule и сохранять в memory только проверенные выводы с evidence.
+Если `.agent/AGENTS.md` еще нет, bootstrap создаст IDE entrypoint. Если файл уже существует, bootstrap его не перезаписывает.
+
+После bootstrap агент должен начинать каждую нетривиальную задачу с прямого `acs memory query`, затем строить свежий `onec-agent context` capsule и сохранять в memory только проверенные выводы через `acs memory propose`, `acs memory commit` и `acs memory sharpen`.
 
 ## Запуск Runtime
 
@@ -55,7 +61,7 @@ make -C /path/to/clientserver1c agent-doctor PROJECT_PATH="$PWD"
 ```bash
 docker exec -it 1c-dev onec-agent doctor
 docker exec -it 1c-dev onec-agent context --task "task" --query "ЗаписьJSON" --pack platform --limit 5
-docker exec -it 1c-dev onec-agent memory-query --query "task"
+docker exec -it 1c-dev acs memory query --query "task" --scope project --json
 ```
 
 ## Прочитать skills
@@ -102,9 +108,12 @@ OACS здесь state/governance backend, а не оркестратор. `onec-
 Memory call loop после bootstrap:
 
 ```bash
-onec-agent memory-query --query "<task intent>"
+acs memory query --query "<task intent>" --scope project --json
 onec-agent context --task "<task intent>" --query "<точный термин 1С>" --pack platform --limit 5
-onec-agent memory-capture --summary "<проверенный повторно используемый вывод>" --evidence "<evidence ref>"
+candidate="$(acs memory propose --type procedure --depth 2 --scope project --text "<проверенный повторно используемый вывод>" --json)"
+memory_id="$(printf '%s' "$candidate" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
+acs memory commit "$memory_id" --json
+acs memory sharpen "$memory_id" --evidence "<evidence ref>" --json
 ```
 
 MCP import внутри контейнера:
@@ -128,11 +137,15 @@ make -C /path/to/clientserver1c agent-context PROJECT_PATH="$PWD" TASK="answer_1
 make -C /path/to/clientserver1c agent-context PROJECT_PATH="$PWD" TASK="json_writer_question" QUERY="ЗаписьJSON" PACK=platform LIMIT=5
 ```
 
-Прочитать и записать project memory:
+Прочитать и записать project memory напрямую через ACS:
 
 ```bash
-make -C /path/to/clientserver1c agent-memory-query PROJECT_PATH="$PWD" QUERY="json writer"
-make -C /path/to/clientserver1c agent-memory-capture PROJECT_PATH="$PWD" SUMMARY="Use file-db runtime before UI smoke in this project."
+docker exec -it 1c-dev acs memory query --query "json writer" --scope project --json
+docker exec -it 1c-dev sh -lc '
+candidate_json=$(acs memory propose --type procedure --depth 2 --scope project --text "Use file-db runtime before UI smoke in this project." --json)
+memory_id=$(printf "%s" "$candidate_json" | python3 -c "import json,sys; print(json.load(sys.stdin)[\"id\"])")
+acs memory commit "$memory_id" --json
+'
 ```
 
 Не сохраняйте в OACS ITS credentials, license data, platform archives, полные help packs или другие секреты.
