@@ -1,11 +1,12 @@
-/.agent/
 /.claude/
 /.codex/
-/AGENTS.md
 /CLAUDE.md
+/.agent/
+/.oacs/
 /volumes/
 /.local/
 .env
+.env.*
 .DS_Store
 *.tar.gz
 *nethasp.ini

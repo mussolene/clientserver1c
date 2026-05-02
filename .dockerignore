@@ -5,6 +5,8 @@
 /CLAUDE.md
 .git
 .env
+.env.*
+.oacs/
 *nethasp.ini
 volumes
 .local/**
