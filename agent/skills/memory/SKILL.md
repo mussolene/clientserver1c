@@ -20,7 +20,7 @@ onec-agent context --task "short_task_intent"
 Host transport command:
 
 ```bash
-make -C /path/to/clientserver1c agent-context PROJECT_PATH="$PWD" TASK="short_task_intent"
+make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="short_task_intent"
 ```
 
 When the task needs a specific 1C help or standards lookup, include a query:
@@ -32,7 +32,7 @@ onec-agent context --task "json_writer_question" --query "ЗаписьJSON" --pa
 Host transport command:
 
 ```bash
-make -C /path/to/clientserver1c agent-context PROJECT_PATH="$PWD" TASK="json_writer_question" QUERY="ЗаписьJSON" PACK=platform LIMIT=5
+make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="json_writer_question" QUERY="ЗаписьJSON" PACK=platform LIMIT=5
 ```
 
 This performs an external `onec-context` lookup, ingests the result as OACS `tool_result` evidence, and builds a context capsule. Promote durable conclusions to memory explicitly with `acs memory`.

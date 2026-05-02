@@ -6,6 +6,7 @@ Bootstrap больше не является host-side prompt/runbook. Runtime �
 
 ```bash
 docker pull ghcr.io/mussolene/1c-developer:8.5.1.1302
+export OACS_PASSPHRASE="<local-oacs-passphrase>"
 
 docker run -d \
   --name 1c-dev \
@@ -17,12 +18,13 @@ docker run -d \
   -v "$PWD/.onec-runtime/cache":/root/.1cv8/1C/1cv8 \
   -e ONEC_RUNTIME_MODE=shell \
   -e ONEC_PROJECT_ROOT=/workspace/project \
+  -e OACS_PASSPHRASE="$OACS_PASSPHRASE" \
   ghcr.io/mussolene/1c-developer:8.5.1.1302
 
 docker exec -it 1c-dev onec-agent bootstrap
 ```
 
-Лицензия не нужна для bootstrap, OACS memory и context capsule. Она нужна только для запуска 1С runtime.
+Лицензия не нужна для bootstrap, OACS memory и context capsule. Для OACS нужен только локальный `OACS_PASSPHRASE`; не коммитьте его. Лицензия нужна только для запуска 1С runtime.
 
 Есть два поддержанных пути:
 

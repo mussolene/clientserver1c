@@ -4,7 +4,7 @@ set -euo pipefail
 project_root="${ONEC_PROJECT_ROOT:-/workspace/project}"
 registry_path="${ONEC_AGENT_REGISTRY:-/opt/onec-agent/registry.json}"
 oacs_db="${OACS_DB:-$project_root/.agent/oacs/oacs.db}"
-oacs_passphrase="${OACS_PASSPHRASE:-${ONEC_OACS_PASSPHRASE:-clientserver1c-local-oacs}}"
+oacs_passphrase="${OACS_PASSPHRASE:-${ONEC_OACS_PASSPHRASE:-}}"
 scope="${ONEC_OACS_SCOPE:-project}"
 
 usage() {
@@ -35,6 +35,7 @@ require_acs() {
 ensure_oacs() {
   require_project
   require_acs
+  [[ -n "$oacs_passphrase" ]] || die "Set OACS_PASSPHRASE or ONEC_OACS_PASSPHRASE."
   mkdir -p "$(dirname "$oacs_db")"
   export OACS_DB="$oacs_db"
   export OACS_PASSPHRASE="$oacs_passphrase"

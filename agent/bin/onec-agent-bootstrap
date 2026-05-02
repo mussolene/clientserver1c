@@ -4,7 +4,7 @@ set -euo pipefail
 project_root="${ONEC_PROJECT_ROOT:-/workspace/project}"
 registry_path="${ONEC_AGENT_REGISTRY:-/opt/onec-agent/registry.json}"
 oacs_db="${OACS_DB:-$project_root/.agent/oacs/oacs.db}"
-oacs_passphrase="${OACS_PASSPHRASE:-${ONEC_OACS_PASSPHRASE:-clientserver1c-local-oacs}}"
+oacs_passphrase="${OACS_PASSPHRASE:-${ONEC_OACS_PASSPHRASE:-}}"
 task="${ONEC_BOOTSTRAP_TASK:-pai_bootstrap}"
 query="${ONEC_BOOTSTRAP_QUERY:-ЗаписьJSON}"
 limit="${ONEC_BOOTSTRAP_LIMIT:-3}"
@@ -139,6 +139,7 @@ main() {
   require_command onec-agent-doctor
   require_command onec-context
   [[ -f "$registry_path" ]] || die "Agent registry is missing: $registry_path"
+  [[ -n "$oacs_passphrase" ]] || die "Set OACS_PASSPHRASE or ONEC_OACS_PASSPHRASE before bootstrap."
 
   local agent_dir mcp_dir capsule_dir instructions_dir report_dir capsule_path report_path
   agent_dir="$project_root/.agent"

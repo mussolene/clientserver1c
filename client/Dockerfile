@@ -23,7 +23,6 @@ ENV OPM_CONFIG=/opt/onescript/opm.cfg
 ENV OSCRIPTBIN=/opt/onescript/bin
 ENV OACS_VERSION=${OACS_VERSION}
 ENV OACS_DB=/workspace/project/.agent/oacs/oacs.db
-ENV OACS_PASSPHRASE=clientserver1c-local-oacs
 COPY artifacts/ /tmp/build-artifacts/
 COPY artifacts/client-vnc/rootfs/etc/services.d/onec/run /etc/services.d/onec/run
 COPY --from=onescript_base /opt/onescript /opt/onescript

@@ -40,7 +40,7 @@ warn_missing() {
   status=1
 }
 
-printf 'clientserver1c doctor\n'
+printf '1c-develop doctor\n'
 printf '=====================\n'
 
 if command -v docker >/dev/null 2>&1; then

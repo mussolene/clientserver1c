@@ -1,4 +1,4 @@
-# clientserver1c
+# 1c-develop
 
 Повторяемая локальная среда для 1С-разработки и тестирования в Docker.
 
@@ -10,6 +10,7 @@
 
 ```bash
 docker pull ghcr.io/mussolene/1c-developer:8.5.1.1302
+export OACS_PASSPHRASE="<local-oacs-passphrase>"
 
 docker run -d \
   --name 1c-dev \
@@ -21,6 +22,7 @@ docker run -d \
   -v "$PWD/.onec-runtime/cache":/root/.1cv8/1C/1cv8 \
   -e ONEC_RUNTIME_MODE=shell \
   -e ONEC_PROJECT_ROOT=/workspace/project \
+  -e OACS_PASSPHRASE="$OACS_PASSPHRASE" \
   ghcr.io/mussolene/1c-developer:8.5.1.1302
 
 docker exec -it 1c-dev onec-agent bootstrap
@@ -95,6 +97,7 @@ docker run --rm -it \
   --entrypoint onec-agent \
   -v "$PWD":/workspace/project \
   -e ONEC_PROJECT_ROOT=/workspace/project \
+  -e OACS_PASSPHRASE="$OACS_PASSPHRASE" \
   ghcr.io/mussolene/1c-developer:<PLATFORM_VERSION> \
   bootstrap
 ```
@@ -102,8 +105,8 @@ docker run --rm -it \
 Из репозитория 1С-проекта:
 
 ```bash
-make -C /path/to/clientserver1c agent-up PROJECT_PATH="$PWD"
-make -C /path/to/clientserver1c agent-doctor PROJECT_PATH="$PWD"
+make -C /path/to/1c-develop agent-up PROJECT_PATH="$PWD"
+make -C /path/to/1c-develop agent-doctor PROJECT_PATH="$PWD"
 ```
 
 Частые проверки, OACS/MCP, memory policy и детали agent workflow: [docs/agent-ready.md](docs/agent-ready.md).
