@@ -33,7 +33,7 @@
 Ожидаемые skills:
 - `onec-vanessa-skill`: `/opt/onec-skills/onec-vanessa-skill/skill/core/SKILL.md`
 - `onec-context-toolkit`: `/opt/onec-skills/onec-context-toolkit/skill/SKILL.md`
-- `onec-workflow-proof`: `/opt/onec-skills/onec-workflow-proof/onec-atomic-proof-loop/SKILL.md`
+- `onec-agent-memory`: `/opt/onec-agent/skills/memory/SKILL.md`
 
 Выполни:
 1. Создай `$ONEC_BOOTSTRAP_HOME`.
@@ -169,7 +169,7 @@ inspect_skills() {
   for path in \
     /opt/onec-skills/onec-vanessa-skill/skill/core/SKILL.md \
     /opt/onec-skills/onec-context-toolkit/skill/SKILL.md \
-    /opt/onec-skills/onec-workflow-proof/onec-atomic-proof-loop/SKILL.md
+    /opt/onec-agent/skills/memory/SKILL.md
   do
     docker exec "$CONTAINER" sh -lc "test -s '$path'" || fail "skill doc is missing: $path"
   done

@@ -9,6 +9,7 @@ if [[ -z "$src_dir" ]]; then
   exit 2
 fi
 
-CMD="BSLLS_MODE=format /opt/onec-agent/bin/onec-agent-bslls $(printf '%q' "$src_dir")"
+quoted_src="$(printf '%q' "$src_dir")"
+CMD="onec-agent bslls-format $quoted_src"
 export CMD
 exec "$ROOT_DIR/scripts/agent-exec.sh"

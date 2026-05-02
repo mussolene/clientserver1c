@@ -15,11 +15,11 @@ case "$name" in
   testing|vanessa)
     key="onec-vanessa-skill"
     ;;
-  proof-loop|proof)
-    key="onec-workflow-proof"
+  memory|agent-context|oacs)
+    key="onec-agent-memory"
     ;;
   ""|-h|--help)
-    printf 'Usage: onec-agent-skill <list|context|testing|proof-loop>\n'
+    printf 'Usage: onec-agent-skill <list|context|testing|memory>\n'
     exit 0
     ;;
   *)

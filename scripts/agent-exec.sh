@@ -23,7 +23,7 @@ if [[ -z "$cmd" && "$#" -gt 0 ]]; then
   cmd="$*"
 fi
 if [[ -z "$cmd" ]]; then
-  cmd="bash"
+  cmd="onec-agent exec"
 fi
 
 compose_args=()

@@ -36,6 +36,29 @@ make ui-smoke
 
 Агент остаётся в Cursor/Codex/VS Code на host, а текущий проект монтируется в `1c-dev` как `/workspace/project`.
 
+Portable Agent Infrastructure интерфейс находится внутри самого image. Host-side `make agent-*` targets являются только удобными transport wrappers вокруг контейнерного CLI `onec-agent`.
+
+Минимальный pull-only запуск без clone helper-репозитория:
+
+```bash
+docker pull ghcr.io/mussolene/1c-developer:<PLATFORM_VERSION>
+docker run --rm -it \
+  -v "$PWD":/workspace/project \
+  -e ONEC_PROJECT_ROOT=/workspace/project \
+  ghcr.io/mussolene/1c-developer:<PLATFORM_VERSION> \
+  onec-agent doctor
+```
+
+Внутри такого контейнера доступны:
+
+```bash
+onec-agent registry
+onec-agent skill context
+onec-agent bslls src/cf
+onec-agent context --task "json_writer_question" --query "ЗаписьJSON" --pack platform
+onec-agent context-mcp-config
+```
+
 Из репозитория 1С-проекта:
 
 ```bash
@@ -49,6 +72,19 @@ make -C /path/to/clientserver1c agent-doctor PROJECT_PATH="$PWD"
 make -C /path/to/clientserver1c agent-bslls PROJECT_PATH="$PWD" SRC_DIR=src/cf
 make -C /path/to/clientserver1c agent-bslls-format PROJECT_PATH="$PWD" SRC_DIR=src/cf
 make -C /path/to/clientserver1c agent-exec PROJECT_PATH="$PWD" CMD="oscript --version"
+```
+
+OACS слой для памяти и task context входит в Portable Agent Infrastructure image по умолчанию:
+
+```bash
+make -C /path/to/clientserver1c agent-context PROJECT_PATH="$PWD" TASK="review_json_usage" QUERY="ЗаписьJSON" PACK=platform
+make -C /path/to/clientserver1c agent-memory-query PROJECT_PATH="$PWD" QUERY="json"
+```
+
+Для MCP-aware агентов контейнер также даёт `onec-context-mcp` и OACS-friendly wrapper `onec-agent-context-mcp`, который стартует из предсобранного context workspace. Готовый OACS import config печатает:
+
+```bash
+onec-agent context-mcp-config
 ```
 
 Подробнее: [docs/agent-ready.md](docs/agent-ready.md).
@@ -65,6 +101,9 @@ make -C /path/to/clientserver1c agent-exec PROJECT_PATH="$PWD" CMD="oscript --ve
 | `make up-file-db` | запустить `1c-dev` в файловом режиме после активации лицензии |
 | `make ui-smoke` | прогнать минимальный Vanessa UI smoke |
 | `make up-server` | запустить server mode вместе с PostgreSQL 1C |
+| `make agent-context` | собрать OACS task context capsule |
+| `make agent-memory-query` | найти OACS project memory |
+| `make agent-memory-capture` | записать проверенный OACS project memory вывод |
 
 Расширенные детали runtime: [docs/runtime-details.md](docs/runtime-details.md).
 
@@ -90,7 +129,7 @@ make -C /path/to/clientserver1c agent-exec PROJECT_PATH="$PWD" CMD="oscript --ve
 
 Если они пустые, интерактивные targets запросят их один раз и сохранят в `.env`. Не коммитьте `.env`.
 
-Если готовый image уже есть локально или доступен в registry, `make up`/`make first-start` не скачивает платформу и не собирает образ. Host-side staging запускается только как fallback для локальной сборки, когда image нельзя использовать или скачать.
+Если готовый image уже есть локально или доступен в registry, `make up`/`make first-start` не скачивает платформу и не собирает образ. Host-side staging запускается только для локальной сборки, когда image нельзя использовать или скачать.
 
 ## Образы и private registry
 

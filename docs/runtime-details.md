@@ -36,7 +36,7 @@ Runtime targets are pull-first:
 
 - if the configured image exists locally, it is reused;
 - if it is missing, scripts try `docker pull`;
-- local platform staging and build run only as fallback when the image cannot be pulled or is not suitable.
+- local platform staging and build run only when the image cannot be pulled or is not suitable.
 
 ## Image namespace
 
@@ -71,6 +71,8 @@ VANESSA_ADD_VERSION=6.9.5
 VANESSA_RUNNER_VERSION=2.6.0
 VANESSA_AUTOMATION_VERSION=1.2.043.1
 BSLLS_VERSION=0.25.0
+OACS_VERSION=0.3.1a2
 ```
 
 Skills закреплены по commit SHA. Обновляйте эти значения только при осознанном refresh agent-ready слоя.
+OACS является обязательным agent-layer dependency для Portable Agent Infrastructure memory/context/evidence.

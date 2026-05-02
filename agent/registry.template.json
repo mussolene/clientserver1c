@@ -2,10 +2,21 @@
   "skills_root": "/opt/onec-skills",
   "project_root": "/workspace/project",
   "tools": {
+    "onec-agent": {
+      "command": "onec-agent",
+      "description": "Self-contained container-side 1C agent CLI"
+    },
     "onec-context": {
       "command": "onec-context",
+      "mcp_command": "onec-agent-context-mcp",
       "workspace": "/opt/onec-agent/context-workspace",
       "manifest": "/opt/onec-agent/context-workspace/.onec/workspace.manifest.json"
+    },
+    "oacs": {
+      "enabled": true,
+      "command": "acs",
+      "wrapper": "/opt/onec-agent/bin/onec-agent-context",
+      "default_db": "/workspace/project/.agent/oacs/oacs.db"
     }
   },
   "packs": {
@@ -24,9 +35,9 @@
       "source": "https://github.com/mussolene/onec-context-toolkit",
       "entrypoint": "/opt/onec-skills/onec-context-toolkit/skill/SKILL.md"
     },
-    "onec-workflow-proof": {
-      "source": "https://github.com/mussolene/onec-workflow-proof",
-      "entrypoint": "/opt/onec-skills/onec-workflow-proof/onec-atomic-proof-loop/SKILL.md"
+    "onec-agent-memory": {
+      "source": "local",
+      "entrypoint": "/opt/onec-agent/skills/memory/SKILL.md"
     }
   }
 }

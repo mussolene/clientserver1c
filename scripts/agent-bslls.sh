@@ -7,17 +7,18 @@ src_dir="${BSLLS_SRC_DIR:-${SRC_DIR:-}}"
 output_dir="${BSLLS_OUTPUT_DIR:-${OUTPUT_DIR:-}}"
 reporters="${BSLLS_REPORTERS:-${REPORTERS:-}}"
 
-cmd_parts=("/opt/onec-agent/bin/onec-agent-bslls")
+cmd_parts=()
 if [[ -n "$src_dir" ]]; then
   cmd_parts+=("$(printf '%q' "$src_dir")")
 fi
 
-cmd="${cmd_parts[*]}"
+cmd_args="${cmd_parts[*]}"
+cmd="onec-agent bslls $cmd_args"
 if [[ -n "$output_dir" ]]; then
-  cmd="BSLLS_OUTPUT_DIR=$(printf '%q' "$output_dir") $cmd"
+  cmd="export BSLLS_OUTPUT_DIR=$(printf '%q' "$output_dir"); $cmd"
 fi
 if [[ -n "$reporters" ]]; then
-  cmd="BSLLS_REPORTERS=$(printf '%q' "$reporters") $cmd"
+  cmd="export BSLLS_REPORTERS=$(printf '%q' "$reporters"); $cmd"
 fi
 
 CMD="$cmd"

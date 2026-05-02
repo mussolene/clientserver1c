@@ -1,0 +1,228 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+project_root="${ONEC_PROJECT_ROOT:-/workspace/project}"
+registry_path="${ONEC_AGENT_REGISTRY:-/opt/onec-agent/registry.json}"
+oacs_db="${OACS_DB:-$project_root/.agent/oacs/oacs.db}"
+oacs_passphrase="${OACS_PASSPHRASE:-${ONEC_OACS_PASSPHRASE:-clientserver1c-local-oacs}}"
+scope="${ONEC_OACS_SCOPE:-project}"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  onec-agent-context doctor
+  onec-agent-context lookup --query <text> [--pack platform|standards] [--limit n]
+  onec-agent-context query --query <text>
+  onec-agent-context capture --summary <text> [--type procedure] [--depth 2] [--evidence ev_...]
+  onec-agent-context build [--task <text>] [--query <text>] [--pack platform|standards] [--limit n]
+  onec-agent-context mcp-config
+
+OACS state defaults to /workspace/project/.agent/oacs/oacs.db.
+EOF
+}
+
+die() {
+  printf '%s\n' "$*" >&2
+  exit 2
+}
+
+require_project() {
+  [[ -d "$project_root" ]] || die "Project mount is missing: $project_root"
+}
+
+require_acs() {
+  command -v acs >/dev/null 2>&1 || die "OACS CLI is not installed. Rebuild the 1c-dev image."
+}
+
+ensure_oacs() {
+  require_project
+  require_acs
+  mkdir -p "$(dirname "$oacs_db")"
+  export OACS_DB="$oacs_db"
+  export OACS_PASSPHRASE="$oacs_passphrase"
+  if [[ ! -f "$oacs_db" ]]; then
+    acs init --json >/dev/null
+    acs key init --passphrase "$oacs_passphrase" --json >/dev/null
+  fi
+}
+
+json_field() {
+  python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' "$1"
+}
+
+url_quote() {
+  python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$1"
+}
+
+arg_value() {
+  local key="$1"
+  shift
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+      "--$key")
+        [[ "$#" -ge 2 ]] || die "Missing value for --$key"
+        printf '%s\n' "$2"
+        return 0
+        ;;
+    esac
+    shift
+  done
+  return 1
+}
+
+pack_db() {
+  local pack="$1"
+  case "$pack" in
+    platform|standards)
+      jq -r --arg pack "$pack" '.packs[$pack] // empty' "$registry_path"
+      ;;
+    *)
+      die "Unknown pack: $pack"
+      ;;
+  esac
+}
+
+cmd_lookup() {
+  ensure_oacs
+  local query pack limit db pack_id stdout_file stderr_file rc input_json output_json
+  query="$(arg_value query "$@" || true)"
+  pack="$(arg_value pack "$@" || printf 'platform')"
+  limit="$(arg_value limit "$@" || printf '5')"
+  [[ -n "$query" ]] || die "Set --query."
+
+  db="$(pack_db "$pack")"
+  [[ -n "$db" && -f "$db" ]] || die "Context pack is missing for $pack: ${db:-<empty>}"
+  pack_id="$(basename "$db" .kb.db.zst)"
+  stdout_file="$(mktemp)"
+  stderr_file="$(mktemp)"
+  set +e
+  onec-context query-kb --db "$db" --q "$query" --limit "$limit" >"$stdout_file" 2>"$stderr_file"
+  rc="$?"
+  set -e
+
+  input_json="$(python3 - "$query" "$pack" "$limit" <<'PY'
+import json, sys
+print(json.dumps({"query": sys.argv[1], "pack": sys.argv[2], "limit": int(sys.argv[3])}, ensure_ascii=False))
+PY
+)"
+  output_json="$(python3 - "$pack" "$pack_id" "$db" "$query" "$limit" "$rc" "$stdout_file" "$stderr_file" <<'PY'
+import json, pathlib, sys
+print(json.dumps({
+    "source": "onec-context",
+    "pack": sys.argv[1],
+    "pack_id": sys.argv[2],
+    "db": sys.argv[3],
+    "query": sys.argv[4],
+    "limit": int(sys.argv[5]),
+    "returncode": int(sys.argv[6]),
+    "stdout": pathlib.Path(sys.argv[7]).read_text(encoding="utf-8"),
+    "stderr": pathlib.Path(sys.argv[8]).read_text(encoding="utf-8"),
+}, ensure_ascii=False))
+PY
+)"
+  rm -f "$stdout_file" "$stderr_file"
+
+  acs tool ingest-result \
+    --tool-id onec_context_lookup \
+    --tool-name onec_context_lookup \
+    --tool-type external \
+    --scope "$scope" \
+    --input "$input_json" \
+    --output "$output_json" \
+    --source-uri "onec-context://$pack_id/query/$(url_quote "$query")" \
+    --status "$([[ "$rc" = "0" ]] && printf completed || printf failed)" \
+    --json
+}
+
+cmd_query() {
+  ensure_oacs
+  local query
+  query="$(arg_value query "$@" || true)"
+  [[ -n "$query" ]] || die "Set --query."
+  acs memory query --query "$query" --scope "$scope" --json
+}
+
+cmd_capture() {
+  ensure_oacs
+  local summary type depth evidence candidate commit_json memory_id
+  summary="$(arg_value summary "$@" || true)"
+  type="$(arg_value type "$@" || printf 'procedure')"
+  depth="$(arg_value depth "$@" || printf '2')"
+  evidence="$(arg_value evidence "$@" || true)"
+  [[ -n "$summary" ]] || die "Set --summary."
+
+  candidate="$(acs memory propose --type "$type" --depth "$depth" --scope "$scope" --text "$summary" --json | json_field id)"
+  commit_json="$(acs memory commit "$candidate" --json)"
+  if [[ -n "$evidence" ]]; then
+    memory_id="$(printf '%s' "$commit_json" | json_field id)"
+    acs memory sharpen "$memory_id" --evidence "$evidence" --json
+  else
+    printf '%s\n' "$commit_json"
+  fi
+}
+
+cmd_build() {
+  ensure_oacs
+  local task query pack limit lookup_json evidence summary
+  task="$(arg_value task "$@" || printf 'agent_task')"
+  query="$(arg_value query "$@" || true)"
+  pack="$(arg_value pack "$@" || printf 'platform')"
+  limit="$(arg_value limit "$@" || printf '5')"
+
+  if [[ -n "$query" ]]; then
+    lookup_json="$(cmd_lookup --query "$query" --pack "$pack" --limit "$limit")"
+    evidence="$(printf '%s' "$lookup_json" | json_field evidence_ref)"
+    summary="Task context evidence for '$task': use $pack lookup '$query' via $evidence as canonical evidence, not fuzzy memory."
+    cmd_capture --summary "$summary" --type procedure --depth 2 --evidence "$evidence" >/dev/null
+  fi
+
+  acs context build --intent "$task" --scope "$scope" --budget "${ONEC_OACS_CONTEXT_BUDGET:-4000}" --json
+}
+
+cmd_mcp_config() {
+  cat <<'JSON'
+{
+  "mcpServers": {
+    "onec-context": {
+      "command": "onec-agent-context-mcp",
+      "args": [],
+      "env": {},
+      "allowed_tools": [
+        "onec_status",
+        "onec_ensure",
+        "onec_resolve_packs",
+        "onec_query_kb",
+        "onec_query_code",
+        "onec_query_config"
+      ],
+      "namespace": "default",
+      "scope": ["project"]
+    }
+  }
+}
+JSON
+}
+
+cmd_doctor() {
+  require_project
+  if ! command -v acs >/dev/null 2>&1; then
+    printf 'OACS: MISSING (rebuild the 1c-dev image)\n'
+    exit 1
+  fi
+  printf 'OACS: '
+  acs --help >/dev/null && printf 'OK %s\n' "$(command -v acs)"
+  printf 'OACS DB: %s\n' "$oacs_db"
+}
+
+mode="${1:-}"
+shift || true
+case "$mode" in
+  doctor) cmd_doctor "$@" ;;
+  lookup) cmd_lookup "$@" ;;
+  query) cmd_query "$@" ;;
+  capture) cmd_capture "$@" ;;
+  build) cmd_build "$@" ;;
+  mcp-config) cmd_mcp_config "$@" ;;
+  ""|-h|--help) usage ;;
+  *) die "Unknown mode: $mode" ;;
+esac

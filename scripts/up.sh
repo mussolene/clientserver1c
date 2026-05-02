@@ -56,6 +56,11 @@ for image_ref in "${images_to_check[@]}"; do
   esac
 done
 
+if docker image inspect "$ONEC_DEV_IMAGE" >/dev/null 2>&1 \
+  && ! docker run --rm --entrypoint sh "$ONEC_DEV_IMAGE" -c 'command -v acs' >/dev/null 2>&1; then
+  missing_services+=(1c-dev)
+fi
+
 if [[ "${#missing_services[@]}" -gt 0 ]]; then
   env ENV_FILE="$ENV_FILE" bash "$ROOT_DIR/scripts/prepare-platform.sh"
   docker compose "${compose_args[@]}" --profile build build "${missing_services[@]}"

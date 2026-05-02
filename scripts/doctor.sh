@@ -70,7 +70,7 @@ if [[ -d "$ROOT_DIR/.local/1c/dev-platform" ]] \
   && find "$ROOT_DIR/.local/1c/dev-platform" -mindepth 1 -maxdepth 1 | read -r; then
   require_ok "platform staging" ".local/1c/dev-platform"
 elif [[ "$image_exists" == "1" ]]; then
-  print_check "platform staging" "OPTIONAL" "Only needed for local build fallback."
+  print_check "platform staging" "OPTIONAL" "Only needed for local image build."
 else
   warn_missing "platform staging" "Run: make prepare-platform or make up"
 fi

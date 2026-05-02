@@ -65,6 +65,29 @@ else
   status=1
 fi
 
+printf '%-28s ' "onec-context-mcp:"
+if command -v onec-context-mcp >/dev/null 2>&1; then
+  onec-context-mcp --help | head -n 1
+else
+  printf 'MISSING\n'
+  status=1
+fi
+
+printf '%-28s ' "onec-agent-context-mcp:"
+if command -v onec-agent-context-mcp >/dev/null 2>&1; then
+  onec-agent-context-mcp --help | head -n 1
+else
+  printf 'MISSING\n'
+  status=1
+fi
+
+printf '%-28s ' "oacs:"
+if command -v acs >/dev/null 2>&1; then
+  acs --help >/dev/null && printf 'OK\n'
+else
+  printf 'disabled (optional)\n'
+fi
+
 if [[ -f "$registry_path" ]]; then
   context_manifest="$(jq -r '.tools["onec-context"].manifest // empty' "$registry_path")"
   context_platform_pack="$(jq -r '.packs.platform // empty' "$registry_path")"

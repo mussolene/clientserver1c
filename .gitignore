@@ -6,6 +6,7 @@
 /volumes/
 /.local/
 .env
+.DS_Store
 *.tar.gz
 *nethasp.ini
 *.dt

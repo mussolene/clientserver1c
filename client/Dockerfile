@@ -10,9 +10,9 @@ ARG VANESSA_ADD_VERSION=6.9.5
 ARG VANESSA_RUNNER_VERSION=2.6.0
 ARG VANESSA_AUTOMATION_VERSION=1.2.043.1
 ARG ONEC_VANESSA_SKILL_REF=58b8e8b4831f4f1457707b037c8a050f5cd32e86
-ARG ONEC_CONTEXT_TOOLKIT_REF=8b7705f5094b9652dd843be2a2c044183c069400
-ARG ONEC_WORKFLOW_PROOF_REF=29664a56b6eba063982cacc3e200285e09799933
+ARG ONEC_CONTEXT_TOOLKIT_REF=6a1df34b06a7a71c65876298070cb13525896ee3
 ARG BSLLS_VERSION=0.25.0
+ARG OACS_VERSION=0.3.1a2
 
 ENV PLATFORM_VERSION=${PLATFORM_VERSION}
 ENV PLATFORM_DIST_NAME=${PLATFORM_DIST_NAME}
@@ -21,6 +21,7 @@ ENV PATH=/opt/onec-agent/bin:/opt/onescript:/opt/onescript/bin:${PATH}
 ENV OSCRIPT_CONFIG=lib.system=/opt/onescript/lib
 ENV OPM_CONFIG=/opt/onescript/opm.cfg
 ENV OSCRIPTBIN=/opt/onescript/bin
+ENV OACS_VERSION=${OACS_VERSION}
 COPY artifacts/ /tmp/build-artifacts/
 COPY artifacts/client-vnc/rootfs/etc/services.d/onec/run /etc/services.d/onec/run
 COPY --from=onescript_base /opt/onescript /opt/onescript
@@ -192,6 +193,12 @@ RUN mkdir -p /opt/bslls \
   && chmod +x /usr/local/bin/bsl-language-server \
   && bsl-language-server --version >/dev/null
 
+RUN python3 -m venv /opt/oacs \
+  && /opt/oacs/bin/pip install --no-cache-dir --pre "oacs==${OACS_VERSION}" \
+  && ln -sf /opt/oacs/bin/acs /usr/local/bin/acs \
+  && acs --help >/dev/null \
+  && command -v acs >/dev/null
+
 COPY agent/ /opt/onec-agent/
 
 RUN --mount=type=secret,id=its_login,required=false \
@@ -216,7 +223,6 @@ clone_skill() {
 
 vanessa_commit="$(clone_skill onec-vanessa-skill https://github.com/mussolene/onec-vanessa-skill "${ONEC_VANESSA_SKILL_REF}")"
 context_commit="$(clone_skill onec-context-toolkit https://github.com/mussolene/onec-context-toolkit "${ONEC_CONTEXT_TOOLKIT_REF}")"
-workflow_commit="$(clone_skill onec-workflow-proof https://github.com/mussolene/onec-workflow-proof "${ONEC_WORKFLOW_PROOF_REF}")"
 
 context_root="$skills_root/onec-context-toolkit"
 context_workspace=/opt/onec-agent/context-workspace
@@ -257,8 +263,6 @@ jq -n \
   --arg vanessa_commit "$vanessa_commit" \
   --arg context_ref "${ONEC_CONTEXT_TOOLKIT_REF}" \
   --arg context_commit "$context_commit" \
-  --arg workflow_ref "${ONEC_WORKFLOW_PROOF_REF}" \
-  --arg workflow_commit "$workflow_commit" \
   --arg bslls_version "${BSLLS_VERSION}" \
   --arg context_workspace "$context_workspace" \
   --arg context_manifest "$context_manifest" \
@@ -274,10 +278,22 @@ jq -n \
         command: "bsl-language-server",
         jar: "/opt/bslls/bsl-language-server.jar"
       },
+      "onec-agent": {
+        command: "onec-agent",
+        description: "Self-contained container-side 1C agent CLI"
+      },
       "onec-context": {
         command: "onec-context",
+        mcp_command: "onec-agent-context-mcp",
         workspace: $context_workspace,
         manifest: $context_manifest
+      },
+      "oacs": {
+        enabled: true,
+        version: env.OACS_VERSION,
+        command: "acs",
+        wrapper: "/opt/onec-agent/bin/onec-agent-context",
+        default_db: "/workspace/project/.agent/oacs/oacs.db"
       }
     },
     packs: {
@@ -300,11 +316,11 @@ jq -n \
         commit: $context_commit,
         entrypoint: "/opt/onec-skills/onec-context-toolkit/skill/SKILL.md"
       },
-      "onec-workflow-proof": {
-        source: "https://github.com/mussolene/onec-workflow-proof",
-        ref: $workflow_ref,
-        commit: $workflow_commit,
-        entrypoint: "/opt/onec-skills/onec-workflow-proof/onec-atomic-proof-loop/SKILL.md"
+      "onec-agent-memory": {
+        source: "local",
+        ref: env.OACS_VERSION,
+        commit: env.OACS_VERSION,
+        entrypoint: "/opt/onec-agent/skills/memory/SKILL.md"
       }
     }
   }' > /opt/onec-agent/registry.json
@@ -314,9 +330,15 @@ ln -sf /opt/onec-agent/bin/* /usr/local/bin/
 command -v onec-agent-doctor >/dev/null
 command -v onec-agent-skill >/dev/null
 command -v onec-agent-bslls >/dev/null
+command -v onec-agent >/dev/null
 command -v onec-context >/dev/null
+command -v onec-context-mcp >/dev/null
+command -v onec-agent-context-mcp >/dev/null
 ONEC_PROJECT_ROOT=/tmp onec-agent-doctor >/dev/null
 onec-agent-skill list >/dev/null
+onec-agent --help >/dev/null
+onec-context-mcp --help >/dev/null
+onec-agent-context-mcp --help >/dev/null
 EOF
 
 RUN chmod +x /etc/services.d/onec/run \

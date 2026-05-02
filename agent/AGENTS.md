@@ -14,6 +14,16 @@ Edit files in the host repository. Run 1C-dependent commands inside the `1c-dev`
 make -C /path/to/clientserver1c agent-exec CMD="..."
 ```
 
+Inside the container, prefer the self-contained onec-agent CLI:
+
+```bash
+onec-agent doctor
+onec-agent registry
+onec-agent skill context
+onec-agent bslls src/cf
+onec-agent context --task "..." --query "..."
+```
+
 Before 1C work:
 
 1. Start or reuse the runtime with `make -C /path/to/clientserver1c agent-up PROJECT_PATH="$PWD"`.
@@ -22,8 +32,10 @@ Before 1C work:
 4. Read only the relevant `SKILL.md` before acting:
    - `context` for ConfigDump, metadata, BSL, platform help, and exact fact lookup.
    - `testing` for Vanessa Automation, xUnitFor1C, UI smoke, and test artifacts.
-   - `proof-loop` for non-trivial 1C changes requiring spec, evidence, verification, and fix loops.
+   - `memory` for OACS project memory, task context capsules, and evidence refs.
 
 Keep task artifacts in the mounted project under `.agent/tasks/<TASK_ID>/` unless the project has stricter local guidance.
+
+Use OACS evidence and context capsules for development traceability.
 
 Never print ITS credentials, license data, or other secrets.

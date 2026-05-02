@@ -8,6 +8,7 @@ INPUT_PLATFORM_VERSION="${PLATFORM_VERSION-}"
 INPUT_ONEC_PLATFORM_OVERRIDE="${ONEC_PLATFORM_OVERRIDE-}"
 INPUT_PROJECT_PATH="${PROJECT_PATH-}"
 INPUT_ONEC_PROJECT_PATH="${ONEC_PROJECT_PATH-}"
+INPUT_OACS_VERSION="${OACS_VERSION-}"
 
 if [[ -f "$ENV_FILE" ]]; then
   set -a
@@ -21,6 +22,7 @@ PLATFORM_VERSION="${INPUT_PLATFORM_VERSION:-${PLATFORM_VERSION:-}}"
 ONEC_PLATFORM_OVERRIDE="${INPUT_ONEC_PLATFORM_OVERRIDE:-${ONEC_PLATFORM_OVERRIDE:-}}"
 PROJECT_PATH="${INPUT_PROJECT_PATH:-${PROJECT_PATH:-}}"
 ONEC_PROJECT_PATH="${INPUT_ONEC_PROJECT_PATH:-${ONEC_PROJECT_PATH:-}}"
+OACS_VERSION="${INPUT_OACS_VERSION:-${OACS_VERSION:-}}"
 
 project_path="${PROJECT_PATH:-${ONEC_PROJECT_PATH:-}}"
 if [[ -z "$project_path" ]]; then
@@ -51,6 +53,11 @@ fi
 if [[ "$needs_build" == "0" ]] \
   && { ! docker run --rm --entrypoint test "$ONEC_DEV_IMAGE" -f /opt/onec-agent/registry.json >/dev/null 2>&1 \
     || ! docker run --rm --entrypoint test "$ONEC_DEV_IMAGE" -f /opt/bslls/bsl-language-server.jar >/dev/null 2>&1; }; then
+  needs_build=1
+fi
+
+if [[ "$needs_build" == "0" ]] \
+  && ! docker run --rm --entrypoint sh "$ONEC_DEV_IMAGE" -c 'command -v acs' >/dev/null 2>&1; then
   needs_build=1
 fi
 

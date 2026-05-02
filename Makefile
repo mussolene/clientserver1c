@@ -19,7 +19,7 @@ endif
 
 COMPOSE_FILES := -f docker-compose.yml $(if $(filter native-arm,$(ONEC_PLATFORM_OVERRIDE)),-f docker-compose.onec-native-arm.yml)
 
-.PHONY: help env doctor first-start pull download prepare-platform build-common-base build-desktop-base build-onescript-builder build-onescript-base up up-file-db up-server build build-server-stack ui-smoke agent-up agent-exec agent-doctor agent-skills agent-skill agent-bslls agent-bslls-format config down ps logs clean-platform clean
+.PHONY: help env doctor first-start pull download prepare-platform build-common-base build-desktop-base build-onescript-builder build-onescript-base up up-file-db up-server build build-server-stack ui-smoke agent-up agent-exec agent-doctor agent-skills agent-skill agent-context agent-memory-query agent-memory-capture agent-bslls agent-bslls-format config down ps logs clean-platform clean
 
 help:
 	@printf '%s\n' \
@@ -28,7 +28,7 @@ help:
 	  '  make doctor          - check local readiness and print next commands' \
 	  '  make pull            - pull configured prebuilt developer image' \
 	  '  make first-start     - create .env if needed, then start the license UI' \
-	  '  make up              - reuse/pull image, build only as fallback, start license UI' \
+	  '  make up              - reuse/pull image, build locally only when required, start license UI' \
 	  '  make up-file-db      - start 1c-dev in file DB mode after license activation' \
 	  '  make ui-smoke        - run the tracked Vanessa UI smoke' \
 	  '' \
@@ -36,6 +36,9 @@ help:
 	  '  make agent-up PROJECT_PATH=$$PWD       - start 1c-dev with project mounted' \
 	  '  make agent-doctor PROJECT_PATH=$$PWD   - check agent-ready runtime inside 1c-dev' \
 	  '  make agent-exec CMD="..."             - run command in /workspace/project' \
+	  '  make agent-context TASK="..."         - build OACS task context capsule' \
+	  '  make agent-memory-query QUERY="..."   - query OACS project memory' \
+	  '  make agent-memory-capture SUMMARY="..." - capture OACS project memory' \
 	  '  make agent-bslls SRC_DIR=src/cf       - run BSL Language Server diagnostics' \
 	  '  make agent-bslls-format SRC_DIR=src/cf - format BSL files' \
 	  '' \
@@ -125,6 +128,7 @@ up:
 	if [[ -n "$(PLATFORM_ARCH)" ]]; then env_args+=(PLATFORM_ARCH="$(PLATFORM_ARCH)"); fi; \
 	if [[ -n "$(PLATFORM_DIST_NAME)" ]]; then env_args+=(PLATFORM_DIST_NAME="$(PLATFORM_DIST_NAME)"); fi; \
 	if [[ -n "$(ONEC_PLATFORM_OVERRIDE)" ]]; then env_args+=(ONEC_PLATFORM_OVERRIDE="$(ONEC_PLATFORM_OVERRIDE)"); fi; \
+	if [[ -n "$(OACS_VERSION)" ]]; then env_args+=(OACS_VERSION="$(OACS_VERSION)"); fi; \
 	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" ./scripts/up.sh
 
 up-file-db:
@@ -138,6 +142,7 @@ up-file-db:
 	if [[ -n "$(PLATFORM_ARCH)" ]]; then env_args+=(PLATFORM_ARCH="$(PLATFORM_ARCH)"); fi; \
 	if [[ -n "$(PLATFORM_DIST_NAME)" ]]; then env_args+=(PLATFORM_DIST_NAME="$(PLATFORM_DIST_NAME)"); fi; \
 	if [[ -n "$(ONEC_PLATFORM_OVERRIDE)" ]]; then env_args+=(ONEC_PLATFORM_OVERRIDE="$(ONEC_PLATFORM_OVERRIDE)"); fi; \
+	if [[ -n "$(OACS_VERSION)" ]]; then env_args+=(OACS_VERSION="$(OACS_VERSION)"); fi; \
 	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" ./scripts/up.sh
 
 up-server:
@@ -150,6 +155,7 @@ up-server:
 	if [[ -n "$(PLATFORM_ARCH)" ]]; then env_args+=(PLATFORM_ARCH="$(PLATFORM_ARCH)"); fi; \
 	if [[ -n "$(PLATFORM_DIST_NAME)" ]]; then env_args+=(PLATFORM_DIST_NAME="$(PLATFORM_DIST_NAME)"); fi; \
 	if [[ -n "$(ONEC_PLATFORM_OVERRIDE)" ]]; then env_args+=(ONEC_PLATFORM_OVERRIDE="$(ONEC_PLATFORM_OVERRIDE)"); fi; \
+	if [[ -n "$(OACS_VERSION)" ]]; then env_args+=(OACS_VERSION="$(OACS_VERSION)"); fi; \
 	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" ./scripts/up.sh
 
 build:
@@ -164,6 +170,7 @@ build:
 	if [[ -n "$(PLATFORM_DIST_NAME)" ]]; then env_args+=(PLATFORM_DIST_NAME="$(PLATFORM_DIST_NAME)"); fi; \
 	if [[ -n "$(ONEC_PLATFORM_OVERRIDE)" ]]; then env_args+=(ONEC_PLATFORM_OVERRIDE="$(ONEC_PLATFORM_OVERRIDE)"); fi; \
 	if [[ -n "$(IMAGE_NAMESPACE)" ]]; then env_args+=(IMAGE_NAMESPACE="$(IMAGE_NAMESPACE)"); fi; \
+	if [[ -n "$(OACS_VERSION)" ]]; then env_args+=(OACS_VERSION="$(OACS_VERSION)"); fi; \
 	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" bash ./scripts/prepare-platform.sh; \
 	env "$${env_args[@]}" $(DOCKER_COMPOSE) $(COMPOSE_FILES) --profile build build 1c-dev
 
@@ -179,6 +186,7 @@ build-server-stack:
 	if [[ -n "$(PLATFORM_DIST_NAME)" ]]; then env_args+=(PLATFORM_DIST_NAME="$(PLATFORM_DIST_NAME)"); fi; \
 	if [[ -n "$(ONEC_PLATFORM_OVERRIDE)" ]]; then env_args+=(ONEC_PLATFORM_OVERRIDE="$(ONEC_PLATFORM_OVERRIDE)"); fi; \
 	if [[ -n "$(IMAGE_NAMESPACE)" ]]; then env_args+=(IMAGE_NAMESPACE="$(IMAGE_NAMESPACE)"); fi; \
+	if [[ -n "$(OACS_VERSION)" ]]; then env_args+=(OACS_VERSION="$(OACS_VERSION)"); fi; \
 	env ENV_FILE="$(abspath $(ENV_FILE))" "$${env_args[@]}" bash ./scripts/prepare-platform.sh; \
 	env "$${env_args[@]}" $(DOCKER_COMPOSE) $(COMPOSE_FILES) --profile build build 1c-pg 1c-dev
 
@@ -198,6 +206,7 @@ agent-up:
 	if [[ -n "$(PLATFORM_ARCH)" ]]; then env_args+=(PLATFORM_ARCH="$(PLATFORM_ARCH)"); fi; \
 	if [[ -n "$(PLATFORM_DIST_NAME)" ]]; then env_args+=(PLATFORM_DIST_NAME="$(PLATFORM_DIST_NAME)"); fi; \
 	if [[ -n "$(ONEC_PLATFORM_OVERRIDE)" ]]; then env_args+=(ONEC_PLATFORM_OVERRIDE="$(ONEC_PLATFORM_OVERRIDE)"); fi; \
+	if [[ -n "$(OACS_VERSION)" ]]; then env_args+=(OACS_VERSION="$(OACS_VERSION)"); fi; \
 	env "$${env_args[@]}" bash ./scripts/agent-up.sh
 
 agent-exec:
@@ -216,7 +225,7 @@ agent-doctor:
 	env "$${env_args[@]}" bash ./scripts/agent-doctor.sh
 
 agent-skills:
-	@env_args=(CMD='cat /opt/onec-agent/registry.json'); \
+	@env_args=(CMD='onec-agent registry'); \
 	if [[ -n "$(PROJECT_PATH)" ]]; then env_args+=(PROJECT_PATH="$(PROJECT_PATH)"); fi; \
 	if [[ -n "$(ONEC_PROJECT_PATH)" ]]; then env_args+=(ONEC_PROJECT_PATH="$(ONEC_PROJECT_PATH)"); fi; \
 	if [[ -n "$(ONEC_PLATFORM_OVERRIDE)" ]]; then env_args+=(ONEC_PLATFORM_OVERRIDE="$(ONEC_PLATFORM_OVERRIDE)"); fi; \
@@ -229,6 +238,36 @@ agent-skill:
 	if [[ -n "$(ONEC_PLATFORM_OVERRIDE)" ]]; then env_args+=(ONEC_PLATFORM_OVERRIDE="$(ONEC_PLATFORM_OVERRIDE)"); fi; \
 	if [[ -n "$(NAME)" ]]; then env_args+=(NAME="$(NAME)"); fi; \
 	env "$${env_args[@]}" bash ./scripts/agent-skill.sh
+
+agent-context:
+	@env_args=(); \
+	if [[ -n "$(PROJECT_PATH)" ]]; then env_args+=(PROJECT_PATH="$(PROJECT_PATH)"); fi; \
+	if [[ -n "$(ONEC_PROJECT_PATH)" ]]; then env_args+=(ONEC_PROJECT_PATH="$(ONEC_PROJECT_PATH)"); fi; \
+	if [[ -n "$(ONEC_PLATFORM_OVERRIDE)" ]]; then env_args+=(ONEC_PLATFORM_OVERRIDE="$(ONEC_PLATFORM_OVERRIDE)"); fi; \
+	if [[ -n "$(TASK)" ]]; then env_args+=(TASK="$(TASK)"); fi; \
+	if [[ -n "$(QUERY)" ]]; then env_args+=(QUERY="$(QUERY)"); fi; \
+	if [[ -n "$(PACK)" ]]; then env_args+=(PACK="$(PACK)"); fi; \
+	if [[ -n "$(LIMIT)" ]]; then env_args+=(LIMIT="$(LIMIT)"); fi; \
+	env "$${env_args[@]}" bash ./scripts/agent-context.sh build
+
+agent-memory-query:
+	@env_args=(); \
+	if [[ -n "$(PROJECT_PATH)" ]]; then env_args+=(PROJECT_PATH="$(PROJECT_PATH)"); fi; \
+	if [[ -n "$(ONEC_PROJECT_PATH)" ]]; then env_args+=(ONEC_PROJECT_PATH="$(ONEC_PROJECT_PATH)"); fi; \
+	if [[ -n "$(ONEC_PLATFORM_OVERRIDE)" ]]; then env_args+=(ONEC_PLATFORM_OVERRIDE="$(ONEC_PLATFORM_OVERRIDE)"); fi; \
+	if [[ -n "$(QUERY)" ]]; then env_args+=(QUERY="$(QUERY)"); fi; \
+	env "$${env_args[@]}" bash ./scripts/agent-context.sh query
+
+agent-memory-capture:
+	@env_args=(); \
+	if [[ -n "$(PROJECT_PATH)" ]]; then env_args+=(PROJECT_PATH="$(PROJECT_PATH)"); fi; \
+	if [[ -n "$(ONEC_PROJECT_PATH)" ]]; then env_args+=(ONEC_PROJECT_PATH="$(ONEC_PROJECT_PATH)"); fi; \
+	if [[ -n "$(ONEC_PLATFORM_OVERRIDE)" ]]; then env_args+=(ONEC_PLATFORM_OVERRIDE="$(ONEC_PLATFORM_OVERRIDE)"); fi; \
+	if [[ -n "$(SUMMARY)" ]]; then env_args+=(SUMMARY="$(SUMMARY)"); fi; \
+	if [[ -n "$(TYPE)" ]]; then env_args+=(TYPE="$(TYPE)"); fi; \
+	if [[ -n "$(DEPTH)" ]]; then env_args+=(DEPTH="$(DEPTH)"); fi; \
+	if [[ -n "$(EVIDENCE)" ]]; then env_args+=(EVIDENCE="$(EVIDENCE)"); fi; \
+	env "$${env_args[@]}" bash ./scripts/agent-context.sh capture
 
 agent-bslls:
 	@env_args=(); \

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+workspace="${ONEC_CONTEXT_WORKSPACE:-/opt/onec-agent/context-workspace}"
+if [[ -d "$workspace" ]]; then
+  cd "$workspace"
+fi
+
+exec onec-context-mcp "$@"
