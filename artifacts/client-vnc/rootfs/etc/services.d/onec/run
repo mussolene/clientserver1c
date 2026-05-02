@@ -3,7 +3,7 @@ set -eu
 
 export HOME=/root
 
-runtime_mode="${ONEC_RUNTIME_MODE:-license-ui}"
+runtime_mode="${ONEC_RUNTIME_MODE:-shell}"
 file_db_path="${ONEC_FILE_DB_PATH:-/mnt/data/testdb}"
 srv_debug="${SRV1CV8_DEBUG:-1}"
 srv_port="${SRV1CV8_PORT:-1540}"

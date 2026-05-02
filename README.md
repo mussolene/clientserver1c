@@ -65,7 +65,7 @@ make -C /path/to/clientserver1c agent-doctor PROJECT_PATH="$PWD"
 | `make doctor` | показать готовность host, Docker, staging, image, license volume и agent mode |
 | `make pull` | скачать настроенный готовый developer image из registry |
 | `make first-start` | создать `.env`, затем запустить первый license UI старт |
-| `make up` | запустить локальный или заранее скачанный developer image |
+| `make up` | запустить локальный или заранее скачанный developer image в shell/agent-ready режиме |
 | `make up-file-db` | запустить `1c-dev` в файловом режиме после активации лицензии |
 | `make ui-smoke` | прогнать минимальный Vanessa UI smoke |
 | `make up-server` | запустить server mode вместе с PostgreSQL 1C |
@@ -104,7 +104,7 @@ make -C /path/to/clientserver1c agent-doctor PROJECT_PATH="$PWD"
 
 ## Runtime
 
-Лицензия хранится в named volume `onec-license-store` (`/var/1C/licenses` внутри контейнера). Первый supported flow намеренно ручной: `make up`, VNC `localhost:5900`, штатное окно лицензирования 1С.
+Лицензия хранится в named volume `onec-license-store` (`/var/1C/licenses` внутри контейнера). Первый license flow намеренно ручной: `make first-start`, VNC `localhost:5900`, штатное окно лицензирования 1С. Обычный `make up` после этого поднимает shell/agent-ready контейнер без окна добавления базы.
 
 Runtime modes, platform staging, volumes, architecture and prebuilt context packs: [docs/runtime-details.md](docs/runtime-details.md).
 

@@ -89,7 +89,7 @@ fi
 if docker volume inspect onec-license-store >/dev/null 2>&1; then
   require_ok "license volume" "onec-license-store"
 else
-  warn_missing "license volume" "Created automatically by make up; do not delete it after activation."
+  warn_missing "license volume" "Created automatically by make up/first-start; do not delete it after activation."
 fi
 
 if [[ -n "$project_path" ]]; then

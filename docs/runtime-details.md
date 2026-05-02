@@ -9,10 +9,10 @@
 
 `ONEC_RUNTIME_MODE` управляет запуском:
 
+- `shell`: default. Держит контейнер в idle-режиме для ручных или agent-driven команд.
 - `license-ui`: первый запуск для ручной активации лицензии через VNC.
 - `file-db`: запускает `1cv8 ENTERPRISE /F <path>`.
 - `server`: запускает `ragent`.
-- `shell`: держит контейнер в idle-режиме для ручных или agent-driven команд.
 
 ## Volumes
 
