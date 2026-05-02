@@ -104,7 +104,7 @@ onec-agent context-mcp-config > /tmp/onec-context-mcp.json
 acs mcp import /tmp/onec-context-mcp.json
 ```
 
-После import OACS видит MCP tools (`onec_status`, `onec_ensure`, `onec_resolve_packs`, `onec_query_kb`, `onec_query_code`, `onec_query_config`) как governed tools. Их можно вызывать через `acs tool call <tool> --execute-mcp --payload ...`.
+После import OACS видит MCP tools (`onec_status`, `onec_ensure`, `onec_resolve_packs`, `onec_query_kb`, `onec_query_code`, `onec_query_config`) как governed tools. Их можно вызывать внутри контейнера через `acs tool call <tool> --execute-mcp --payload ...`.
 
 Собрать task context:
 

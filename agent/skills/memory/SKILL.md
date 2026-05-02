@@ -37,7 +37,7 @@ make -C /path/to/clientserver1c agent-context PROJECT_PATH="$PWD" TASK="json_wri
 
 This performs an external `onec-context` lookup, ingests the result as OACS `tool_result` evidence, links that evidence to a project memory, and builds a context capsule.
 
-For agents that support MCP, register the container MCP server with OACS:
+For agents that support MCP, register the container MCP server with OACS from inside the container:
 
 ```bash
 onec-agent context-mcp-config > /tmp/onec-context-mcp.json

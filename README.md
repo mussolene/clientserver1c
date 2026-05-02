@@ -74,7 +74,7 @@ make -C /path/to/clientserver1c agent-bslls-format PROJECT_PATH="$PWD" SRC_DIR=s
 make -C /path/to/clientserver1c agent-exec PROJECT_PATH="$PWD" CMD="oscript --version"
 ```
 
-OACS слой для памяти и task context входит в Portable Agent Infrastructure image по умолчанию:
+OACS слой для памяти, evidence и task context является обязательной частью Portable Agent Infrastructure image:
 
 ```bash
 make -C /path/to/clientserver1c agent-context PROJECT_PATH="$PWD" TASK="review_json_usage" QUERY="ЗаписьJSON" PACK=platform
@@ -85,6 +85,13 @@ make -C /path/to/clientserver1c agent-memory-query PROJECT_PATH="$PWD" QUERY="js
 
 ```bash
 onec-agent context-mcp-config
+```
+
+Импорт выполняется внутри контейнера:
+
+```bash
+onec-agent context-mcp-config > /tmp/onec-context-mcp.json
+acs mcp import /tmp/onec-context-mcp.json
 ```
 
 Подробнее: [docs/agent-ready.md](docs/agent-ready.md).

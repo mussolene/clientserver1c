@@ -16,19 +16,22 @@
 - `IMAGE`, default: `ghcr.io/mussolene/1c-developer:8.5.1.1302`
 - `CONTAINER`, default: `onec-runtime`
 - `PLATFORM`, default: `linux/amd64`
+- `PROJECT_DIR`, default: `$ONEC_BOOTSTRAP_HOME/project`
 - `LICENSE_SERVER_ADDR`, default: `192.168.0.0`
 - `LICENSE_PORT`, default: `475`
+- `OACS_PASSPHRASE`, default: `clientserver1c-bootstrap-oacs`
 - `DT_PATH`, required for restore/smoke
 - `VANESSA_ADD_PATH`, default: `/opt/onescript/lib/add/bddRunner.epf`
-- `ONLY_STEP`, optional: `setup`, `restore`, `skills`, `smoke`, `report`
+- `ONLY_STEP`, optional: `setup`, `restore`, `agent`, `smoke`, `report`
 
 Правила надежности:
 - Не скрывай ошибки через `|| true` в статусных шагах.
 - На любой ошибке выведи: шаг, точную команду повтора, путь к логам/артефактам.
+- Контейнер должен работать как Portable Agent Infrastructure сам по себе: обязательно смонтируй `PROJECT_DIR` в `/workspace/project` и все agent/OACS проверки выполняй внутри контейнера через `onec-agent` и `acs`.
 - RestoreIB считай успешным только если команда завершилась успешно, лог скопирован на хост, каталог `/mnt/data/testdb` непустой, а лог не содержит явных маркеров ошибок.
-- Проверку skills считай успешной только если есть `onec-agent-skill`, `/opt/onec-agent/registry.json` и ожидаемые `SKILL.md`.
+- Проверку agent layer считай успешной только если есть `onec-agent`, `onec-agent-skill`, `acs`, `onec-agent-context-mcp`, `/opt/onec-agent/registry.json` и ожидаемые `SKILL.md`.
 - Smoke запускай только после проверки восстановленной базы, `vrunner` и `VANESSA_ADD_PATH`.
-- Финальный отчет должен содержать статус контейнера, лицензии, RestoreIB, skills, smoke и пути к артефактам.
+- Финальный отчет должен содержать статус контейнера, лицензии, RestoreIB, agent/OACS, smoke и пути к артефактам.
 
 Ожидаемые skills:
 - `onec-vanessa-skill`: `/opt/onec-skills/onec-vanessa-skill/skill/core/SKILL.md`
@@ -55,11 +58,17 @@ IMAGE="${IMAGE:-ghcr.io/mussolene/1c-developer:8.5.1.1302}"
 CONTAINER="${CONTAINER:-onec-runtime}"
 PLATFORM="${PLATFORM:-linux/amd64}"
 ONEC_BOOTSTRAP_HOME="${ONEC_BOOTSTRAP_HOME:-$HOME/onec-bootstrap-runtime}"
+PROJECT_DIR="${PROJECT_DIR:-$ONEC_BOOTSTRAP_HOME/project}"
 LICENSE_SERVER_ADDR="${LICENSE_SERVER_ADDR:-192.168.0.0}"
 LICENSE_PORT="${LICENSE_PORT:-475}"
+OACS_PASSPHRASE="${OACS_PASSPHRASE:-clientserver1c-bootstrap-oacs}"
 DT_PATH="${DT_PATH:-}"
 VANESSA_ADD_PATH="${VANESSA_ADD_PATH:-/opt/onescript/lib/add/bddRunner.epf}"
 ONLY_STEP="${ONLY_STEP:-all}"
+
+mkdir -p "$ONEC_BOOTSTRAP_HOME" "$PROJECT_DIR"
+ONEC_BOOTSTRAP_HOME="$(cd "$ONEC_BOOTSTRAP_HOME" && pwd)"
+PROJECT_DIR="$(cd "$PROJECT_DIR" && pwd)"
 
 RUNTIME_DIR="$ONEC_BOOTSTRAP_HOME/runtime"
 LOG_DIR="$ONEC_BOOTSTRAP_HOME/logs"
@@ -67,7 +76,7 @@ ART_DIR="$ONEC_BOOTSTRAP_HOME/artifacts"
 REPORT="$ONEC_BOOTSTRAP_HOME/report.md"
 RESTORE_LOG="$LOG_DIR/restore-ib.log"
 
-mkdir -p "$RUNTIME_DIR/data" "$RUNTIME_DIR/cache" "$LOG_DIR" "$ART_DIR/skills" "$ART_DIR/smoke"
+mkdir -p "$RUNTIME_DIR/data" "$RUNTIME_DIR/cache" "$PROJECT_DIR" "$LOG_DIR" "$ART_DIR/agent" "$ART_DIR/smoke"
 
 current_step="init"
 fail() {
@@ -85,6 +94,32 @@ want_step() {
 
 require_container() {
   docker ps --format '{{.Names}}' | grep -Fxq "$CONTAINER" || fail "container is not running: $CONTAINER"
+}
+
+container_sh() {
+  docker exec "$CONTAINER" sh -lc "$1"
+}
+
+container_agent() {
+  docker exec \
+    -e ONEC_PROJECT_ROOT=/workspace/project \
+    -e ONEC_AGENT_REGISTRY=/opt/onec-agent/registry.json \
+    -e OACS_PASSPHRASE="$OACS_PASSPHRASE" \
+    "$CONTAINER" \
+    onec-agent "$@"
+}
+
+wait_for_agent() {
+  current_step="setup"
+  local attempt=0
+  until container_agent doctor >/dev/null 2>"$LOG_DIR/onec-agent-doctor-wait.err"; do
+    attempt=$((attempt + 1))
+    if [ "$attempt" -ge 30 ]; then
+      sed -n '1,160p' "$LOG_DIR/onec-agent-doctor-wait.err" >&2 || true
+      fail "container did not become agent-ready"
+    fi
+    sleep 1
+  done
 }
 
 setup_runtime() {
@@ -115,17 +150,23 @@ EOF_NETHASP
     --platform "$PLATFORM" \
     -p 127.0.0.1:5900:5900 \
     -e ONEC_RUNTIME_MODE=shell \
+    -e ONEC_PROJECT_ROOT=/workspace/project \
+    -e ONEC_AGENT_REGISTRY=/opt/onec-agent/registry.json \
+    -e OACS_PASSPHRASE="$OACS_PASSPHRASE" \
     -e ONEC_FILE_DB_PATH=/mnt/data/testdb \
     -e ONEC_DISABLE_UNSAFE_ACTION_PROTECTION='.*' \
     -v onec-license-store:/var/1C/licenses \
+    -v "$PROJECT_DIR:/workspace/project" \
     -v "$RUNTIME_DIR/data:/mnt/data" \
     -v "$RUNTIME_DIR/cache:/root/.1cv8/1C/1cv8" \
     "$IMAGE" >/dev/null
 
-  docker exec "$CONTAINER" sh -lc 'mkdir -p /opt/1cv8/conf /home/usr1cv8/.1cv8/1C/1cv8/conf'
+  wait_for_agent
+
+  container_sh 'mkdir -p /opt/1cv8/conf /home/usr1cv8/.1cv8/1C/1cv8/conf /workspace/project/.agent/oacs'
   docker cp "$ONEC_BOOTSTRAP_HOME/nethasp.ini" "$CONTAINER:/opt/1cv8/conf/nethasp.ini"
   docker cp "$ONEC_BOOTSTRAP_HOME/nethasp.ini" "$CONTAINER:/home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini"
-  docker exec "$CONTAINER" sh -lc 'test -s /opt/1cv8/conf/nethasp.ini && test -s /home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini'
+  container_sh 'test -s /opt/1cv8/conf/nethasp.ini && test -s /home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini'
 }
 
 restore_db() {
@@ -135,7 +176,7 @@ restore_db() {
   [ -f "$DT_PATH" ] || fail "DT file not found: $DT_PATH"
 
   docker cp "$DT_PATH" "$CONTAINER:/tmp/input.dt"
-  docker exec "$CONTAINER" sh -lc '
+  container_sh '
     set -eu
     rm -rf /mnt/data/testdb
     mkdir -p /mnt/data/testdb
@@ -157,30 +198,59 @@ restore_db() {
   fi
 }
 
-inspect_skills() {
-  current_step="skills"
+inspect_agent_layer() {
+  current_step="agent"
   require_container
-  docker exec "$CONTAINER" sh -lc 'command -v onec-agent-skill >/dev/null' || fail "onec-agent-skill is missing"
-  docker exec "$CONTAINER" sh -lc 'test -s /opt/onec-agent/registry.json' || fail "registry.json is missing"
+  container_sh 'command -v onec-agent >/dev/null' || fail "onec-agent is missing"
+  container_sh 'command -v onec-agent-skill >/dev/null' || fail "onec-agent-skill is missing"
+  container_sh 'command -v acs >/dev/null' || fail "OACS acs CLI is missing"
+  container_sh 'command -v onec-agent-context-mcp >/dev/null' || fail "onec-agent-context-mcp is missing"
+  container_sh 'test -s /opt/onec-agent/registry.json' || fail "registry.json is missing"
 
-  docker exec "$CONTAINER" sh -lc 'onec-agent-skill list' | tee "$ART_DIR/skills/onec-agent-skill-list.txt"
-  docker cp "$CONTAINER:/opt/onec-agent/registry.json" "$ART_DIR/skills/registry.json"
+  container_agent doctor | tee "$ART_DIR/agent/onec-agent-doctor.txt"
+  container_agent registry | tee "$ART_DIR/agent/registry.json" >/dev/null
+  container_agent skills | tee "$ART_DIR/agent/onec-agent-skill-list.txt"
+  container_agent skill context > "$ART_DIR/agent/skill-context.md"
+  container_agent skill testing > "$ART_DIR/agent/skill-testing.md"
+  container_agent skill memory > "$ART_DIR/agent/skill-memory.md"
+  container_agent context-mcp-config | tee "$ART_DIR/agent/onec-context-mcp.json" >/dev/null
+  container_agent context --task "bootstrap_agent_check" --query "ЗаписьJSON" --pack platform --limit 1 \
+    | tee "$ART_DIR/agent/onec-agent-context.json" >/dev/null
+
+  docker exec \
+    -e OACS_DB=/workspace/project/.agent/oacs/oacs.db \
+    -e OACS_PASSPHRASE="$OACS_PASSPHRASE" \
+    "$CONTAINER" sh -lc '
+      set -eu
+      onec-agent context-mcp-config > /tmp/onec-context-mcp.json
+      acs mcp import /tmp/onec-context-mcp.json --json >/tmp/oacs-mcp-import.json
+      acs mcp list --json >/tmp/oacs-mcp-list.json
+      acs tool call onec_status --execute-mcp --payload "{\"workspace_root\":\"/opt/onec-agent/context-workspace\"}" --json >/tmp/oacs-mcp-onec-status.json
+      acs context build --intent "bootstrap_agent_check" --json >/tmp/oacs-context.json
+      acs audit verify --json >/tmp/oacs-audit.json
+    ' || fail "OACS/MCP bootstrap check failed"
+
+  docker cp "$CONTAINER:/tmp/oacs-mcp-import.json" "$ART_DIR/agent/oacs-mcp-import.json"
+  docker cp "$CONTAINER:/tmp/oacs-mcp-list.json" "$ART_DIR/agent/oacs-mcp-list.json"
+  docker cp "$CONTAINER:/tmp/oacs-mcp-onec-status.json" "$ART_DIR/agent/oacs-mcp-onec-status.json"
+  docker cp "$CONTAINER:/tmp/oacs-context.json" "$ART_DIR/agent/oacs-context.json"
+  docker cp "$CONTAINER:/tmp/oacs-audit.json" "$ART_DIR/agent/oacs-audit.json"
 
   for path in \
     /opt/onec-skills/onec-vanessa-skill/skill/core/SKILL.md \
     /opt/onec-skills/onec-context-toolkit/skill/SKILL.md \
     /opt/onec-agent/skills/memory/SKILL.md
   do
-    docker exec "$CONTAINER" sh -lc "test -s '$path'" || fail "skill doc is missing: $path"
+    container_sh "test -s '$path'" || fail "skill doc is missing: $path"
   done
 }
 
 run_smoke() {
   current_step="smoke"
   require_container
-  docker exec "$CONTAINER" sh -lc 'test -d /mnt/data/testdb && find /mnt/data/testdb -mindepth 1 -maxdepth 2 | head -n 1 | grep -q .' || fail "database is not restored at /mnt/data/testdb"
-  docker exec "$CONTAINER" sh -lc 'command -v vrunner >/dev/null' || fail "vrunner is missing in container"
-  docker exec "$CONTAINER" sh -lc "test -s '$VANESSA_ADD_PATH'" || fail "Vanessa ADD runner is missing: $VANESSA_ADD_PATH"
+  container_sh 'test -d /mnt/data/testdb && find /mnt/data/testdb -mindepth 1 -maxdepth 2 | head -n 1 | grep -q .' || fail "database is not restored at /mnt/data/testdb"
+  container_sh 'command -v vrunner >/dev/null' || fail "vrunner is missing in container"
+  container_sh "test -s '$VANESSA_ADD_PATH'" || fail "Vanessa ADD runner is missing: $VANESSA_ADD_PATH"
 
   docker exec "$CONTAINER" sh -s -- "$VANESSA_ADD_PATH" <<'EOS_SMOKE'
 set -eu
@@ -232,14 +302,23 @@ write_report() {
     echo "## Container"
     docker ps --filter "name=$CONTAINER" --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
     echo
+    echo "## Project Mount"
+    echo "Host: $PROJECT_DIR"
+    echo "Container: /workspace/project"
+    echo "OACS DB: $PROJECT_DIR/.agent/oacs/oacs.db"
+    echo
     echo "## License Files"
-    docker exec "$CONTAINER" sh -lc 'ls -l /opt/1cv8/conf/nethasp.ini /home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini'
+    container_sh 'ls -l /opt/1cv8/conf/nethasp.ini /home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini'
     echo
     echo "## Restore Log"
-    sed -n '1,80p' "$RESTORE_LOG"
+    if [ -s "$RESTORE_LOG" ]; then
+      sed -n '1,80p' "$RESTORE_LOG"
+    else
+      echo "Restore log is not available. Run with DT_PATH and include the restore step."
+    fi
     echo
-    echo "## Skill Artifacts"
-    find "$ART_DIR/skills" -maxdepth 2 -type f | sort
+    echo "## Agent/OACS Artifacts"
+    find "$ART_DIR/agent" -maxdepth 2 -type f | sort
     echo
     echo "## Smoke Artifacts"
     find "$ART_DIR/smoke" -maxdepth 3 -type f | sort
@@ -248,6 +327,7 @@ write_report() {
     echo '```bash'
     echo "cd \"$ONEC_BOOTSTRAP_HOME\""
     echo "DT_PATH=\"/absolute/path/to/base.dt\" ./run-bootstrap.sh"
+    echo "ONLY_STEP=agent ./run-bootstrap.sh"
     echo "ONLY_STEP=smoke DT_PATH=\"/absolute/path/to/base.dt\" ./run-bootstrap.sh"
     echo '```'
   } | tee "$REPORT"
@@ -256,7 +336,7 @@ write_report() {
 cd "$ONEC_BOOTSTRAP_HOME"
 want_step setup && setup_runtime
 want_step restore && restore_db
-want_step skills && inspect_skills
+want_step agent && inspect_agent_layer
 want_step smoke && run_smoke
 want_step report && write_report
 
