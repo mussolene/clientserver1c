@@ -1,0 +1,269 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+project_root="${ONEC_PROJECT_ROOT:-/workspace/project}"
+registry_path="${ONEC_AGENT_REGISTRY:-/opt/onec-agent/registry.json}"
+oacs_db="${OACS_DB:-$project_root/.agent/oacs/oacs.db}"
+oacs_passphrase="${OACS_PASSPHRASE:-${ONEC_OACS_PASSPHRASE:-clientserver1c-local-oacs}}"
+task="${ONEC_BOOTSTRAP_TASK:-pai_bootstrap}"
+query="${ONEC_BOOTSTRAP_QUERY:-ЗаписьJSON}"
+limit="${ONEC_BOOTSTRAP_LIMIT:-3}"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  onec-agent bootstrap
+
+Prepare the mounted project for Portable Agent Infrastructure work:
+- initialize project-local OACS state under .agent/oacs
+- write MCP config under .agent/mcp
+- build a minimal context capsule under .agent/context-capsules
+- write agent instructions for the OACS memory call loop
+
+Run inside the container with the project mounted at /workspace/project,
+or set ONEC_PROJECT_ROOT to another mounted path.
+EOF
+}
+
+die() {
+  printf '%s\n' "$*" >&2
+  exit 2
+}
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || die "Required command is missing: $1"
+}
+
+require_project() {
+  [[ -d "$project_root" ]] || die "Project mount is missing: $project_root"
+}
+
+json_string() {
+  python3 -c 'import json,sys; print(json.dumps(sys.argv[1], ensure_ascii=False))' "$1"
+}
+
+write_agent_instructions() {
+  local target="$1"
+  cat >"$target" <<'EOF'
+# PAI Agent Instructions
+
+Work from the host IDE, but use the mounted Portable Agent Infrastructure container for 1C-specific facts and checks.
+
+Before changing 1C metadata, BSL, tests, or runtime scripts:
+
+1. Read `.agent/bootstrap-report.md`.
+2. Query project memory:
+   `onec-agent memory-query --query "<task intent>"`
+3. Build a task context capsule:
+   `onec-agent context --task "<task intent>" --query "<exact 1C term>" --pack platform --limit 5`
+4. Use the relevant skill instructions from:
+   - `/opt/onec-skills/onec-context-toolkit/skill/SKILL.md`
+   - `/opt/onec-skills/onec-vanessa-skill/skill/core/SKILL.md`
+   - `/opt/onec-agent/skills/memory/SKILL.md`
+5. Run focused checks inside the container.
+6. Capture durable conclusions only after verification:
+   `onec-agent memory-capture --summary "<verified reusable fact>" --evidence "<evidence ref>"`
+
+Rules:
+
+- Treat OACS as memory, evidence, and context governance. It is not the runtime orchestrator.
+- Prefer exact platform/standards/context-pack facts over remembered guesses.
+- Do not store secrets, ITS credentials, license data, or full help dumps in OACS.
+- Keep project state under `.agent/`.
+EOF
+}
+
+write_memory_loop() {
+  local target="$1"
+  cat >"$target" <<'EOF'
+# OACS Memory Call Loop
+
+Use this loop for every non-trivial task.
+
+1. `memory-query`: find prior project decisions and constraints.
+2. `context`: build a fresh task context capsule with exact platform, standards, metadata, or code facts.
+3. Work against the current project files.
+4. Verify with the narrowest relevant command.
+5. `memory-capture`: save only reusable verified conclusions, linked to evidence.
+
+Minimal commands:
+
+```bash
+onec-agent memory-query --query "<task intent>"
+onec-agent context --task "<task intent>" --query "<1C term>" --pack platform --limit 5
+onec-agent memory-capture --summary "<verified conclusion>" --evidence "<evidence ref>"
+```
+EOF
+}
+
+project_file_sample_json() {
+  python3 - "$project_root" <<'PY'
+import json
+import pathlib
+import sys
+
+root = pathlib.Path(sys.argv[1])
+patterns = [
+    "**/Configuration.xml",
+    "**/*.bsl",
+    "**/*.os",
+    "**/*.xml",
+    "**/*.feature",
+]
+seen = []
+for pattern in patterns:
+    for path in root.glob(pattern):
+        if ".agent" in path.parts:
+            continue
+        if path.is_file():
+            seen.append(str(path.relative_to(root)))
+        if len(seen) >= 50:
+            break
+    if len(seen) >= 50:
+        break
+print(json.dumps(seen, ensure_ascii=False, indent=2))
+PY
+}
+
+main() {
+  case "${1:-}" in
+    -h|--help)
+      usage
+      return 0
+      ;;
+  esac
+
+  require_project
+  require_command jq
+  require_command python3
+  require_command acs
+  require_command onec-agent-context
+  require_command onec-agent-doctor
+  require_command onec-context
+  [[ -f "$registry_path" ]] || die "Agent registry is missing: $registry_path"
+
+  local agent_dir mcp_dir capsule_dir instructions_dir report_dir capsule_path report_path
+  agent_dir="$project_root/.agent"
+  mcp_dir="$agent_dir/mcp"
+  capsule_dir="$agent_dir/context-capsules"
+  instructions_dir="$agent_dir/instructions"
+  report_dir="$agent_dir/reports"
+  capsule_path="$capsule_dir/bootstrap-context-capsule.json"
+  report_path="$agent_dir/bootstrap-report.md"
+
+  mkdir -p "$(dirname "$oacs_db")" "$mcp_dir" "$capsule_dir" "$instructions_dir" "$report_dir"
+
+  export OACS_DB="$oacs_db"
+  export OACS_PASSPHRASE="$oacs_passphrase"
+  export ONEC_PROJECT_ROOT="$project_root"
+  export ONEC_AGENT_REGISTRY="$registry_path"
+
+  onec-agent-doctor >"$report_dir/onec-agent-doctor.txt"
+  onec-agent-context mcp-config >"$mcp_dir/onec-context-mcp.json"
+  onec-agent-context build --task "$task" --query "$query" --pack platform --limit "$limit" \
+    >"$report_dir/oacs-bootstrap-context.json"
+  onec-agent-context build --task "${task}_standards" --query "стандарты разработки" --pack standards --limit "$limit" \
+    >"$report_dir/oacs-standards-context.json"
+
+  local metadata_status metadata_pack
+  metadata_status="not-built"
+  metadata_pack=""
+  if onec-context ensure --workspace-root "$project_root" --need metadata --source-path "$project_root" \
+      >"$report_dir/onec-context-metadata-ensure.log" 2>&1; then
+    metadata_status="built"
+    metadata_pack="$(onec-context resolve-packs --workspace-root "$project_root" --role metadata --path-only 2>/dev/null || true)"
+  else
+    metadata_status="not-available"
+  fi
+
+  write_agent_instructions "$agent_dir/AGENTS.md"
+  write_agent_instructions "$instructions_dir/pai-agent-instructions.md"
+  write_memory_loop "$instructions_dir/oacs-memory-call-loop.md"
+
+  local project_files_json
+  project_files_json="$(project_file_sample_json)"
+
+  jq -n \
+    --arg created_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    --arg project_root "$project_root" \
+    --arg registry "$registry_path" \
+    --arg oacs_db "$oacs_db" \
+    --arg mcp_config "$mcp_dir/onec-context-mcp.json" \
+    --arg platform_pack "$(jq -r '.packs.platform // empty' "$registry_path")" \
+    --arg standards_pack "$(jq -r '.packs.standards // empty' "$registry_path")" \
+    --arg metadata_status "$metadata_status" \
+    --arg metadata_pack "$metadata_pack" \
+    --argjson project_files "$project_files_json" \
+    --slurpfile registry_json "$registry_path" \
+    '{
+      kind: "pai.bootstrap.context_capsule",
+      created_at: $created_at,
+      project_root: $project_root,
+      oacs: {
+        db: $oacs_db,
+        memory_call_loop: ".agent/instructions/oacs-memory-call-loop.md"
+      },
+      mcp: {
+        config: $mcp_config,
+        server: "onec-agent-context-mcp"
+      },
+      required_context: {
+        platform_help_pack: $platform_pack,
+        standards_pack: $standards_pack,
+        metadata_pack_status: $metadata_status,
+        metadata_pack: $metadata_pack,
+        skills: ($registry_json[0].skills // {})
+      },
+      project_metadata_sample: $project_files,
+      instructions: [
+        ".agent/AGENTS.md",
+        ".agent/instructions/pai-agent-instructions.md",
+        ".agent/instructions/oacs-memory-call-loop.md"
+      ],
+      reports: [
+        ".agent/reports/onec-agent-doctor.txt",
+        ".agent/reports/oacs-bootstrap-context.json",
+        ".agent/reports/oacs-standards-context.json"
+      ]
+    }' >"$capsule_path"
+
+  cat >"$report_path" <<EOF
+# PAI Bootstrap Report
+
+Status: PASS
+
+Project root: \`$project_root\`
+OACS DB: \`$oacs_db\`
+MCP config: \`.agent/mcp/onec-context-mcp.json\`
+Context capsule: \`.agent/context-capsules/bootstrap-context-capsule.json\`
+Agent instructions: \`.agent/AGENTS.md\`
+Memory loop: \`.agent/instructions/oacs-memory-call-loop.md\`
+
+## Agent Start
+
+Read \`.agent/AGENTS.md\`, then use:
+
+\`\`\`bash
+onec-agent memory-query --query "<task intent>"
+onec-agent context --task "<task intent>" --query "<exact 1C term>" --pack platform --limit 5
+onec-agent memory-capture --summary "<verified reusable fact>" --evidence "<evidence ref>"
+\`\`\`
+
+## Required Context
+
+- Platform help pack: \`$(jq -r '.packs.platform // empty' "$registry_path")\`
+- Standards pack: \`$(jq -r '.packs.standards // empty' "$registry_path")\`
+- Metadata pack status: \`$metadata_status\`
+- Skills registry: \`$registry_path\`
+
+Do not restart or recreate the container for normal agent work. Keep it running in shell mode and use \`docker exec\`, compose wrappers, or IDE tool calls to invoke \`onec-agent\`.
+EOF
+
+  printf 'PAI bootstrap: PASS\n'
+  printf 'Report: %s\n' "$report_path"
+  printf 'Capsule: %s\n' "$capsule_path"
+  printf 'Instructions: %s\n' "$agent_dir/AGENTS.md"
+  printf 'MCP config: %s\n' "$mcp_dir/onec-context-mcp.json"
+}
+
+main "$@"

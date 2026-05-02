@@ -22,13 +22,40 @@ onec-agent --help
 
 Host-side `make agent-*` targets остаются удобными wrappers для запуска этих команд через Docker Compose, но они не являются основной частью Portable Agent Infrastructure runtime.
 
-## Запуск
+## Bootstrap
+
+`onec-agent bootstrap` разделяет инструкции и runtime bootstrap. Команда выполняется внутри уже запущенного container-side PAI и не управляет Docker lifecycle.
+
+```bash
+docker exec -it 1c-dev onec-agent bootstrap
+```
+
+Bootstrap создает в смонтированном проекте:
+
+- `.agent/oacs/oacs.db` - project-local OACS state.
+- `.agent/mcp/onec-context-mcp.json` - MCP config для context tools.
+- `.agent/context-capsules/bootstrap-context-capsule.json` - минимальный capsule со ссылками на help/standards packs, metadata scan, registry и skills.
+- `.agent/bootstrap-report.md` - короткий отчет и следующий шаг для агента.
+- `.agent/AGENTS.md` - инструкции для IDE-агента.
+- `.agent/instructions/oacs-memory-call-loop.md` - обязательный memory/context/evidence loop.
+
+После bootstrap агент должен начинать каждую нетривиальную задачу с `memory-query`, затем строить свежий `context` capsule и сохранять в memory только проверенные выводы с evidence.
+
+## Запуск Runtime
 
 Из репозитория 1С-проекта:
 
 ```bash
 make -C /path/to/clientserver1c agent-up PROJECT_PATH="$PWD"
 make -C /path/to/clientserver1c agent-doctor PROJECT_PATH="$PWD"
+```
+
+Без helper-репозитория держите контейнер в `shell` runtime и выполняйте команды через `docker exec`:
+
+```bash
+docker exec -it 1c-dev onec-agent doctor
+docker exec -it 1c-dev onec-agent context --task "task" --query "ЗаписьJSON" --pack platform --limit 5
+docker exec -it 1c-dev onec-agent memory-query --query "task"
 ```
 
 ## Прочитать skills
@@ -71,6 +98,14 @@ OACS входит в Portable Agent Infrastructure image как обязател
 State хранится в смонтированном проекте: `.agent/oacs/oacs.db`. Для shared/private проектов задавайте `OACS_PASSPHRASE` или `ONEC_OACS_PASSPHRASE` явно и не коммитьте `.agent/oacs/`.
 
 OACS здесь state/governance backend, а не оркестратор. `onec-context` остаётся retrieval engine для platform help, ITS standards и project packs.
+
+Memory call loop после bootstrap:
+
+```bash
+onec-agent memory-query --query "<task intent>"
+onec-agent context --task "<task intent>" --query "<точный термин 1С>" --pack platform --limit 5
+onec-agent memory-capture --summary "<проверенный повторно используемый вывод>" --evidence "<evidence ref>"
+```
 
 MCP import внутри контейнера:
 

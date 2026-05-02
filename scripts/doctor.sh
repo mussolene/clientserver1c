@@ -87,9 +87,9 @@ else
 fi
 
 if docker volume inspect onec-license-store >/dev/null 2>&1; then
-  require_ok "license volume" "onec-license-store"
+  require_ok "local license volume" "onec-license-store"
 else
-  warn_missing "license volume" "Created automatically by make up/first-start; do not delete it after activation."
+  print_check "local license volume" "OPTIONAL" "Only needed for local activation; network HASP can use nethasp.ini."
 fi
 
 if [[ -n "$project_path" ]]; then
@@ -107,8 +107,8 @@ if [[ ! -f "$ENV_FILE" ]]; then
   printf '  make env\n'
 fi
 printf '  make pull            # pull configured developer image\n'
-printf '  make first-start     # first license UI start\n'
-printf '  make up-file-db      # normal file DB mode after license activation\n'
+printf '  make first-start     # optional local license UI start\n'
+printf '  make up-file-db      # normal file DB mode after licensing is configured\n'
 printf '  make ui-smoke        # Vanessa smoke when runtime is ready\n'
 printf '  make agent-up PROJECT_PATH=/path/to/project\n'
 

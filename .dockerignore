@@ -5,6 +5,7 @@
 /CLAUDE.md
 .git
 .env
+*nethasp.ini
 volumes
 .local/**
 !.local/1c/

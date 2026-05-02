@@ -333,12 +333,14 @@ ln -sf /opt/onec-agent/bin/* /usr/local/bin/
 command -v onec-agent-doctor >/dev/null
 command -v onec-agent-skill >/dev/null
 command -v onec-agent-bslls >/dev/null
+command -v onec-agent-bootstrap >/dev/null
 command -v onec-agent >/dev/null
 command -v onec-context >/dev/null
 command -v onec-context-mcp >/dev/null
 command -v onec-agent-context-mcp >/dev/null
 ONEC_PROJECT_ROOT=/tmp onec-agent-doctor >/dev/null
 onec-agent-skill list >/dev/null
+onec-agent bootstrap --help >/dev/null
 onec-agent --help >/dev/null
 onec-context-mcp --help >/dev/null
 onec-agent-context-mcp --help >/dev/null
@@ -355,10 +357,6 @@ RUN chmod +x /etc/services.d/onec/run \
   && chown root:grp1cv8 /var/1C/licenses \
   && chmod 775 /var/1C/licenses \
   && cp /tmp/build-artifacts/config/logcfg.xml /home/usr1cv8/.1cv8/1C/1cv8/conf/logcfg.xml \
-  && if [ -f /tmp/build-artifacts/nethasp.ini ]; then \
-       cp /tmp/build-artifacts/nethasp.ini /opt/1cv8/conf/nethasp.ini; \
-       cp /tmp/build-artifacts/nethasp.ini /home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini; \
-     fi \
   && rm -rf /tmp/build-artifacts
 
 EXPOSE 5900 1540-1541 1560-1691 1545

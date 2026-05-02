@@ -7,6 +7,7 @@ usage() {
   cat <<'EOF'
 Usage:
   onec-agent doctor
+  onec-agent bootstrap
   onec-agent registry
   onec-agent skills
   onec-agent skill <context|testing|memory>
@@ -42,6 +43,9 @@ fi
 case "$mode" in
   doctor)
     exec onec-agent-doctor "$@"
+    ;;
+  bootstrap)
+    exec onec-agent-bootstrap "$@"
     ;;
   registry)
     exec cat "${ONEC_AGENT_REGISTRY:-/opt/onec-agent/registry.json}"

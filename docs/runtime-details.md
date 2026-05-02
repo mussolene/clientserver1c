@@ -18,9 +18,12 @@
 
 - `./volumes/1c-dev/data:/mnt/data`
 - `./volumes/1c-dev/cache:/root/.1cv8/1C/1cv8/`
-- `onec-license-store:/var/1C/licenses`
+- `onec-license-store:/var/1C/licenses` для локальной ручной активации
 
-Не удаляйте `onec-license-store` после активации лицензии.
+Bootstrap, OACS memory и context packs не требуют активированной лицензии. Для запуска 1С runtime используйте один из двух путей:
+
+- локальная ручная активация через `license-ui` и volume `onec-license-store`; не удаляйте этот volume после активации;
+- сетевой HASP через `nethasp.ini`, размещенный в `/opt/1cv8/conf/nethasp.ini` и `/home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini`.
 
 ## Platform Staging
 
