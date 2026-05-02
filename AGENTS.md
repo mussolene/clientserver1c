@@ -16,8 +16,13 @@ Required sequence:
    and attach evidence with `acs memory sharpen`.
 5. Run a fresh check against the current repository state and rerun
    the relevant checks.
-6. If checks do not pass, explain the problem, apply the smallest safe fix, and
+6. Before every commit, check staged changes and unpushed history for
+   non-project information and sensitive data: no local host paths, `.env`,
+   OACS DB files, `nethasp.ini` contents, credentials, tokens, license data,
+   platform archives, local volumes, or unrelated artifacts.
+7. If checks do not pass, explain the problem, apply the smallest safe fix, and
    rerun the checks.
+8. Close each completed work iteration with a focused commit after checks pass.
 
 Hard rules:
 
@@ -29,6 +34,8 @@ Hard rules:
   around commands executed by the agent through normal shell/Docker/git tools.
 - Keep secrets out of OACS: no ITS credentials, license data, `nethasp.ini`
   contents, platform archives, full help dumps, or local host paths.
+- Do not leave a completed iteration as uncommitted work. Commit after the
+  verification and leak checks for that iteration pass.
 - Keep this root `AGENTS.md` lean. Put expanded guidance in docs instead of
   adding parallel workflow files.
 

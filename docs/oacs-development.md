@@ -71,6 +71,28 @@ acs memory commit "$memory_id" --json
 acs memory sharpen "$memory_id" --evidence "<ev_...>" --json
 ```
 
+## Pre-Commit Check
+
+Before every commit, verify that staged changes and unpushed commits do not
+contain non-project information or sensitive data:
+
+```bash
+git diff --cached --check
+git diff --cached --name-only
+if git diff --cached | rg -n -i '(/Users/|/home/[^/[:space:]]+|/private/|/var/folders/|\.env|\.oacs|oacs\.db|nethasp|password|passphrase|secret|token|private key|license|лиценз|парол|секрет)'; then
+  echo "Pre-commit leak check found suspicious staged content." >&2
+  exit 1
+fi
+gitleaks git --log-opts="$(git rev-parse --abbrev-ref --symbolic-full-name @{u})..HEAD" --redact --no-banner
+```
+
+Expected result: no committed `.env`, `.agent/`, OACS DB files, `nethasp.ini`
+contents, platform archives, local volumes, host-specific paths, credentials,
+tokens, license data, or unrelated local artifacts.
+
+After verification passes, close the completed work iteration with a focused
+commit. Do not carry finished changes across iterations as uncommitted state.
+
 ## Policy
 
 - Use `acs` for repo memory, context capsules, and evidence references.
@@ -80,3 +102,4 @@ acs memory sharpen "$memory_id" --evidence "<ev_...>" --json
   platform archives, or complete platform help content in OACS.
 - Keep `.agent/` ignored. OACS state, capsules, and local reports are runtime
   artifacts.
+- Commit after each completed, verified iteration.
