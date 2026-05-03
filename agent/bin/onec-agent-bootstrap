@@ -65,6 +65,7 @@ Before changing 1C metadata, BSL, tests, or runtime scripts:
    - `/opt/onec-skills/onec-context-toolkit/skill/SKILL.md`
    - `/opt/onec-skills/onec-vanessa-skill/skill/core/SKILL.md`
    - `/opt/onec-agent/skills/memory/SKILL.md`
+   - `/opt/onec-agent/skills/codex_oacs_runtime/SKILL.md`
 9. Run focused checks inside the container.
 10. Capture durable conclusions only after verification with direct ACS memory commands.
 

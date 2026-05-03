@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec /opt/oacs/bin/python /opt/onec-agent/skills/codex_oacs_runtime/scripts/repo_memory.py "$@"

@@ -17,7 +17,7 @@ ARG ONEC_CONTEXT_TOOLKIT_REF=6a1df34b06a7a71c65876298070cb13525896ee3
 ARG BSL_DEV_DOCS_REPO=https://github.com/mussolene/BSL_8.5.1_dev_docs
 ARG BSL_DEV_DOCS_REF=5feac5e9b9237d4bc134a517834a740157be2809
 ARG BSLLS_VERSION=0.25.0
-ARG OACS_VERSION=1.0.2
+ARG OACS_VERSION=1.0.5
 
 ENV PLATFORM_VERSION=${PLATFORM_VERSION}
 ENV PLATFORM_DIST_NAME=${PLATFORM_DIST_NAME}
@@ -233,6 +233,7 @@ ENV OACS_VERSION=${OACS_VERSION}
 RUN python3 -m venv /opt/oacs \
   && /opt/oacs/bin/pip install --no-cache-dir "oacs==${OACS_VERSION}" \
   && ln -sf /opt/oacs/bin/acs /usr/local/bin/acs \
+  && test "$(acs --version)" = "acs ${OACS_VERSION}" \
   && acs --help >/dev/null \
   && command -v acs >/dev/null
 
@@ -369,6 +370,8 @@ jq -n \
       "oacs": {
         enabled: true,
         version: env.OACS_VERSION,
+        source: "https://github.com/mussolene/open-agent-context",
+        ref: env.OACS_VERSION,
         command: "acs",
         context_adapter: "/opt/onec-agent/bin/onec-agent-context",
         default_db: "/workspace/project/.agent/oacs/oacs.db"
@@ -407,6 +410,14 @@ jq -n \
         ref: env.OACS_VERSION,
         commit: env.OACS_VERSION,
         entrypoint: "/opt/onec-agent/skills/memory/SKILL.md"
+      },
+      "codex-oacs-runtime": {
+        source: "local",
+        ref: env.OACS_VERSION,
+        commit: env.OACS_VERSION,
+        entrypoint: "/opt/onec-agent/skills/codex_oacs_runtime/SKILL.md",
+        descriptor: "/opt/onec-agent/skills/codex_oacs_runtime/skill.json",
+        action_command: "/opt/onec-agent/bin/onec-agent-oacs-runtime"
       }
     }
   }' > /opt/onec-agent/registry.json
@@ -423,9 +434,14 @@ command -v onec-agent >/dev/null
 command -v onec-context >/dev/null
 command -v onec-context-mcp >/dev/null
 command -v onec-agent-context-mcp >/dev/null
+command -v onec-agent-oacs-runtime >/dev/null
+test -f /opt/onec-agent/skills/codex_oacs_runtime/SKILL.md
+test -f /opt/onec-agent/skills/codex_oacs_runtime/skill.json
+test -f /opt/onec-agent/skills/codex_oacs_runtime/scripts/repo_memory.py
 ONEC_PROJECT_ROOT=/tmp onec-agent-doctor >/dev/null
 ONEC_QUICKSTART_CREATE_DB=0 ONEC_QUICKSTART_LAUNCH_GUI=0 onec-agent-quickstart >/dev/null
 onec-agent-skill list >/dev/null
+onec-agent-skill runtime >/dev/null
 onec-agent bootstrap --help >/dev/null
 onec-agent ibase --help >/dev/null
 onec-agent --help >/dev/null

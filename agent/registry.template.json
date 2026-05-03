@@ -15,6 +15,7 @@
     "oacs": {
       "enabled": true,
       "command": "acs",
+      "source": "https://github.com/mussolene/open-agent-context",
       "context_adapter": "/opt/onec-agent/bin/onec-agent-context",
       "default_db": "/workspace/project/.agent/oacs/oacs.db"
     }
@@ -44,6 +45,12 @@
     "oacs-memory": {
       "source": "local",
       "entrypoint": "/opt/onec-agent/skills/memory/SKILL.md"
+    },
+    "codex-oacs-runtime": {
+      "source": "local",
+      "entrypoint": "/opt/onec-agent/skills/codex_oacs_runtime/SKILL.md",
+      "descriptor": "/opt/onec-agent/skills/codex_oacs_runtime/skill.json",
+      "action_command": "/opt/onec-agent/bin/onec-agent-oacs-runtime"
     }
   }
 }

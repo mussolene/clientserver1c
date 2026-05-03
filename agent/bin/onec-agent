@@ -11,7 +11,7 @@ Usage:
   onec-agent bootstrap
   onec-agent registry
   onec-agent skills
-  onec-agent skill <context|testing|memory>
+  onec-agent skill <context|testing|memory|runtime>
   onec-agent bslls [src-dir]
   onec-agent bslls-format <src-dir>
   onec-agent context --query text [--pack platform|standards|bsl-dev|metadata] [--limit n]
@@ -57,7 +57,7 @@ case "$mode" in
     exec onec-agent-skill list
     ;;
   skill)
-    [[ "$#" -ge 1 ]] || die "Usage: onec-agent skill <context|testing|memory>"
+    [[ "$#" -ge 1 ]] || die "Usage: onec-agent skill <context|testing|memory|runtime>"
     exec onec-agent-skill "$@"
     ;;
   bslls)

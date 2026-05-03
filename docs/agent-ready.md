@@ -104,9 +104,10 @@ make -C /path/to/1c-develop agent-skills PROJECT_PATH="$PWD"
 make -C /path/to/1c-develop agent-skill PROJECT_PATH="$PWD" NAME=context
 make -C /path/to/1c-develop agent-skill PROJECT_PATH="$PWD" NAME=testing
 make -C /path/to/1c-develop agent-skill PROJECT_PATH="$PWD" NAME=memory
+make -C /path/to/1c-develop agent-skill PROJECT_PATH="$PWD" NAME=runtime
 ```
 
-Используйте `context` перед изменением метаданных или BSL, когда нужны точные факты. Используйте `testing` для Vanessa/xUnit/UI проверок. Используйте `memory` для OACS project memory, task context capsule и evidence refs.
+Используйте `context` перед изменением метаданных или BSL, когда нужны точные факты. Используйте `testing` для Vanessa/xUnit/UI проверок. Используйте `memory` для OACS project memory, task context capsule и evidence refs. Используйте `runtime` как Codex/OACS loop для компактной работы через OACS без повторной передачи всего контекста.
 
 `metadata` lookup работает только для проектов, где bootstrap смог построить
 project metadata pack из поддерживаемых 1С sources. Static packs `platform`,
@@ -232,6 +233,7 @@ acs loop run --request "<task intent>" --scope project --json
 - инструкции для агента: `/opt/onec-agent/AGENTS.md`
 - registry skills: `/opt/onec-agent/registry.json`
 - skill repositories: `/opt/onec-skills`
+- local agent skills: `/opt/onec-agent/skills`
 - prebuilt context workspace: `/opt/onec-agent/context-workspace`
 
 ## Закреплённые версии

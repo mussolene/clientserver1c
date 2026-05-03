@@ -159,14 +159,14 @@ VANESSA_RUNNER_VERSION=2.6.0
 VANESSA_AUTOMATION_VERSION=1.2.043.1
 ONESCRIPT_VERSION=2.0.2
 BSLLS_VERSION=0.25.0
-OACS_VERSION=1.0.2
+OACS_VERSION=1.0.5
 BSL_DEV_DOCS_REPO=https://github.com/mussolene/BSL_8.5.1_dev_docs
 BSL_DEV_DOCS_REF=5feac5e9b9237d4bc134a517834a740157be2809
 ```
 
 Skills закреплены по commit SHA. Обновляйте эти значения только при осознанном refresh agent-ready слоя.
 BSL developer guide закреплен по commit SHA нашего fork и собирается в image как immutable KB pack.
-OACS является обязательным agent-layer dependency для Portable Agent Infrastructure memory/context/evidence.
+OACS является обязательным agent-layer dependency для Portable Agent Infrastructure memory/context/evidence. Image также включает local `codex-oacs-runtime` skill как компактный Codex/OACS workflow layer.
 
 ## Environment Contract
 
@@ -217,3 +217,8 @@ Static packs (`platform`, `standards`, `bsl-dev`) доступны в конте
 пересобирает platform help, потому что platform/standards/BSL developer packs
 уже лежат в image. OACS хранит memory, evidence refs, audit и context capsules
 вокруг найденных фактов, но не заменяет сами packs.
+
+Registry также содержит local skills `/opt/onec-agent/skills/memory` и
+`/opt/onec-agent/skills/codex_oacs_runtime`. Первый описывает прямой ACS memory
+loop, второй задаёт компактный Codex/OACS runtime loop для repo work,
+checkpoint/evidence и явно запрошенной multi-agent координации.

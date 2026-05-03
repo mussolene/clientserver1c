@@ -18,8 +18,11 @@ case "$name" in
 memory|agent-context|oacs)
     key="oacs-memory"
     ;;
+runtime|oacs-runtime|codex-oacs-runtime)
+    key="codex-oacs-runtime"
+    ;;
   ""|-h|--help)
-    printf 'Usage: onec-agent-skill <list|context|testing|memory>\n'
+    printf 'Usage: onec-agent-skill <list|context|testing|memory|runtime>\n'
     exit 0
     ;;
   *)

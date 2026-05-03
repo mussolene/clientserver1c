@@ -10,7 +10,7 @@
 - VNC/Xfce, доступный на `127.0.0.1:5900`.
 - OneScript, Vanessa Runner, Vanessa Automation и `bsl-language-server`.
 - `onec-agent` для 1C-specific операций: bootstrap, context, MCP config, BSLLS, skills.
-- OACS/ACS как прямой слой памяти, evidence и context capsules.
+- OACS/ACS как прямой слой памяти, evidence и context capsules, плюс local Codex/OACS runtime skill.
 - Prebuilt context packs: platform help, BSL developer guide и ITS standards.
   Project metadata pack строится после bootstrap, если в mounted project есть
   поддерживаемые 1С metadata sources.
