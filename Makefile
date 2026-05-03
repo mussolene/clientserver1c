@@ -32,7 +32,7 @@ AGENT_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH PLATFORM_VERSION PLATFOR
 AGENT_CMD_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH,$(call env_var,$(v)))
 CONFIG_ENV := $(BUILD_ENV) POSTGRES_PASSWORD="$(POSTGRES_PASSWORD)"
 
-.PHONY: help env doctor first-start pull download prepare-platform build-common-base build-desktop-base build-onescript-builder build-onescript-base up up-file-db up-server build build-server-stack ui-smoke xunit-smoke agent-up agent-exec agent-doctor agent-skills agent-skill agent-context agent-bslls agent-bslls-format config down ps logs clean-platform clean
+.PHONY: help env doctor first-start pull download prepare-platform build-common-base build-desktop-base build-onescript-builder build-onescript-base up up-file-db up-server build build-server-stack ui-smoke xunit-smoke agent-up agent-exec agent-doctor agent-skills agent-skill agent-context agent-bslls agent-bslls-format agent-epf-roundtrip config down ps logs clean-platform clean
 
 help:
 	@printf '%s\n' \
@@ -53,6 +53,7 @@ help:
 	  '  make agent-context TASK="..."         - build OACS task context capsule' \
 	  '  make agent-bslls SRC_DIR=src/cf       - run BSL Language Server diagnostics' \
 	  '  make agent-bslls-format SRC_DIR=src/cf - format BSL files' \
+	  '  make agent-epf-roundtrip EPF_PATH=tests/xunit/epf/Test.epf - decompile/compile EPF' \
 	  '' \
 	  'Advanced targets:' \
 	  '  make download        - download the 1C platform archive into .local/1c/platform' \
@@ -70,6 +71,7 @@ help:
 	  '  make up-file-db' \
 	  '  make agent-up PROJECT_PATH=/path/to/1c-project' \
 	  '  make agent-bslls PROJECT_PATH=/path/to/1c-project SRC_DIR=src/cf' \
+	  '  make agent-epf-roundtrip PROJECT_PATH=/path/to/1c-project EPF_PATH=tests/xunit/epf/Test.epf' \
 	  '' \
 	  'See README.md and docs/ for advanced build and runtime options.'
 
@@ -156,6 +158,9 @@ agent-bslls:
 
 agent-bslls-format:
 	@env $(AGENT_CMD_ENV) $(call env_var,SRC_DIR) bash ./scripts/agent-bslls-format.sh
+
+agent-epf-roundtrip:
+	@env $(AGENT_CMD_ENV) $(foreach v,EPF_PATH EPF_ROUNDTRIP_DIR IB_CONNECTION DB_USER DB_PWD PLATFORM_VERSION EPF_ROUNDTRIP_TIMEOUT_SEC,$(call env_var,$(v))) bash ./scripts/agent-epf-roundtrip.sh
 
 config:
 	@set -a; [[ ! -f "$(ENV_FILE)" ]] || . "$(ENV_FILE)"; set +a; \

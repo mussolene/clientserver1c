@@ -107,6 +107,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
   printf '  make env\n'
 fi
 printf '  make pull                              # pull configured developer image\n'
+printf '  export OACS_PASSPHRASE="<local-oacs-passphrase>"\n'
 printf '  make agent-up PROJECT_PATH=/path/to/project\n'
 printf '  docker exec -it 1c-dev onec-agent bootstrap\n'
 printf '  make first-start                       # optional local license UI\n'

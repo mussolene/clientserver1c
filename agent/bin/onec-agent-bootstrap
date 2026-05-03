@@ -50,6 +50,7 @@ Before changing 1C metadata, BSL, tests, or runtime scripts:
 1. Read `.agent/bootstrap-report.md`.
 2. Export project-local ACS state:
    `export OACS_DB="${ONEC_PROJECT_ROOT:-/workspace/project}/.agent/oacs/oacs.db"`
+   `export OACS_PASSPHRASE="<local-oacs-passphrase>"`
 3. Query project memory with ACS:
    `acs memory query --query "<task intent>" --scope project --json`
 4. Build an ACS context capsule for the current task:
@@ -97,6 +98,7 @@ Minimal commands:
 
 ```bash
 export OACS_DB="${ONEC_PROJECT_ROOT:-/workspace/project}/.agent/oacs/oacs.db"
+export OACS_PASSPHRASE="<local-oacs-passphrase>"
 acs memory query --query "<task intent>" --scope project --json
 acs context build --intent "<task intent>" --scope project --json
 onec-agent context --task "<task intent>" --query "<1C term>" --pack platform --limit 5

@@ -62,6 +62,9 @@ docker restart 1c-dev
 - writes `.agent/reports/onec-agent-doctor.txt`;
 - writes `.agent/reports/oacs-bootstrap-context.json`;
 - writes `.agent/reports/oacs-standards-context.json`;
+- writes `.agent/reports/oacs-bsl-dev-context.json`;
+- writes `.agent/context-capsules/cross-repo-findings-capsule.public.json`;
+- writes `.agent/reports/cross-repo-findings-memories.public.json`;
 - writes `.agent/reports/onec-context-metadata-ensure.log`;
 - records references to platform help, standards packs, project metadata status, registry, and skills.
 
@@ -70,6 +73,7 @@ docker restart 1c-dev
 After bootstrap, agents use the same running container:
 
 ```bash
+export OACS_PASSPHRASE="<local-oacs-passphrase>"
 docker exec -it 1c-dev acs memory query --query "<task intent>" --scope project --json
 docker exec -it 1c-dev acs context build --intent "<task intent>" --scope project --json
 docker exec -it 1c-dev onec-agent context --task "<task intent>" --query "<exact 1C term>" --pack platform --limit 5

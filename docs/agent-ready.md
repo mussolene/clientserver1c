@@ -114,6 +114,19 @@ onec-agent bslls-format src/cf
 `agent-bslls` пишет полный JSON в `.agent/bslls/bsl-json.json` и печатает короткую сводку. Если нужен полный console reporter, передайте `REPORTERS=json,console`.
 `agent-bslls-format` меняет файлы проекта. После запуска агент должен показать diff.
 
+## EPF Round-Trip
+
+Для проверяемой обработки, которая уже лежит в mounted проекте:
+
+```bash
+make -C /path/to/1c-develop agent-epf-roundtrip PROJECT_PATH="$PWD" EPF_PATH=tests/xunit/epf/Test.epf
+```
+
+Команда выполняет `vrunner decompileepf` и `vrunner compileepf` внутри того же
+контейнера, где смонтирован проект. Результат и лог остаются в
+`.agent/runtime/epf-roundtrip/<имя-epf>/`. Это smoke-level проверка инструмента,
+а не доказательство корректности бизнес-логики обработки.
+
 ## OACS Memory/Context
 
 OACS входит в Portable Agent Infrastructure image как обязательный слой.

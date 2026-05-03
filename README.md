@@ -130,13 +130,14 @@ docker run -d \
 | `make doctor` | проверить Docker, image, staging, license volume и agent mode |
 | `make pull` | скачать настроенный developer image |
 | `make first-start` | запустить optional local license UI |
-| `make up` | поднять shell/agent-ready runtime |
+| `make up` | поднять shell/agent-ready runtime для самого 1c-develop workspace |
 | `make up-file-db` | запустить file DB mode после настройки лицензирования |
 | `make up-server` | запустить server mode вместе с PostgreSQL 1C |
 | `make ui-smoke` | прогнать минимальный Vanessa UI smoke |
 | `make xunit-smoke` | прогнать xUnit smoke по EPF |
 | `make agent-context` | transport-helper для context-команд внутри контейнера |
 | `make agent-bslls` | запустить BSL Language Server diagnostics |
+| `make agent-epf-roundtrip` | разобрать и собрать EPF внутри mounted проекта |
 
 Пример из 1С-проекта:
 
@@ -145,6 +146,7 @@ make -C /path/to/1c-develop agent-up PROJECT_PATH="$PWD"
 make -C /path/to/1c-develop agent-doctor PROJECT_PATH="$PWD"
 make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="текущая задача"
 make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="метаданные" QUERY="Заявки" PACK=metadata LIMIT=5
+make -C /path/to/1c-develop agent-epf-roundtrip PROJECT_PATH="$PWD" EPF_PATH=tests/xunit/epf/Test.epf
 ```
 
 ## Runtime
@@ -196,6 +198,18 @@ make xunit-smoke
 ```
 
 Runner: [`scripts/run-xunit-smoke.sh`](scripts/run-xunit-smoke.sh). Скрипт пишет `status.txt` даже при ошибках раннера/таймаутах и сохраняет process snapshot в `artifacts/xunit/processes.txt`.
+
+Для проверки, что контейнер умеет разобрать и собрать существующую обработку
+проекта:
+
+```bash
+make agent-epf-roundtrip PROJECT_PATH=/path/to/1c-project EPF_PATH=tests/xunit/epf/Test.epf
+```
+
+Runner: [`scripts/agent-epf-roundtrip.sh`](scripts/agent-epf-roundtrip.sh). Он
+использует mounted project в `/workspace/project`, вызывает
+`vrunner decompileepf` и `vrunner compileepf`, затем оставляет результат в
+`.agent/runtime/epf-roundtrip/<имя-epf>/`.
 
 ## Локальная сборка
 
