@@ -33,6 +33,10 @@ Hard rules:
 - Current code and current command results are the source of truth, not prior
   chat claims.
 - Fixes should be the smallest defensible diff.
+- For long iterative 1C/repository work, do not rely only on chat context or
+  compaction summaries. Query ACS at task start, record compact ACS evidence and
+  memory after significant runtime/repo decisions, and query ACS plus current
+  repo/runtime state after any context compaction or resume before continuing.
 - OACS is not the runtime orchestrator. It records memory, context, and evidence
   around commands executed by the agent through normal shell/Docker/git tools.
 - In this repository, use `acs` directly for repo work. Use `onec-agent` only
