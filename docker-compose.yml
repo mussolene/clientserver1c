@@ -21,31 +21,6 @@ services:
       args:
         COMMON_BASE_IMAGE: common_base
 
-  linux-onescript-builder:
-    profiles: ["build"]
-    image: ${IMAGE_NAMESPACE:-ghcr.io/mussolene}/linux-onescript-builder:${ONESCRIPT_BUILD_TAG:-2.0.0}
-    platform: linux/amd64
-    build:
-      context: .
-      dockerfile: base/linux-onescript-builder/Dockerfile
-      args:
-        ONESCRIPT_SDK_IMAGE: mcr.microsoft.com/dotnet/sdk:8.0
-        ONESCRIPT_VERSION: 2.0.0
-
-  linux-onescript:
-    profiles: ["build"]
-    image: ${IMAGE_NAMESPACE:-ghcr.io/mussolene}/linux-onescript:${ONESCRIPT_BASE_TAG:-2.0.0}
-    platform: linux/amd64
-    build:
-      context: .
-      dockerfile: base/linux-onescript/Dockerfile
-      additional_contexts:
-        common_base: service:linux-common-base
-        onescript_build: service:linux-onescript-builder
-      args:
-        COMMON_BASE_IMAGE: common_base
-        ONESCRIPT_BUILD_IMAGE: onescript_build
-
   1c-dev:
     image: ${IMAGE_NAMESPACE:-ghcr.io/mussolene}/1c-developer:${PLATFORM_VERSION:-8.5.1.1302}
     hostname: onecdev
@@ -55,10 +30,10 @@ services:
       dockerfile: client/Dockerfile
       additional_contexts:
         desktop_base: service:linux-desktop-base
-        onescript_base: service:linux-onescript
       args:
         DESKTOP_BASE_IMAGE: desktop_base
-        ONESCRIPT_BASE_IMAGE: onescript_base
+        ONESCRIPT_VERSION: ${ONESCRIPT_VERSION:-2.0.2}
+        ONESCRIPT_DOWNLOAD_URL: ${ONESCRIPT_DOWNLOAD_URL-}
         PLATFORM_VERSION: ${PLATFORM_VERSION:-8.5.1.1302}
         PLATFORM_DIST_NAME: ${PLATFORM_DIST_NAME-}
         VANESSA_ADD_VERSION: ${VANESSA_ADD_VERSION:-6.8.0}

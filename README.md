@@ -242,8 +242,8 @@ make build
 
 ## Структура
 
-- `client/` - developer image с 1С runtime и agent-ready слоем.
-- `base/` - базовые Linux/Desktop/OneScript images.
+- `client/` - developer image с 1С runtime, OneScript zip install и agent-ready слоем.
+- `base/` - базовые Linux/Desktop images.
 - `pg/` - PostgreSQL 1C image.
 - `agent/` - container-side `onec-agent`, registry и local OACS skill.
 - `scripts/` - host transport commands и build/run helpers.
@@ -256,8 +256,6 @@ Workflow [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publi
 
 - `linux-common-base`
 - `linux-desktop-base`
-- `linux-onescript-builder`
-- `linux-onescript`
 - `postgresql`
 - `1c-developer`
 

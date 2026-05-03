@@ -102,17 +102,15 @@ make build
 
 1. `linux-common-base`: общие системные пакеты, locale, fonts, certificates.
 2. `linux-desktop-base`: Xfce/VNC/s6 поверх common base.
-3. `linux-onescript-builder`: сборка OneScript runtime.
-4. `linux-onescript`: runtime OneScript/OPM поверх common base.
-5. `postgresql`: опциональный PostgreSQL 1C, не влияет на developer image.
-6. `1c-developer`: платформа 1С, Vanessa, BSLLS, OACS, skills и context packs
-   поверх desktop base плюс onescript runtime.
+3. `postgresql`: опциональный PostgreSQL 1C, не влияет на developer image.
+4. `1c-developer`: desktop base плюс платформа 1С, downloaded OneScript zip,
+   Vanessa, BSLLS, OACS, skills и context packs.
 
-Правило зависимости: platform archives, skills, OACS и context packs живут
-только в `1c-developer`; базовые Linux/Desktop/OneScript слои не должны знать о
-1С platform staging, OACS DB, project `.agent/`, `nethasp.ini` или mounted
-workspace. Это держит rebuild scope узким: смена справки/skills/OACS не должна
-пересобирать desktop/common base, а смена PostgreSQL 1C не должна пересобирать
+Правило зависимости: platform archives, OneScript, skills, OACS и context packs
+живут только в `1c-developer`; базовые Linux/Desktop слои не должны знать о 1С
+platform staging, OACS DB, project `.agent/`, `nethasp.ini` или mounted
+workspace. Это держит rebuild scope понятным: смена справки/skills/OACS не
+пересобирает desktop/common base, а смена PostgreSQL 1C не пересобирает
 developer image.
 
 ## Image namespace
@@ -137,7 +135,7 @@ IMAGE_NAMESPACE=ghcr.io/acme
 IMAGE_NAMESPACE=mussolene
 ```
 
-Имена образов остаются стабильными: `1c-developer`, `linux-common-base`, `linux-desktop-base`, `linux-onescript-builder`, `linux-onescript`, `postgresql`.
+Имена образов остаются стабильными: `1c-developer`, `linux-common-base`, `linux-desktop-base`, `postgresql`.
 
 ## Advanced build pins
 
@@ -147,6 +145,7 @@ IMAGE_NAMESPACE=mussolene
 VANESSA_ADD_VERSION=6.8.0
 VANESSA_RUNNER_VERSION=2.6.0
 VANESSA_AUTOMATION_VERSION=1.2.043.1
+ONESCRIPT_VERSION=2.0.2
 BSLLS_VERSION=0.25.0
 OACS_VERSION=1.0.0
 BSL_DEV_DOCS_REPO=https://github.com/mussolene/BSL_8.5.1_dev_docs

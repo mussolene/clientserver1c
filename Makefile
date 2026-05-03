@@ -32,7 +32,7 @@ AGENT_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH PLATFORM_VERSION PLATFOR
 AGENT_CMD_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH NETHASP_INI_PATH,$(call env_var,$(v)))
 CONFIG_ENV := $(BUILD_ENV) POSTGRES_PASSWORD="$(POSTGRES_PASSWORD)"
 
-.PHONY: help env doctor first-start pull download prepare-platform build-common-base build-desktop-base build-onescript-builder build-onescript-base up up-file-db up-server build build-server-stack ui-smoke xunit-smoke agent-up agent-exec agent-doctor agent-skills agent-skill agent-context agent-bslls agent-bslls-format agent-epf-roundtrip config down ps logs clean-platform clean
+.PHONY: help env doctor first-start pull download prepare-platform build-common-base build-desktop-base up up-file-db up-server build build-server-stack ui-smoke xunit-smoke agent-up agent-exec agent-doctor agent-skills agent-skill agent-context agent-bslls agent-bslls-format agent-epf-roundtrip config down ps logs clean-platform clean
 
 help:
 	@printf '%s\n' \
@@ -62,7 +62,7 @@ help:
 	  '  make build           - prepare platform and build only the developer image' \
 	  '  make up-server       - start server mode with PostgreSQL 1C' \
 	  '  make build-server-stack - build developer image plus PostgreSQL 1C' \
-	  '  make build-common-base / build-desktop-base / build-onescript-*' \
+	  '  make build-common-base / build-desktop-base' \
 	  '  make config          - validate docker compose config' \
 	  '  make down / ps / logs / clean-platform / clean' \
 	  '' \
@@ -104,12 +104,6 @@ build-common-base:
 
 build-desktop-base:
 	@env ENV_FILE="$(abspath $(ENV_FILE))" $(call env_var,DOCKER_DEFAULT_PLATFORM) bash ./scripts/build-desktop-base.sh
-
-build-onescript-builder:
-	@env ENV_FILE="$(abspath $(ENV_FILE))" $(call env_var,DOCKER_DEFAULT_PLATFORM) bash ./scripts/build-onescript-builder.sh
-
-build-onescript-base:
-	@env ENV_FILE="$(abspath $(ENV_FILE))" $(call env_var,DOCKER_DEFAULT_PLATFORM) bash ./scripts/build-onescript-base.sh
 
 up:
 	@env ENV_FILE="$(abspath $(ENV_FILE))" ONEC_RUNTIME_MODE="$(runtime_mode)" $(RUNTIME_ENV) ./scripts/up.sh

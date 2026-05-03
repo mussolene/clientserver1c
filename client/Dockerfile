@@ -1,9 +1,12 @@
 ARG DESKTOP_BASE_IMAGE=ghcr.io/mussolene/linux-desktop-base:bookworm
-ARG ONESCRIPT_BASE_IMAGE=ghcr.io/mussolene/linux-onescript:2.0.0
-FROM ${ONESCRIPT_BASE_IMAGE} AS onescript_base
+ARG ONESCRIPT_VERSION=2.0.2
+ARG ONESCRIPT_DOWNLOAD_URL
+
 FROM ${DESKTOP_BASE_IMAGE}
 
 ARG TARGETARCH
+ARG ONESCRIPT_VERSION
+ARG ONESCRIPT_DOWNLOAD_URL
 ARG PLATFORM_VERSION=8.5.1.1302
 ARG PLATFORM_DIST_NAME
 ARG VANESSA_ADD_VERSION=6.8.0
@@ -24,9 +27,46 @@ ENV OSCRIPT_CONFIG=lib.system=/opt/onescript/lib
 ENV OPM_CONFIG=/opt/onescript/opm.cfg
 ENV OSCRIPTBIN=/opt/onescript/bin
 ENV OACS_DB=/workspace/project/.agent/oacs/oacs.db
-COPY --from=onescript_base /opt/onescript /opt/onescript
-COPY --from=onescript_base /usr/local/bin/oscript /usr/local/bin/oscript
-COPY --from=onescript_base /usr/local/bin/opm /usr/local/bin/opm
+
+RUN apt-get update -o APT::Sandbox::User=root \
+  && apt-get install --yes --no-install-recommends -o APT::Sandbox::User=root \
+    ca-certificates \
+    curl \
+    libarchive-tools \
+    libicu72 \
+  && rm -rf /var/lib/apt/lists/* \
+  && onescript_url="${ONESCRIPT_DOWNLOAD_URL:-https://oscript.io/downloads/latest/OneScript-${ONESCRIPT_VERSION}-linux-x64.zip}" \
+  && mkdir -p /opt/onescript /tmp/onescript \
+  && curl -fsSL --retry 3 --show-error "$onescript_url" -o /tmp/onescript/onescript.zip \
+  && LANG=C.UTF-8 LC_ALL=C.UTF-8 bsdtar -xf /tmp/onescript/onescript.zip -C /opt/onescript \
+  && chmod +x /opt/onescript/bin/oscript /opt/onescript/bin/opm \
+  && ln -sf /opt/onescript/bin/oscript /opt/onescript/oscript \
+  && printf '%s\n' \
+       '[default]' \
+       'СервераПакетов = ОсновнойСерверПакетов, ЗапаснойСерверПакетов' \
+       '' \
+       '[ОсновнойСерверПакетов]' \
+       'URL = https://hub.oscript.io' \
+       '' \
+       '[ЗапаснойСерверПакетов]' \
+       'URL = https://hub.oscript.ru' \
+     > /opt/onescript/opm.cfg \
+  && printf '%s\n' \
+       '#!/bin/sh' \
+       'if [ -x /opt/onescript/bin/oscript ]; then exec /opt/onescript/bin/oscript "$@"; fi' \
+       'echo "OneScript runtime files are missing in this image." >&2' \
+       'exit 1' \
+     > /usr/local/bin/oscript \
+  && printf '%s\n' \
+       '#!/bin/sh' \
+       'if [ -x /opt/onescript/bin/opm ]; then exec /opt/onescript/bin/opm "$@"; fi' \
+       'echo "OPM files are missing in this image." >&2' \
+       'exit 1' \
+     > /usr/local/bin/opm \
+  && chmod +x /usr/local/bin/oscript /usr/local/bin/opm \
+  && oscript -version >/dev/null \
+  && opm version >/dev/null \
+  && rm -rf /tmp/onescript
 
 RUN apt-get update -o APT::Sandbox::User=root \
   && apt-get install --yes --no-install-recommends -o APT::Sandbox::User=root \

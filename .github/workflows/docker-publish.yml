@@ -74,10 +74,7 @@ jobs:
       COMMON_BASE_TAG: bookworm
       COMMON_BASE_DIST: bookworm
       DESKTOP_BASE_TAG: bookworm
-      ONESCRIPT_BUILD_TAG: "2.0.0"
-      ONESCRIPT_BASE_TAG: "2.0.0"
-      ONESCRIPT_SDK_IMAGE: mcr.microsoft.com/dotnet/sdk:8.0
-      ONESCRIPT_VERSION: "2.0.0"
+      ONESCRIPT_VERSION: "2.0.2"
       VANESSA_ADD_VERSION: "6.8.0"
       VANESSA_RUNNER_VERSION: "2.6.0"
       VANESSA_AUTOMATION_VERSION: "1.2.043.1"
@@ -196,8 +193,6 @@ jobs:
 
           emit_tags common_base_tags linux-common-base "${COMMON_BASE_TAG}"
           emit_tags desktop_base_tags linux-desktop-base "${DESKTOP_BASE_TAG}"
-          emit_tags onescript_builder_tags linux-onescript-builder "${ONESCRIPT_BUILD_TAG}"
-          emit_tags onescript_tags linux-onescript "${ONESCRIPT_BASE_TAG}"
           emit_tags pg_tags postgresql "${{ steps.cfg.outputs.pg_1c_version }}"
           emit_tags dev_tags 1c-developer "${{ steps.cfg.outputs.platform_version }}" 1
 
@@ -237,45 +232,6 @@ jobs:
           cache-from: type=gha,scope=linux-desktop-base
           cache-to: type=gha,mode=max,scope=linux-desktop-base
 
-      - name: Build and push linux-onescript-builder
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./base/linux-onescript-builder/Dockerfile
-          platforms: ${{ env.PLATFORMS_AMD64 }}
-          pull: true
-          push: true
-          build-args: |
-            ONESCRIPT_SDK_IMAGE=${{ env.ONESCRIPT_SDK_IMAGE }}
-            ONESCRIPT_VERSION=${{ env.ONESCRIPT_VERSION }}
-          tags: ${{ steps.tags.outputs.onescript_builder_tags }}
-          labels: |
-            org.opencontainers.image.source=${{ env.REPO_URL }}
-            org.opencontainers.image.revision=${{ github.sha }}
-          cache-from: type=gha,scope=linux-onescript-builder
-          cache-to: type=gha,mode=max,scope=linux-onescript-builder
-
-      - name: Build and push linux-onescript
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./base/linux-onescript/Dockerfile
-          platforms: ${{ env.PLATFORMS_AMD64 }}
-          pull: true
-          push: true
-          build-args: |
-            COMMON_BASE_IMAGE=common_base
-            ONESCRIPT_BUILD_IMAGE=onescript_build
-          build-contexts: |
-            common_base=docker-image://${{ env.GHCR_REGISTRY }}/${{ steps.cfg.outputs.ghcr_namespace }}/linux-common-base:${{ env.BUILD_TAG }}
-            onescript_build=docker-image://${{ env.GHCR_REGISTRY }}/${{ steps.cfg.outputs.ghcr_namespace }}/linux-onescript-builder:${{ env.BUILD_TAG }}
-          tags: ${{ steps.tags.outputs.onescript_tags }}
-          labels: |
-            org.opencontainers.image.source=${{ env.REPO_URL }}
-            org.opencontainers.image.revision=${{ github.sha }}
-          cache-from: type=gha,scope=linux-onescript
-          cache-to: type=gha,mode=max,scope=linux-onescript
-
       - name: Build and push postgresql
         uses: docker/build-push-action@v6
         with:
@@ -308,7 +264,7 @@ jobs:
           push: true
           build-args: |
             DESKTOP_BASE_IMAGE=desktop_base
-            ONESCRIPT_BASE_IMAGE=onescript_base
+            ONESCRIPT_VERSION=${{ env.ONESCRIPT_VERSION }}
             PLATFORM_VERSION=${{ steps.cfg.outputs.platform_version }}
             VANESSA_ADD_VERSION=${{ env.VANESSA_ADD_VERSION }}
             VANESSA_RUNNER_VERSION=${{ env.VANESSA_RUNNER_VERSION }}
@@ -321,7 +277,6 @@ jobs:
             BSL_DEV_DOCS_REF=${{ env.BSL_DEV_DOCS_REF }}
           build-contexts: |
             desktop_base=docker-image://${{ env.GHCR_REGISTRY }}/${{ steps.cfg.outputs.ghcr_namespace }}/linux-desktop-base:${{ env.BUILD_TAG }}
-            onescript_base=docker-image://${{ env.GHCR_REGISTRY }}/${{ steps.cfg.outputs.ghcr_namespace }}/linux-onescript:${{ env.BUILD_TAG }}
           secrets: |
             its_login=${{ secrets.ITS_LOGIN }}
             its_password=${{ secrets.ITS_PASSWORD }}
