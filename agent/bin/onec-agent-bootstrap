@@ -113,36 +113,136 @@ EOF
 }
 
 write_cross_repo_findings_capsule() {
-  local target="$1"
-  cat >"$target" <<'EOF'
-{
-  "kind": "pai.cross_repo.findings_capsule",
-  "visibility": "public_anonymized",
-  "version": "1",
-  "sources": [
-    "<repo_container_infra>",
-    "<repo_extension_tests>"
-  ],
-  "confirmed_findings": [
-    "PAI runtime target is linux/amd64 only for current 1C ecosystem.",
-    "VNC should be enabled by default; 1C launcher should run through platform-installed 1cestart.",
-    "Onboarding model is README quick start plus in-container bootstrap that builds OACS state, context capsules, instructions, and reports.",
-    "Licensing should support local activation storage or hardware license via nethasp.ini with UseHwLicenses=1 for consistent GUI and CLI behavior.",
-    "ACS should be used directly for memory/context/evidence, while onec-agent is used as the 1C adapter and not as an ACS wrapper.",
-    "EPF round-trip is available via vrunner decompileepf and vrunner compileepf.",
-    "Compiled xUnit EPFs are inspectable after decompile because XML/forms/BSL become available in source form.",
-    "UI/xUnit wrappers should enforce timeout, deterministic failure status artifacts, and cleanup of leftover 1cv8/TestClient processes.",
-    "Vanessa failures should be diagnosed by stage: JSON parse, library path, duplicate snippets, and feature/tag loading."
-  ],
-  "next_agent_loop": [
-    "acs memory query",
-    "acs context build",
-    "onec-agent context lookups (platform/standards/bsl-dev/metadata)",
-    "targeted runtime check",
-    "acs evidence + memory commit/sharpen"
-  ]
+  local capsule_target="$1"
+  local memories_target="$2"
+  python3 - "$capsule_target" "$memories_target" <<'PY'
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+capsule_target = Path(sys.argv[1])
+memories_target = Path(sys.argv[2])
+
+memories = [
+    {
+        "id": "mem_pai_runtime_contract_001",
+        "memory_type": "rule",
+        "depth": 2,
+        "lifecycle_status": "active",
+        "status": "active",
+        "namespace": "pai-bootstrap",
+        "scope": ["project", "pai", "runtime"],
+        "owner_actor_id": None,
+        "content": {
+            "text": "PAI runtime targets linux/amd64 only for the current 1C ecosystem; VNC should start by default and 1C should be launched through the platform-installed 1cestart launcher.",
+            "kind": "rule",
+            "tags": ["runtime", "vnc", "launcher"],
+            "confidence": 1.0,
+            "evidence": [],
+        },
+        "evidence_refs": [],
+        "supersedes": None,
+    },
+    {
+        "id": "mem_pai_oacs_workflow_001",
+        "memory_type": "procedure",
+        "depth": 2,
+        "lifecycle_status": "active",
+        "status": "active",
+        "namespace": "pai-bootstrap",
+        "scope": ["project", "pai", "oacs"],
+        "owner_actor_id": None,
+        "content": {
+            "text": "Use acs directly for memory, context capsules, and evidence. Use onec-agent only as the 1C adapter for context lookup, diagnostics, bootstrap artifacts, and runtime checks.",
+            "kind": "procedure",
+            "tags": ["oacs", "workflow", "onec-agent"],
+            "confidence": 1.0,
+            "evidence": [],
+        },
+        "evidence_refs": [],
+        "supersedes": None,
+    },
+    {
+        "id": "mem_pai_epf_roundtrip_001",
+        "memory_type": "procedure",
+        "depth": 2,
+        "lifecycle_status": "active",
+        "status": "active",
+        "namespace": "pai-bootstrap",
+        "scope": ["project", "pai", "testing"],
+        "owner_actor_id": None,
+        "content": {
+            "text": "EPF round-trip inside the container uses vrunner decompileepf and vrunner compileepf. Decompiled EPF trees expose XML, forms, and BSL modules for review.",
+            "kind": "procedure",
+            "tags": ["epf", "xunit", "vrunner"],
+            "confidence": 1.0,
+            "evidence": [],
+        },
+        "evidence_refs": [],
+        "supersedes": None,
+    },
+    {
+        "id": "mem_pai_vanessa_diagnostics_001",
+        "memory_type": "procedure",
+        "depth": 2,
+        "lifecycle_status": "active",
+        "status": "active",
+        "namespace": "pai-bootstrap",
+        "scope": ["project", "pai", "testing"],
+        "owner_actor_id": None,
+        "content": {
+            "text": "Diagnose Vanessa failures by stage: JSON parse and schema shape, library path availability, duplicate snippets, then feature loading and tag selection. UI/xUnit wrappers should enforce timeout, deterministic failure artifacts, and process cleanup.",
+            "kind": "procedure",
+            "tags": ["vanessa", "xunit", "diagnostics"],
+            "confidence": 1.0,
+            "evidence": [],
+        },
+        "evidence_refs": [],
+        "supersedes": None,
+    },
+]
+
+capsule = {
+    "id": "ctx_pai_cross_repo_findings_public_001",
+    "version": "0.1",
+    "capsule_type": "context_capsule",
+    "purpose": "Orient an agent with anonymized confirmed PAI container and extension-test findings.",
+    "task_id": "pai_cross_repo_findings_public",
+    "actor_id": None,
+    "agent_id": None,
+    "scope": ["project", "pai", "public_anonymized"],
+    "token_budget": 1600,
+    "included_memories": [memory["id"] for memory in memories],
+    "included_rules": ["rule_fuzzy_memory_not_fact"],
+    "included_skills": [],
+    "included_tools": [],
+    "evidence_refs": [],
+    "forbidden_assumptions": [
+        "This public capsule is an orientation seed, not fresh runtime evidence.",
+        "Do not treat project-specific hypotheses as confirmed facts unless backed by current OACS evidence.",
+    ],
+    "permissions": {
+        "memory.query": True,
+        "memory.commit": False,
+        "tool.execute.read": True,
+        "tool.execute.write": False,
+    },
+    "expires_at": None,
+    "audit_refs": [],
+    "checksum": "",
 }
-EOF
+
+canonical = dict(capsule)
+canonical.pop("checksum")
+payload = json.dumps(canonical, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+capsule["checksum"] = hashlib.sha256(payload).hexdigest()
+
+capsule_target.parent.mkdir(parents=True, exist_ok=True)
+memories_target.parent.mkdir(parents=True, exist_ok=True)
+capsule_target.write_text(json.dumps(capsule, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+memories_target.write_text(json.dumps(memories, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
 }
 
 project_file_sample_json() {
@@ -174,53 +274,6 @@ print(json.dumps(seen, ensure_ascii=False, indent=2))
 PY
 }
 
-write_public_capsule() {
-  local source_path="$1"
-  local dest_path="$2"
-  local project_root_path="$3"
-  python3 - "$source_path" "$dest_path" "$project_root_path" <<'PY'
-import json
-import re
-import sys
-from pathlib import Path
-
-source = Path(sys.argv[1])
-dest = Path(sys.argv[2])
-project_root = sys.argv[3]
-
-with source.open("r", encoding="utf-8") as fh:
-    data = json.load(fh)
-
-path_patterns = [
-    (re.compile(r"/Users/[^/\s]+"), "/Users/<user>"),
-    (re.compile(r"/home/[^/\s]+"), "/home/<user>"),
-    (re.compile(r"/var/folders/[^/\s]+"), "/var/folders/<redacted>"),
-]
-
-def sanitize_string(value: str) -> str:
-    if project_root:
-        value = value.replace(project_root, "<project_root>")
-    for pattern, replacement in path_patterns:
-        value = pattern.sub(replacement, value)
-    return value
-
-def sanitize(node):
-    if isinstance(node, dict):
-        return {k: sanitize(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [sanitize(v) for v in node]
-    if isinstance(node, str):
-        return sanitize_string(node)
-    return node
-
-sanitized = sanitize(data)
-dest.parent.mkdir(parents=True, exist_ok=True)
-with dest.open("w", encoding="utf-8") as fh:
-    json.dump(sanitized, fh, ensure_ascii=False, indent=2)
-    fh.write("\n")
-PY
-}
-
 main() {
   case "${1:-}" in
     -h|--help)
@@ -239,15 +292,15 @@ main() {
   [[ -f "$registry_path" ]] || die "Agent registry is missing: $registry_path"
   [[ -n "$oacs_passphrase" ]] || die "Set OACS_PASSPHRASE or ONEC_OACS_PASSPHRASE before bootstrap."
 
-  local agent_dir mcp_dir capsule_dir instructions_dir report_dir capsule_path public_capsule_path findings_capsule_path report_path
+  local agent_dir mcp_dir capsule_dir instructions_dir report_dir capsule_path findings_capsule_path findings_memories_path report_path
   agent_dir="$project_root/.agent"
   mcp_dir="$agent_dir/mcp"
   capsule_dir="$agent_dir/context-capsules"
   instructions_dir="$agent_dir/instructions"
   report_dir="$agent_dir/reports"
   capsule_path="$capsule_dir/bootstrap-context-capsule.json"
-  public_capsule_path="$report_dir/bootstrap-context-capsule.public.json"
   findings_capsule_path="$capsule_dir/cross-repo-findings-capsule.public.json"
+  findings_memories_path="$report_dir/cross-repo-findings-memories.public.json"
   report_path="$agent_dir/bootstrap-report.md"
 
   mkdir -p "$(dirname "$oacs_db")" "$mcp_dir" "$capsule_dir" "$instructions_dir" "$report_dir"
@@ -283,7 +336,7 @@ main() {
     write_agent_instructions "$agent_dir/AGENTS.md"
   fi
   write_memory_loop "$instructions_dir/oacs-memory-call-loop.md"
-  write_cross_repo_findings_capsule "$findings_capsule_path"
+  write_cross_repo_findings_capsule "$findings_capsule_path" "$findings_memories_path"
 
   local project_files_json
   project_files_json="$(project_file_sample_json)"
@@ -337,14 +390,13 @@ main() {
         ".agent/reports/oacs-bootstrap-context.json",
         ".agent/reports/oacs-standards-context.json",
         ".agent/reports/oacs-bsl-dev-context.json",
+        ".agent/reports/cross-repo-findings-memories.public.json",
         ".agent/reports/onec-context-metadata-ensure.log"
       ],
       additional_capsules: [
         ".agent/context-capsules/cross-repo-findings-capsule.public.json"
       ]
     }' >"$capsule_path"
-
-  write_public_capsule "$capsule_path" "$public_capsule_path" "$project_root"
 
   cat >"$report_path" <<EOF
 # PAI Bootstrap Report
@@ -355,8 +407,8 @@ Project root: \`$project_root\`
 OACS DB: \`$oacs_db\`
 MCP config: \`.agent/mcp/onec-context-mcp.json\`
 Context capsule: \`.agent/context-capsules/bootstrap-context-capsule.json\`
-Public capsule artifact: \`.agent/reports/bootstrap-context-capsule.public.json\`
 Cross-repo findings capsule: \`.agent/context-capsules/cross-repo-findings-capsule.public.json\`
+Cross-repo findings memories: \`.agent/reports/cross-repo-findings-memories.public.json\`
 Agent instructions: \`.agent/instructions/pai-agent-instructions.md\`
 Memory loop: \`.agent/instructions/oacs-memory-call-loop.md\`
 
@@ -392,8 +444,8 @@ EOF
   printf 'PAI bootstrap: PASS\n'
   printf 'Report: %s\n' "$report_path"
   printf 'Capsule: %s\n' "$capsule_path"
-  printf 'Public capsule artifact: %s\n' "$public_capsule_path"
   printf 'Cross-repo findings capsule: %s\n' "$findings_capsule_path"
+  printf 'Cross-repo findings memories: %s\n' "$findings_memories_path"
   printf 'Instructions: %s\n' "$instructions_dir/pai-agent-instructions.md"
   printf 'MCP config: %s\n' "$mcp_dir/onec-context-mcp.json"
 }
