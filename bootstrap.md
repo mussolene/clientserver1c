@@ -9,6 +9,7 @@ Bootstrap выполняется внутри уже запущенного Port
 ```bash
 docker pull ghcr.io/mussolene/1c-developer:8.5.1.1302
 export OACS_PASSPHRASE="<local-oacs-passphrase>"
+mkdir -p .onec-runtime/data .onec-runtime/cache
 
 docker run -d \
   --name 1c-dev \

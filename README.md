@@ -25,6 +25,7 @@
 ```bash
 docker pull ghcr.io/mussolene/1c-developer:8.5.1.1302
 export OACS_PASSPHRASE="<local-oacs-passphrase>"
+mkdir -p .onec-runtime/data .onec-runtime/cache
 
 docker run -d \
   --name 1c-dev \
@@ -41,6 +42,11 @@ docker run -d \
 
 docker exec -it 1c-dev onec-agent bootstrap
 ```
+
+Ожидаемый TTM для нового проекта: скачать image, запустить контейнер и получить
+`.agent/bootstrap-report.md` без локальной сборки. Лицензия 1С не нужна для
+bootstrap, OACS memory и context lookup; она потребуется позже для запуска GUI,
+`vrunner`, `ibcmd` и других runtime-команд 1С.
 
 После bootstrap:
 

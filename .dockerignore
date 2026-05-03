@@ -6,6 +6,7 @@
 .git
 .env
 .env.*
+.onec-runtime/
 .oacs/
 *nethasp.ini
 volumes
