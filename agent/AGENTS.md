@@ -21,8 +21,8 @@ onec-agent doctor
 onec-agent registry
 onec-agent skill context
 onec-agent bslls src/cf
-onec-agent context --task "..." --query "..."
-onec-agent context --task "..." --query "Заявки" --pack metadata
+onec-agent context --query "ЗаписьJSON" --pack platform --limit 5
+onec-agent context --query "Заявки" --pack metadata --limit 5
 onec-agent context-mcp-config
 ```
 

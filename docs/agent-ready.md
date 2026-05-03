@@ -24,6 +24,17 @@ onec-agent --help
 Host-side `make agent-*` targets остаются transport-командами для Docker Compose,
 но они не являются основной частью Portable Agent Infrastructure runtime.
 
+Для первого запуска без mounted project используйте:
+
+```bash
+docker exec -it 1c-dev onec-agent quickstart
+```
+
+Эта команда не создаёт project-local OACS DB и не требует
+`OACS_PASSPHRASE`. Она проверяет standalone runtime, регистрирует demo file DB и
+оставляет пользователю рабочий VNC/1С контур. Project bootstrap ниже нужен
+только после монтирования конкретного проекта в `/workspace/project`.
+
 ## Bootstrap
 
 `onec-agent bootstrap` разделяет инструкции и runtime bootstrap. Команда выполняется внутри уже запущенного container-side PAI и не управляет Docker lifecycle.
@@ -47,7 +58,9 @@ Bootstrap создает в смонтированном проекте:
 - `.agent/reports/onec-context-platform-lookup.json` - platform help lookup sample.
 - `.agent/reports/onec-context-standards-lookup.json` - standards lookup sample.
 - `.agent/reports/onec-context-bsl-dev-lookup.json` - developer guide lookup sample.
-- `.agent/reports/onec-context-metadata-ensure.log` - результат подготовки metadata pack.
+- `.agent/reports/onec-context-metadata-ensure.log` - результат подготовки
+  metadata pack. На пустом или не-1С проекте bootstrap остаётся успешным, но
+  `--pack metadata` lookup будет недоступен.
 
 Если `.agent/AGENTS.md` еще нет, bootstrap создаст IDE entrypoint. Если файл уже существует, bootstrap его не перезаписывает.
 
@@ -69,7 +82,10 @@ make -C /path/to/1c-develop agent-up PROJECT_PATH="$PWD"
 make -C /path/to/1c-develop agent-doctor PROJECT_PATH="$PWD"
 ```
 
-Без helper-репозитория держите контейнер в `shell` runtime и выполняйте команды через `docker exec`:
+Без helper-репозитория держите контейнер в `shell` runtime и выполняйте команды
+через `docker exec`. Команды ACS ниже требуют mounted project и
+`OACS_PASSPHRASE`; static context lookup по `platform`/`bsl-dev` работает и без
+project mount.
 
 ```bash
 docker exec -it 1c-dev onec-agent doctor
@@ -92,10 +108,14 @@ make -C /path/to/1c-develop agent-skill PROJECT_PATH="$PWD" NAME=memory
 
 Используйте `context` перед изменением метаданных или BSL, когда нужны точные факты. Используйте `testing` для Vanessa/xUnit/UI проверок. Используйте `memory` для OACS project memory, task context capsule и evidence refs.
 
+`metadata` lookup работает только для проектов, где bootstrap смог построить
+project metadata pack из поддерживаемых 1С sources. Static packs `platform`,
+`standards` и `bsl-dev` доступны без project metadata.
+
 ## Выполнить команду в контейнере
 
 ```bash
-make -C /path/to/1c-develop agent-exec PROJECT_PATH="$PWD" CMD="oscript --version"
+make -C /path/to/1c-develop agent-exec PROJECT_PATH="$PWD" CMD="oscript -version"
 ```
 
 ## BSL-диагностика и форматирование

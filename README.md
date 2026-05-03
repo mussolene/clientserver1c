@@ -11,7 +11,9 @@
 - OneScript, Vanessa Runner, Vanessa Automation и `bsl-language-server`.
 - `onec-agent` для 1C-specific операций: bootstrap, context, MCP config, BSLLS, skills.
 - OACS/ACS как прямой слой памяти, evidence и context capsules.
-- Prebuilt context packs: platform help, BSL developer guide, ITS standards и локальный metadata pack после bootstrap.
+- Prebuilt context packs: platform help, BSL developer guide и ITS standards.
+  Project metadata pack строится после bootstrap, если в mounted project есть
+  поддерживаемые 1С metadata sources.
 - Опциональный PostgreSQL 1C для server/client-server сценариев.
 
 Изюминка проекта: контейнер не просто запускает 1С. Он подготавливает корректный контекст для IDE-агента: где искать справку, какие skills читать, как строить OACS capsule, куда писать evidence и как не терять проектные решения между итерациями.

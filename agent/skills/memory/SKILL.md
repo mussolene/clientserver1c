@@ -11,10 +11,11 @@ Use this skill when a 1C task benefits from project memory, task context capsule
 
 ## Workflow
 
-Before a non-trivial 1C task, build context:
+Before a non-trivial project task, build OACS context directly:
 
 ```bash
-onec-agent context --task "short_task_intent"
+acs memory query --query "short_task_intent" --scope project --json
+acs context build --intent "short_task_intent" --scope project --json
 ```
 
 Host transport command:
@@ -26,9 +27,9 @@ make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="short_task_i
 When the task needs a specific 1C help, developer-guide, or standards lookup, include a query:
 
 ```bash
-onec-agent context --task "json_writer_question" --query "ЗаписьJSON" --pack platform --limit 5
-onec-agent context --task "background_jobs_question" --query "Фоновые задания" --pack bsl-dev --limit 5
-onec-agent context --task "metadata_question" --query "Заявки" --pack metadata --limit 5
+onec-agent context --query "ЗаписьJSON" --pack platform --limit 5
+onec-agent context --query "Фоновые задания" --pack bsl-dev --limit 5
+onec-agent context --query "Заявки" --pack metadata --limit 5
 ```
 
 Host transport command:
@@ -37,7 +38,9 @@ Host transport command:
 make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="json_writer_question" QUERY="ЗаписьJSON" PACK=platform LIMIT=5
 ```
 
-This performs an external `onec-context` lookup, ingests the result as OACS `tool_result` evidence, and builds a context capsule. Promote durable conclusions to memory explicitly with `acs memory`.
+The direct `onec-agent context` command performs a `onec-context` lookup only.
+Use `acs run` or `acs tool ingest-result` when the lookup result should become
+OACS evidence, then promote durable conclusions explicitly with `acs memory`.
 
 For agents that support MCP, register the container MCP server with OACS from inside the container:
 

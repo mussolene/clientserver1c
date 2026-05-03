@@ -22,6 +22,17 @@ launcher/icon файлами 1С. На каждом старте контейн�
 `ONEC_FILE_DB_PATH=/mnt/data/testdb`; отображаемое имя задается через
 `ONEC_FILE_DB_NAME`.
 
+Для pull-only запуска без project mount используйте container-side команду:
+
+```bash
+onec-agent quickstart
+```
+
+Она проверяет VNC и инструменты, регистрирует demo file DB в `ibases.v8i`,
+пытается создать её через `ibcmd`, если доступна лицензия, и печатает следующие
+команды для context lookup. Project-local OACS memory и metadata packs она не
+создаёт; для этого нужен `onec-agent bootstrap` со смонтированным проектом.
+
 Если база создана или восстановлена уже после старта контейнера, обновите
 список баз вручную:
 
@@ -35,7 +46,8 @@ onec-agent ibase add --name "SmallBusiness30" --path /mnt/ib/sb30 --home /home/u
 - `./volumes/1c-dev/cache:/home/usr1cv8/.1cv8/1C/1cv8/`
 - `onec-license-store:/var/1C/licenses` для локальной ручной активации
 
-Bootstrap, OACS memory и context packs не требуют активированной лицензии. Для запуска 1С runtime используйте один из двух путей:
+Standalone quickstart, bootstrap, OACS memory и static context packs не требуют
+активированной лицензии. Для запуска 1С runtime используйте один из двух путей:
 
 - локальная ручная активация через `license-ui` и volume `onec-license-store`; не удаляйте этот volume после активации;
 - сетевой HASP через `nethasp.ini`, смонтированный read-only в `/opt/1cv8/conf/nethasp.ini`.
@@ -169,7 +181,8 @@ Runtime/onboarding:
 - `ONEC_RUNTIME_MODE`: `shell`, `license-ui`, `file-db` или `server`.
 - `ONEC_FILE_DB_PATH`, `ONEC_FILE_DB_NAME`: файловая база и имя в `ibases.v8i`.
 - `ONEC_PROJECT_PATH` или `PROJECT_PATH`: host project для `agent-*` helpers.
-- `OACS_PASSPHRASE`: локальный passphrase для project OACS DB.
+- `OACS_PASSPHRASE`: локальный passphrase для project OACS DB; standalone
+  quickstart без project mount его не требует.
 - `NETHASP_INI_PATH`: локальный путь к ignored `nethasp.ini`.
 
 Build pins:
@@ -197,4 +210,10 @@ Secrets:
 - standards pack строится из ITS `v8std` в SQLite/FTS `.db.zst`;
 - пути записываются в `/opt/onec-agent/registry.json`.
 
-Project-specific packs (`metadata`, `code`, `full`) строятся отдельно из смонтированного `/workspace/project`. Bootstrap строит только metadata pack и не пересобирает platform help, потому что platform/standards/BSL developer packs уже лежат в image. OACS хранит memory, evidence refs, audit и context capsules вокруг найденных фактов, но не заменяет сами packs.
+Static packs (`platform`, `standards`, `bsl-dev`) доступны в контейнере без
+`/workspace/project`. Project-specific packs (`metadata`, `code`, `full`)
+строятся отдельно из смонтированного `/workspace/project`, когда в нём есть
+поддерживаемые 1С sources. Bootstrap пытается подготовить metadata pack и не
+пересобирает platform help, потому что platform/standards/BSL developer packs
+уже лежат в image. OACS хранит memory, evidence refs, audit и context capsules
+вокруг найденных фактов, но не заменяет сами packs.

@@ -1,8 +1,8 @@
 # OACS Repo Development Workflow
 
 This document is for development of the `1c-develop` infrastructure repository,
-not for first-run PAI users. End-user bootstrap starts in `README.md` and
-`bootstrap.md`.
+not for first-run PAI users. End-user standalone quick start starts in
+`README.md`; project bootstrap details live in `bootstrap.md`.
 
 This repository uses OACS directly through `acs` for project memory, context,
 and evidence during repository work. Container runtime commands are product

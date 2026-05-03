@@ -1,10 +1,14 @@
 # Bootstrap
 
 Bootstrap выполняется внутри уже запущенного Portable Agent Infrastructure
-контейнера. Он не управляет Docker lifecycle и не заменяет README: здесь только
-команды для подготовки agent/OACS контекста.
+контейнера с mounted project. Он не управляет Docker lifecycle и не заменяет
+README: здесь только команды для подготовки project-local agent/OACS контекста.
 
-## Quick Start
+Для первого запуска без проекта используйте `onec-agent quickstart` из
+README. `onec-agent bootstrap` нужен позже, когда конкретный 1С-проект
+смонтирован в `/workspace/project`.
+
+## Project Bootstrap
 
 ```bash
 docker pull ghcr.io/mussolene/1c-developer:8.5.1.1302
@@ -27,7 +31,9 @@ docker run -d \
 docker exec -it 1c-dev onec-agent bootstrap
 ```
 
-Лицензия не нужна для bootstrap, OACS memory и context capsule. Для OACS нужен только локальный `OACS_PASSPHRASE`; не коммитьте его. Лицензия нужна только для запуска 1С runtime.
+Лицензия не нужна для bootstrap, OACS memory и context capsule. Для OACS нужен
+только локальный `OACS_PASSPHRASE`; не коммитьте его. Лицензия нужна только для
+запуска 1С runtime.
 
 Для запуска 1С runtime после bootstrap есть два поддержанных пути:
 
@@ -43,7 +49,8 @@ runtime-профили `root` и `usr1cv8`, поэтому сетевой HASP �
 
 ## What Bootstrap Does
 
-`onec-agent bootstrap` does not pull images, create containers, stop containers, or publish ports. It only prepares the mounted project:
+`onec-agent bootstrap` does not pull images, create containers, stop containers,
+or publish ports. It only prepares the mounted project:
 
 - initializes project-local OACS state under `.agent/oacs/`;
 - writes `.agent/mcp/onec-context-mcp.json`;
@@ -61,6 +68,11 @@ runtime-профили `root` и `usr1cv8`, поэтому сетевой HASP �
 - writes `.agent/reports/cross-repo-findings-memories.public.json`;
 - writes `.agent/reports/onec-context-metadata-ensure.log`;
 - records references to platform help, standards packs, project metadata status, registry, skills, and the agent orientation prompt.
+
+Metadata lookup is available only when the mounted project contains supported
+1C metadata sources and the metadata ensure step can build a project pack. Empty
+or non-1C projects still bootstrap successfully, but `--pack metadata` lookups
+will report that the metadata context pack is missing.
 
 ## Agent Loop
 
