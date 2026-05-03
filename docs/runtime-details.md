@@ -99,4 +99,4 @@ OACS является обязательным agent-layer dependency для Por
 - standards pack строится из ITS `v8std` в SQLite/FTS `.db.zst`;
 - пути записываются в `/opt/onec-agent/registry.json`.
 
-Project-specific packs (`metadata`, `code`, `full`) строятся отдельно из смонтированного `/workspace/project`. OACS хранит memory, evidence refs, audit и context capsules вокруг найденных фактов, но не заменяет сами packs.
+Project-specific packs (`metadata`, `code`, `full`) строятся отдельно из смонтированного `/workspace/project`. Bootstrap строит только metadata pack и не пересобирает platform help, потому что platform/standards/BSL developer packs уже лежат в image. OACS хранит memory, evidence refs, audit и context capsules вокруг найденных фактов, но не заменяет сами packs.

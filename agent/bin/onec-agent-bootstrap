@@ -54,12 +54,14 @@ Before changing 1C metadata, BSL, tests, or runtime scripts:
    `onec-agent context --task "<task intent>" --query "<exact 1C term>" --pack platform --limit 5`
 4. Query developer-guide facts when the task needs behavior, patterns, or examples:
    `onec-agent context --task "<task intent>" --query "<1C developer guide topic>" --pack bsl-dev --limit 5`
-5. Use the relevant skill instructions from:
+5. Query project metadata after bootstrap when the task is about project objects:
+   `onec-agent context --task "<task intent>" --query "<metadata object>" --pack metadata --limit 5`
+6. Use the relevant skill instructions from:
    - `/opt/onec-skills/onec-context-toolkit/skill/SKILL.md`
    - `/opt/onec-skills/onec-vanessa-skill/skill/core/SKILL.md`
    - `/opt/onec-agent/skills/memory/SKILL.md`
-6. Run focused checks inside the container.
-7. Capture durable conclusions only after verification with direct ACS memory commands.
+7. Run focused checks inside the container.
+8. Capture durable conclusions only after verification with direct ACS memory commands.
 
 Rules:
 
@@ -89,6 +91,7 @@ Minimal commands:
 acs memory query --query "<task intent>" --scope project --json
 onec-agent context --task "<task intent>" --query "<1C term>" --pack platform --limit 5
 onec-agent context --task "<task intent>" --query "<1C behavior or example>" --pack bsl-dev --limit 5
+onec-agent context --task "<task intent>" --query "<metadata object>" --pack metadata --limit 5
 candidate="$(acs memory propose --type procedure --depth 2 --scope project --text "<verified conclusion>" --json)"
 memory_id="$(printf '%s' "$candidate" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
 acs memory commit "$memory_id" --json
@@ -172,7 +175,8 @@ main() {
   local metadata_status metadata_pack
   metadata_status="not-built"
   metadata_pack=""
-  if onec-context ensure --workspace-root "$project_root" --need metadata --source-path "$project_root" \
+  if onec-context init --workspace-root "$project_root" --source-path "$project_root" \
+      --profile metadata --without-help --with-metadata \
       >"$report_dir/onec-context-metadata-ensure.log" 2>&1; then
     metadata_status="built"
     metadata_pack="$(onec-context resolve-packs --workspace-root "$project_root" --role metadata --path-only 2>/dev/null || true)"
@@ -257,6 +261,7 @@ Read \`.agent/instructions/pai-agent-instructions.md\`. If bootstrap created \`.
 acs memory query --query "<task intent>" --scope project --json
 onec-agent context --task "<task intent>" --query "<exact 1C term>" --pack platform --limit 5
 onec-agent context --task "<task intent>" --query "<developer guide topic>" --pack bsl-dev --limit 5
+onec-agent context --task "<task intent>" --query "<metadata object>" --pack metadata --limit 5
 candidate_json=\$(acs memory propose --type procedure --depth 2 --scope project --text "<verified reusable fact>" --json)
 memory_id=\$(printf '%s' "\$candidate_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
 acs memory commit "\$memory_id" --json

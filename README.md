@@ -125,6 +125,7 @@ docker cp ./nethasp.ini 1c-dev:/home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini
 make -C /path/to/1c-develop agent-up PROJECT_PATH="$PWD"
 make -C /path/to/1c-develop agent-doctor PROJECT_PATH="$PWD"
 make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="текущая задача"
+make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="метаданные" QUERY="Заявки" PACK=metadata LIMIT=5
 ```
 
 ## Runtime

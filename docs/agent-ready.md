@@ -97,6 +97,7 @@ onec-agent bslls src/cf
 onec-agent bslls-format src/cf
 ```
 
+`agent-bslls` пишет полный JSON в `.agent/bslls/bsl-json.json` и печатает короткую сводку. Если нужен полный console reporter, передайте `REPORTERS=json,console`.
 `agent-bslls-format` меняет файлы проекта. После запуска агент должен показать diff.
 
 ## OACS Memory/Context
@@ -113,6 +114,7 @@ Memory call loop после bootstrap:
 acs memory query --query "<task intent>" --scope project --json
 onec-agent context --task "<task intent>" --query "<точный термин 1С>" --pack platform --limit 5
 onec-agent context --task "<task intent>" --query "<поведение или пример из руководства>" --pack bsl-dev --limit 5
+onec-agent context --task "<task intent>" --query "<объект метаданных>" --pack metadata --limit 5
 candidate="$(acs memory propose --type procedure --depth 2 --scope project --text "<проверенный повторно используемый вывод>" --json)"
 memory_id="$(printf '%s' "$candidate" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
 acs memory commit "$memory_id" --json
@@ -144,6 +146,12 @@ make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="json_writer_
 
 ```bash
 make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="background_jobs_question" QUERY="Фоновые задания" PACK=bsl-dev LIMIT=5
+```
+
+Собрать context с lookup по project metadata после bootstrap:
+
+```bash
+make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="metadata_question" QUERY="Заявки" PACK=metadata LIMIT=5
 ```
 
 Прочитать и записать project memory напрямую через ACS:

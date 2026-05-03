@@ -28,6 +28,7 @@ When the task needs a specific 1C help, developer-guide, or standards lookup, in
 ```bash
 onec-agent context --task "json_writer_question" --query "ЗаписьJSON" --pack platform --limit 5
 onec-agent context --task "background_jobs_question" --query "Фоновые задания" --pack bsl-dev --limit 5
+onec-agent context --task "metadata_question" --query "Заявки" --pack metadata --limit 5
 ```
 
 Host transport command:

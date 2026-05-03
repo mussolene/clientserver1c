@@ -11,8 +11,8 @@ usage() {
   cat <<'EOF'
 Usage:
   onec-agent-context doctor
-  onec-agent-context lookup --query <text> [--pack platform|standards|bsl-dev] [--limit n]
-  onec-agent-context build [--task <text>] [--query <text>] [--pack platform|standards|bsl-dev] [--limit n]
+  onec-agent-context lookup --query <text> [--pack platform|standards|bsl-dev|metadata] [--limit n]
+  onec-agent-context build [--task <text>] [--query <text>] [--pack platform|standards|bsl-dev|metadata] [--limit n]
   onec-agent-context mcp-config
 
 OACS state defaults to /workspace/project/.agent/oacs/oacs.db.
@@ -73,6 +73,9 @@ pack_db() {
       ;;
     bsl-dev|bsl_dev)
       jq -r '.packs.bsl_dev // empty' "$registry_path"
+      ;;
+    metadata|project-metadata|project_metadata)
+      onec-context resolve-packs --workspace-root "$project_root" --role metadata --path-only 2>/dev/null || true
       ;;
     *)
       die "Unknown pack: $pack"

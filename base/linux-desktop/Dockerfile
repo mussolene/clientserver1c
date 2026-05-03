@@ -27,12 +27,13 @@ RUN rm -rf /var/lib/apt/lists/* \
     x11-utils \
     x11-xserver-utils \
     x11vnc \
+    xauth \
     xdg-utils \
     xfce4 \
     xfce4-goodies \
     xvfb \
   && sed -i 's%<property name="ThemeName" type="string" value="Xfce"/>%<property name="ThemeName" type="string" value="Raleigh"/>%' /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml \
-  && curl -fsSL \
+  && curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors \
     "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-$(case "${TARGETARCH:-$(dpkg --print-architecture)}" in amd64) echo amd64 ;; arm64) echo aarch64 ;; arm) echo arm ;; *) echo amd64 ;; esac).tar.gz" \
     -o /tmp/s6-overlay.tar.gz \
     && tar xzf /tmp/s6-overlay.tar.gz -C / \
