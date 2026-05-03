@@ -414,6 +414,7 @@ jq -n \
 find /opt/onec-agent/bin -maxdepth 1 -type f -exec chmod +x {} +
 find /opt/onec-agent/bin -maxdepth 1 -type f -exec ln -sf {} /usr/local/bin/ \;
 command -v onec-agent-doctor >/dev/null
+command -v onec-agent-quickstart >/dev/null
 command -v onec-agent-skill >/dev/null
 command -v onec-agent-bslls >/dev/null
 command -v onec-agent-bootstrap >/dev/null
@@ -423,6 +424,7 @@ command -v onec-context >/dev/null
 command -v onec-context-mcp >/dev/null
 command -v onec-agent-context-mcp >/dev/null
 ONEC_PROJECT_ROOT=/tmp onec-agent-doctor >/dev/null
+ONEC_QUICKSTART_CREATE_DB=0 ONEC_QUICKSTART_LAUNCH_GUI=0 onec-agent-quickstart >/dev/null
 onec-agent-skill list >/dev/null
 onec-agent bootstrap --help >/dev/null
 onec-agent ibase --help >/dev/null

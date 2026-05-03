@@ -28,11 +28,6 @@ require_project() {
   [[ -d "$project_root" ]] || die "Project mount is missing: $project_root"
 }
 
-require_acs() {
-  require_project
-  command -v acs >/dev/null 2>&1 || die "OACS CLI is not installed. Rebuild the 1c-dev image."
-}
-
 arg_value() {
   local key="$1"
   shift
@@ -68,12 +63,15 @@ pack_db() {
 }
 
 cmd_lookup() {
-  require_project
   local query pack limit db
   query="$(arg_value query "$@" || true)"
   pack="$(arg_value pack "$@" || printf 'platform')"
   limit="$(arg_value limit "$@" || printf '5')"
   [[ -n "$query" ]] || die "Set --query."
+
+  if [[ "$pack" == "metadata" || "$pack" == "project-metadata" || "$pack" == "project_metadata" ]]; then
+    require_project
+  fi
 
   db="$(pack_db "$pack")"
   [[ -n "$db" && -f "$db" ]] || die "Context pack is missing for $pack: ${db:-<empty>}"
@@ -105,7 +103,6 @@ JSON
 }
 
 cmd_doctor() {
-  require_project
   if ! command -v acs >/dev/null 2>&1; then
     printf 'OACS: MISSING (rebuild the 1c-dev image)\n'
     exit 1

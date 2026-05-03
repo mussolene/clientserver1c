@@ -1,0 +1,224 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+db_name="${ONEC_FILE_DB_NAME:-1C Demo}"
+db_path="${ONEC_FILE_DB_PATH:-/mnt/data/demo-ib}"
+server_data_path="${ONEC_QUICKSTART_SERVER_DATA:-/mnt/data/demo-ss}"
+timeout_sec="${ONEC_QUICKSTART_TIMEOUT_SEC:-90}"
+create_db="${ONEC_QUICKSTART_CREATE_DB:-1}"
+launch_gui="${ONEC_QUICKSTART_LAUNCH_GUI:-1}"
+strict="${ONEC_QUICKSTART_STRICT:-0}"
+status=0
+
+platform_bin="/opt/1cv8/current"
+launcher="/opt/1cv8/common/1cestart"
+
+note() {
+  printf '%s\n' "$*"
+}
+
+ok() {
+  printf 'OK   %s\n' "$*"
+}
+
+warn() {
+  printf 'WARN %s\n' "$*"
+  if [[ "$strict" == "1" ]]; then
+    status=1
+  fi
+}
+
+fail() {
+  printf 'FAIL %s\n' "$*"
+  status=1
+}
+
+have_command() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+check_command() {
+  if have_command "$1"; then
+    ok "$1: $(command -v "$1")"
+  else
+    fail "$1 is missing"
+  fi
+}
+
+version_line() {
+  local label="$1"
+  shift
+  if output="$("$@" 2>&1 | head -n 1)"; then
+    ok "$label: $output"
+  else
+    warn "$label did not report a version"
+  fi
+}
+
+readable_nethasp() {
+  for path in \
+    /opt/1cv8/conf/nethasp.ini \
+    /opt/1cv8/current/conf/nethasp.ini \
+    /etc/1C/1cv8/conf/nethasp.ini \
+    /root/.1cv8/1C/1cv8/conf/nethasp.ini \
+    /home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini
+  do
+    if [[ -r "$path" ]]; then
+      printf '%s\n' "$path"
+      return 0
+    fi
+  done
+  return 1
+}
+
+register_ibase() {
+  local home_dir="$1"
+  local owner="$2"
+  if [[ -d "$home_dir" ]]; then
+    onec-agent-ibase add \
+      --name "$db_name" \
+      --path "$db_path" \
+      --home "$home_dir" \
+      --owner "$owner" \
+      --version "${PLATFORM_VERSION:-8.5.1.1302}" >/dev/null
+    ok "registered '$db_name' in $home_dir/.1C/1cestart/ibases.v8i"
+  fi
+}
+
+create_demo_db() {
+  if [[ "$create_db" != "1" ]]; then
+    warn "demo infobase creation skipped by ONEC_QUICKSTART_CREATE_DB=$create_db"
+    return 0
+  fi
+
+  if [[ -f "$db_path/1Cv8.1CD" ]]; then
+    ok "demo infobase already exists: $db_path"
+    return 0
+  fi
+
+  if [[ ! -x "$platform_bin/ibcmd" ]]; then
+    fail "ibcmd is missing: $platform_bin/ibcmd"
+    return 0
+  fi
+
+  mkdir -p "$(dirname "$db_path")" "$server_data_path"
+  log_file="$(mktemp)"
+  set +e
+  timeout "$timeout_sec" "$platform_bin/ibcmd" \
+    infobase \
+    --db-path="$db_path" \
+    --data="$server_data_path" \
+    create \
+    --locale=ru_RU \
+    --force >"$log_file" 2>&1
+  rc="$?"
+  set -e
+
+  if [[ "$rc" == "0" ]]; then
+    ok "created demo file infobase: $db_path"
+  else
+    warn "could not create demo infobase with ibcmd, rc=$rc"
+    sed -n '1,80p' "$log_file" >&2 || true
+    warn "1C runtime commands need activation or readable nethasp.ini; bootstrap/context tools still work without a license"
+  fi
+  rm -f "$log_file"
+}
+
+launch_1cestart() {
+  if [[ "$launch_gui" != "1" ]]; then
+    warn "1C launcher start skipped by ONEC_QUICKSTART_LAUNCH_GUI=$launch_gui"
+    return 0
+  fi
+
+  if [[ ! -x "$launcher" ]]; then
+    fail "1C launcher is missing: $launcher"
+    return 0
+  fi
+
+  if [[ -z "${DISPLAY:-}" ]]; then
+    export DISPLAY=:0
+  fi
+
+  if ! pgrep -f 'x11vnc|Xorg|Xvfb|Xvnc' >/dev/null 2>&1; then
+    warn "X/VNC session is not visible yet; start the normal container entrypoint and rerun quickstart"
+    return 0
+  fi
+
+  if pgrep -f '/opt/1cv8/.*/1cv8s|/opt/1cv8/.*/1cv8 .*ENTERPRISE|1cestart' >/dev/null 2>&1; then
+    ok "1C launcher/runtime process is already running"
+    return 0
+  fi
+
+  if getent passwd usr1cv8 >/dev/null 2>&1; then
+    env HOME=/home/usr1cv8 USER=usr1cv8 LOGNAME=usr1cv8 DISPLAY="$DISPLAY" \
+      s6-setuidgid usr1cv8 "$launcher" >/tmp/onec-quickstart-1cestart.log 2>&1 &
+  else
+    env DISPLAY="$DISPLAY" "$launcher" >/tmp/onec-quickstart-1cestart.log 2>&1 &
+  fi
+  sleep 3
+  if pgrep -f '/opt/1cv8/.*/1cv8s|1cestart' >/dev/null 2>&1; then
+    ok "started 1C launcher on DISPLAY=$DISPLAY"
+  else
+    warn "1C launcher did not stay running; see /tmp/onec-quickstart-1cestart.log"
+  fi
+}
+
+note "PAI container quick start"
+note "========================="
+note "This command works without the 1c-develop repository mounted."
+note ""
+
+if ss -lnt 2>/dev/null | grep -q ':5900 '; then
+  ok "VNC is listening on container port 5900; publish it as 127.0.0.1:5900"
+else
+  warn "VNC port 5900 is not listening yet"
+fi
+
+check_command jq
+check_command acs
+check_command onec-agent
+check_command onec-context
+check_command vrunner
+check_command oscript
+check_command bsl-language-server
+
+if [[ -x "$platform_bin/ibcmd" ]]; then
+  ok "ibcmd: $platform_bin/ibcmd"
+else
+  fail "ibcmd is missing"
+fi
+
+version_line "OneScript" oscript -version
+version_line "Vanessa Runner" vrunner version
+version_line "BSL Language Server" bsl-language-server --version
+
+if nethasp_path="$(readable_nethasp)"; then
+  ok "nethasp.ini is readable at $nethasp_path"
+else
+  warn "nethasp.ini is not mounted; 1C runtime actions may need manual activation in VNC"
+fi
+
+register_ibase /root root:root
+if getent passwd usr1cv8 >/dev/null 2>&1; then
+  register_ibase /home/usr1cv8 usr1cv8:grp1cv8
+fi
+
+create_demo_db
+launch_1cestart
+
+note ""
+note "Next:"
+note "  Open VNC at 127.0.0.1:5900"
+note "  Use the desktop launcher '1C:Enterprise Launcher'"
+note "  Demo DB entry: $db_name -> $db_path"
+note "  Platform help lookup: onec-agent context --query 'ЗаписьJSON' --pack platform --limit 3"
+note "  BSL guide lookup:    onec-agent context --query 'Фоновые задания' --pack bsl-dev --limit 3"
+note ""
+
+if [[ -d /workspace/project ]]; then
+  note "Mounted project detected: run 'onec-agent bootstrap' when you want project-local OACS/capsule files."
+else
+  note "No project is mounted. That is OK for quick start; mount a project later at /workspace/project for bootstrap/OACS project memory."
+fi
+
+exit "$status"

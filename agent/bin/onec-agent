@@ -7,6 +7,7 @@ usage() {
   cat <<'EOF'
 Usage:
   onec-agent doctor
+  onec-agent quickstart
   onec-agent bootstrap
   onec-agent registry
   onec-agent skills
@@ -19,8 +20,8 @@ Usage:
   onec-agent ibase add --name <display-name> --path <file-db-path> [--home <home-dir>] [--owner <user:group>]
   onec-agent exec -- <command...>
 
-Run inside the Portable Agent Infrastructure container with a project mounted at /workspace/project,
-or set ONEC_PROJECT_ROOT to another mounted path.
+Run `onec-agent quickstart` for standalone container onboarding without a mounted project.
+Mount a project at /workspace/project, or set ONEC_PROJECT_ROOT, before `onec-agent bootstrap`.
 EOF
 }
 
@@ -42,6 +43,9 @@ fi
 case "$mode" in
   doctor)
     exec onec-agent-doctor "$@"
+    ;;
+  quickstart)
+    exec onec-agent-quickstart "$@"
     ;;
   bootstrap)
     exec onec-agent-bootstrap "$@"

@@ -16,7 +16,8 @@ db_user="${DB_USER:-Администратор}"
 db_pwd="${DB_PWD:-}"
 v8version="${V8_VERSION:-${PLATFORM_VERSION:-8.5.1.1302}}"
 xunit_timeout_sec="${XUNIT_TIMEOUT_SEC:-240}"
-xunit_config="${XUNIT_CONFIG:-/opt/onescript/lib/xddTestRunner/src/vanessa-xunit-add/xddConfig/xUnitAddTests.xml}"
+xunit_runner="${XUNIT_RUNNER:-/opt/onescript/lib/add/xddTestRunner.epf}"
+xunit_config="${XUNIT_CONFIG:-/opt/onescript/lib/add/tools/json/xUnitParams.json}"
 skip_recreate="${ONEC_SKIP_RECREATE:-0}"
 
 mkdir -p "$workspace_host/$artifacts_dir_rel/xunit"
@@ -34,7 +35,9 @@ set +e
     --ibconnection '$ib_connection' \
     --db-user '$db_user' \
     $(if [[ -n "$db_pwd" ]]; then printf -- "--db-pwd '%s' " "$db_pwd"; fi) \
-    --reportsxunit '$workspace_container/$artifacts_dir_rel/xunit' \
+    --pathxunit '$xunit_runner' \
+    --reportsxunit 'ГенераторОтчетаJUnitXML{$workspace_container/$artifacts_dir_rel/xunit/junit.xml}' \
+    --xddExitCodePath '$workspace_container/$artifacts_dir_rel/xunit/status.txt' \
     --xddConfig '$xunit_config' \
     --v8version '$v8version'
 "
@@ -49,6 +52,8 @@ if [[ "$run_rc" -ne 0 ]]; then
     > "$workspace_host/$artifacts_dir_rel/xunit/processes.txt" 2>&1 || true
 fi
 
-printf '%s\n' "$run_rc" > "$workspace_host/$artifacts_dir_rel/xunit/status.txt"
+if [[ ! -f "$workspace_host/$artifacts_dir_rel/xunit/status.txt" ]]; then
+  printf '%s\n' "$run_rc" > "$workspace_host/$artifacts_dir_rel/xunit/status.txt"
+fi
 cat "$workspace_host/$artifacts_dir_rel/xunit/status.txt"
 exit "$run_rc"

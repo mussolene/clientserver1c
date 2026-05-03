@@ -2,7 +2,7 @@
 
 `1c-develop` - переносимая Docker-среда для разработки, проверки и агентной работы с 1С-проектами.
 
-Идея простая: пользователь скачивает готовый image, монтирует свой проект и сразу получает 1С runtime, VNC, OneScript, Vanessa, BSL Language Server, OACS и 1C-aware agent context без ручной сборки локального набора скриптов.
+Идея простая: пользователь скачивает готовый image и сразу получает 1С runtime, VNC, OneScript, Vanessa, BSL Language Server, OACS и 1C-aware context. Репозиторий `1c-develop` нужен только для разработки самого образа; обычный пользователь может начать с одного контейнера.
 
 ## Что внутри
 
@@ -18,14 +18,65 @@
 
 ## Быстрый старт
 
-Запускайте из корня вашего 1С-проекта. Это минимальный путь: скачать image,
-поднять PAI-контейнер, собрать agent context и продолжить работу через тот же
-запущенный контейнер.
+Минимальный путь не требует clone этого репозитория. Скачайте image, поднимите
+контейнер и выполните container-side quick start:
 
 ```bash
 docker pull ghcr.io/mussolene/1c-developer:8.5.1.1302
+mkdir -p .onec/data .onec/cache
+
+docker run -d \
+  --name 1c-dev \
+  --platform linux/amd64 \
+  -p 127.0.0.1:5900:5900 \
+  -v onec-license-store:/var/1C/licenses \
+  -v "$PWD/.onec/data":/mnt/data \
+  -v "$PWD/.onec/cache":/home/usr1cv8/.1cv8/1C/1cv8 \
+  -e ONEC_RUNTIME_MODE=shell \
+  ghcr.io/mussolene/1c-developer:8.5.1.1302
+
+docker exec -it 1c-dev onec-agent quickstart
+```
+
+Откройте VNC: `127.0.0.1:5900`. На рабочем столе будет штатный launcher 1С, а
+`quickstart` зарегистрирует demo file DB в списке баз и попробует создать её
+через `ibcmd`.
+
+Если используете сетевой HASP, сразу смонтируйте `nethasp.ini`:
+
+```bash
+docker run -d \
+  --name 1c-dev \
+  --platform linux/amd64 \
+  -p 127.0.0.1:5900:5900 \
+  -v onec-license-store:/var/1C/licenses \
+  -v "$PWD/.onec/data":/mnt/data \
+  -v "$PWD/.onec/cache":/home/usr1cv8/.1cv8/1C/1cv8 \
+  -v "$PWD/nethasp.ini":/opt/1cv8/conf/nethasp.ini:ro \
+  -e ONEC_RUNTIME_MODE=shell \
+  ghcr.io/mussolene/1c-developer:8.5.1.1302
+```
+
+Без лицензии всё равно доступны VNC, launcher, справка/context lookup, OACS CLI,
+OneScript, Vanessa tooling и BSLLS. Лицензия нужна для действий, реально
+запускающих 1С runtime: создание/загрузка ИБ, `vrunner`, `ibcmd`,
+`compileepf/decompileepf`.
+
+Полезные команды без mounted project:
+
+```bash
+docker exec -it 1c-dev onec-agent doctor
+docker exec -it 1c-dev onec-agent context --query "ЗаписьJSON" --pack platform --limit 5
+docker exec -it 1c-dev onec-agent context --query "Фоновые задания" --pack bsl-dev --limit 5
+docker exec -it 1c-dev vrunner version
+docker exec -it 1c-dev bsl-language-server --version
+```
+
+Для работы с конкретным проектом смонтируйте его в `/workspace/project` и
+запустите bootstrap:
+
+```bash
 export OACS_PASSPHRASE="<local-oacs-passphrase>"
-mkdir -p .onec-runtime/data .onec-runtime/cache
 
 docker run -d \
   --name 1c-dev \
@@ -43,27 +94,8 @@ docker run -d \
 docker exec -it 1c-dev onec-agent bootstrap
 ```
 
-Ожидаемый TTM для нового проекта: скачать image, запустить контейнер и получить
-`.agent/bootstrap-report.md` без локальной сборки. Лицензия 1С не нужна для
-bootstrap, OACS memory и context lookup; она потребуется позже для запуска GUI,
-`vrunner`, `ibcmd` и других runtime-команд 1С.
-
-После bootstrap:
-
-1. Откройте VNC: `localhost:5900`. В меню приложений и на рабочем столе будет штатный launcher 1С; файловая база из `ONEC_FILE_DB_PATH` будет добавлена в список баз 1С.
-2. Дайте IDE-агенту прочитать `.agent/bootstrap-report.md`.
-3. Держите контейнер запущенным и выполняйте дальнейшие команды через `docker exec`.
-
-```bash
-docker exec -it 1c-dev onec-agent doctor
-docker exec -it 1c-dev acs memory query --query "текущая задача" --scope project --json
-docker exec -it 1c-dev acs context build --intent "текущая задача" --scope project --json
-docker exec -it 1c-dev onec-agent context --query "ЗаписьJSON" --pack platform --limit 5
-docker exec -it 1c-dev acs run --label "readiness" --scope project --json -- onec-agent doctor
-```
-
-Bootstrap, ACS memory и context packs не требуют лицензии 1С. Лицензия нужна
-только для запуска самого 1С runtime.
+После bootstrap дайте IDE-агенту прочитать `.agent/bootstrap-report.md` и
+дальше выполняйте 1С-зависимые команды через `docker exec`.
 
 ## Лицензирование
 
@@ -233,7 +265,8 @@ Runner: [`scripts/agent-epf-roundtrip.sh`](scripts/agent-epf-roundtrip.sh). Он
 
 ## Локальная сборка
 
-Для pull-based onboarding сборка не нужна: достаточно скачать image и выполнить `onec-agent bootstrap`.
+Для pull-based onboarding сборка не нужна: достаточно скачать image и выполнить `onec-agent quickstart`. `onec-agent bootstrap` нужен позже, когда смонтирован конкретный проект.
+
 
 Если готового image нет или вы меняете Dockerfile:
 

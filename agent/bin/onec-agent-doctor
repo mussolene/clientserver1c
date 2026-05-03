@@ -20,7 +20,14 @@ check_path() {
 
 printf '1C agent runtime doctor\n'
 printf '=======================\n'
-check_path "project mount" "$project_root"
+if [[ -d "$project_root" ]]; then
+  printf '%-28s OK %s\n' "project mount:" "$project_root"
+elif [[ "${ONEC_REQUIRE_PROJECT:-0}" != "1" ]]; then
+  printf '%-28s OPTIONAL standalone container mode\n' "project mount:"
+else
+  printf '%-28s MISSING %s\n' "project mount:" "$project_root"
+  status=1
+fi
 check_path "agent registry" "$registry_path"
 check_path "skills root" "/opt/onec-skills"
 check_path "1C current symlink" "/opt/1cv8/current"
@@ -35,7 +42,7 @@ fi
 
 printf '%-28s ' "oscript:"
 if command -v oscript >/dev/null 2>&1; then
-  oscript --version
+  oscript -version
 else
   printf 'MISSING\n'
   status=1
@@ -43,7 +50,14 @@ fi
 
 printf '%-28s ' "vrunner:"
 if command -v vrunner >/dev/null 2>&1; then
-  vrunner version 2>/dev/null || vrunner help >/dev/null && printf 'OK\n'
+  if vrunner version >/dev/null 2>&1; then
+    vrunner version
+  elif vrunner help >/dev/null 2>&1; then
+    printf 'OK\n'
+  else
+    printf 'BROKEN\n'
+    status=1
+  fi
 else
   printf 'MISSING\n'
   status=1
