@@ -18,6 +18,7 @@ ib_connection="${IB_CONNECTION:-/F/mnt/data/testdb}"
 db_user="${DB_USER:-Администратор}"
 db_pwd="${DB_PWD:-}"
 v8version="${V8_VERSION:-${PLATFORM_VERSION:-8.5.1.1302}}"
+ui_timeout_sec="${UI_TIMEOUT_SEC:-240}"
 skip_recreate="${ONEC_SKIP_RECREATE:-0}"
 
 mkdir -p \
@@ -64,10 +65,11 @@ cleanup_windows &
 cleanup_pid=$!
 trap 'kill "$cleanup_pid" >/dev/null 2>&1 || true; wait "$cleanup_pid" >/dev/null 2>&1 || true' EXIT
 
+set +e
 "${compose[@]}" exec -T "$service_name" sh -lc "
   mkdir -p '$workspace_container/$artifacts_dir_rel/screenshots' '$workspace_container/$artifacts_dir_rel/allure' '$workspace_container/$artifacts_dir_rel/cucumber' &&
   cd '$workspace_container' &&
-  vrunner vanessa \
+  timeout '$ui_timeout_sec' vrunner vanessa \
     --ibconnection '$ib_connection' \
     --db-user '$db_user' \
     $(if [[ -n "$db_pwd" ]]; then printf -- "--db-pwd '%s' " "$db_pwd"; fi) \
@@ -77,10 +79,23 @@ trap 'kill "$cleanup_pid" >/dev/null 2>&1 || true; wait "$cleanup_pid" >/dev/nul
     --v8version '$v8version' \
     --additional '/DisableUnsafeActionProtection /DisplayAllFunctions'
 "
+run_rc=$?
+set -e
 
 kill "$cleanup_pid" >/dev/null 2>&1 || true
 wait "$cleanup_pid" >/dev/null 2>&1 || true
 trap - EXIT
+
+if [[ "$run_rc" -ne 0 ]]; then
+  "${compose[@]}" exec -T "$service_name" sh -lc \
+    "pkill -f '1cv8c.*(TESTCLIENT|TESTMANAGER|bddRunner.epf)' >/dev/null 2>&1 || true"
+  if [[ ! -f "$workspace_host/$artifacts_dir_rel/ui-smoke-status.txt" ]]; then
+    printf 'failed:%s\n' "$run_rc" > "$workspace_host/$artifacts_dir_rel/ui-smoke-status.txt"
+  fi
+  "${compose[@]}" exec -T "$service_name" sh -lc \
+    "ps -ef | rg -i 'vrunner|1cv8|TestClient|vanessa' || true" \
+    > "$workspace_host/$artifacts_dir_rel/ui-smoke-processes.txt" 2>&1 || true
+fi
 
 if [[ -f "$workspace_host/$artifacts_dir_rel/ui-smoke-status.txt" ]]; then
   cat "$workspace_host/$artifacts_dir_rel/ui-smoke-status.txt"
@@ -88,3 +103,5 @@ else
   printf 'status file was not created\n' >&2
   exit 1
 fi
+
+exit "$run_rc"

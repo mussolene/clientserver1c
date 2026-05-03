@@ -32,7 +32,7 @@ AGENT_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH PLATFORM_VERSION PLATFOR
 AGENT_CMD_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH,$(call env_var,$(v)))
 CONFIG_ENV := $(BUILD_ENV) POSTGRES_PASSWORD="$(POSTGRES_PASSWORD)"
 
-.PHONY: help env doctor first-start pull download prepare-platform build-common-base build-desktop-base build-onescript-builder build-onescript-base up up-file-db up-server build build-server-stack ui-smoke agent-up agent-exec agent-doctor agent-skills agent-skill agent-context agent-bslls agent-bslls-format config down ps logs clean-platform clean
+.PHONY: help env doctor first-start pull download prepare-platform build-common-base build-desktop-base build-onescript-builder build-onescript-base up up-file-db up-server build build-server-stack ui-smoke xunit-smoke agent-up agent-exec agent-doctor agent-skills agent-skill agent-context agent-bslls agent-bslls-format config down ps logs clean-platform clean
 
 help:
 	@printf '%s\n' \
@@ -44,6 +44,7 @@ help:
 	  '  make up              - use local/pulled developer image, start shell/agent-ready runtime' \
 	  '  make up-file-db      - start 1c-dev in file DB mode after licensing is configured' \
 	  '  make ui-smoke        - run the tracked Vanessa UI smoke' \
+	  '  make xunit-smoke     - run xUnit EPF smoke via vrunner' \
 	  '' \
 	  'IDE-agent targets:' \
 	  '  make agent-up PROJECT_PATH=$$PWD       - start 1c-dev with project mounted' \
@@ -128,6 +129,9 @@ build-server-stack:
 
 ui-smoke:
 	@env $(foreach v,PLATFORM_VERSION IB_CONNECTION DB_USER DB_PWD,$(call env_var,$(v))) bash ./scripts/run-ui-smoke.sh
+
+xunit-smoke:
+	@env $(foreach v,PLATFORM_VERSION IB_CONNECTION DB_USER DB_PWD,$(call env_var,$(v))) bash ./scripts/run-xunit-smoke.sh
 
 agent-up:
 	@env ONEC_RUNTIME_MODE="$(runtime_mode)" $(AGENT_ENV) bash ./scripts/agent-up.sh
