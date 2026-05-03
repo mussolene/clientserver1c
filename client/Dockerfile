@@ -131,10 +131,6 @@ cd "$tmp_installer_dir"
   --mode unattended \
   --unattendedmodeui none \
   --enable-components "$enable_components"
-icon_version="${PLATFORM_VERSION%.*}-${PLATFORM_VERSION##*.}"
-test -f "/usr/share/applications/1cestart-${icon_version}.desktop"
-test -f "/usr/share/icons/hicolor/128x128/apps/1cestart-${icon_version}.png"
-test -f "/usr/share/pixmaps/1cestart-${icon_version}.png"
 find /opt/1cv8 -type d -name distr -prune -exec rm -rf {} +
 rm -rf "$unpack_dir"/* "$tmp_installer_dir"/* /tmp/*.run /tmp/*.tar.gz /tmp/*.zip
 EOF
