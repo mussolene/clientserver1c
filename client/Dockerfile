@@ -14,7 +14,7 @@ ARG ONEC_CONTEXT_TOOLKIT_REF=6a1df34b06a7a71c65876298070cb13525896ee3
 ARG BSL_DEV_DOCS_REPO=https://github.com/mussolene/BSL_8.5.1_dev_docs
 ARG BSL_DEV_DOCS_REF=5feac5e9b9237d4bc134a517834a740157be2809
 ARG BSLLS_VERSION=0.25.0
-ARG OACS_VERSION=0.3.2a1
+ARG OACS_VERSION=1.0.0
 
 ENV PLATFORM_VERSION=${PLATFORM_VERSION}
 ENV PLATFORM_DIST_NAME=${PLATFORM_DIST_NAME}
@@ -195,7 +195,7 @@ RUN mkdir -p /opt/bslls \
   && bsl-language-server --version >/dev/null
 
 RUN python3 -m venv /opt/oacs \
-  && /opt/oacs/bin/pip install --no-cache-dir --pre "oacs==${OACS_VERSION}" \
+  && /opt/oacs/bin/pip install --no-cache-dir "oacs==${OACS_VERSION}" \
   && ln -sf /opt/oacs/bin/acs /usr/local/bin/acs \
   && acs --help >/dev/null \
   && command -v acs >/dev/null
