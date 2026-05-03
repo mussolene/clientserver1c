@@ -356,11 +356,16 @@ main() {
     --arg bsl_dev_pack "$(jq -r '.packs.bsl_dev // empty' "$registry_path")" \
     --arg metadata_status "$metadata_status" \
     --arg metadata_pack "$metadata_pack" \
+    --arg orientation_prompt 'You are working inside a project prepared by Portable Agent Infrastructure (PAI) for 1C development. PAI is the container/runtime infrastructure, not a product object named pai. The host IDE agent edits the mounted project; the container provides 1C runtime, VNC, OneScript, Vanessa, BSL Language Server, OACS/ACS, skills, and onec-context knowledge packs. Start every non-trivial task with direct acs memory query and acs context build against the project OACS DB, then use onec-agent only as the 1C adapter for context lookup, diagnostics, skills, bootstrap artifacts, ibase helpers, and runtime checks. Treat platform help, BSL developer guide, standards, and metadata packs as retrieval sources; do not paste full corpora into memory. The supported runtime/build target is linux/amd64. Licensing is optional for bootstrap/OACS/context, but 1C runtime checks need activation or a readable nethasp.ini mounted by local path only. Never store nethasp.ini contents, license data, ITS credentials, OACS DB files, platform archives, local host paths, or unrelated artifacts in git, reports, OACS memory, or context capsules.'
     --argjson project_files "$project_files_json" \
     --slurpfile registry_json "$registry_path" \
     '{
       kind: "pai.bootstrap.context_capsule",
       created_at: $created_at,
+      orientation_prompt: {
+        role: "agent_system_orientation",
+        text: $orientation_prompt
+      },
       project_root: $project_root,
       oacs: {
         db: $oacs_db,

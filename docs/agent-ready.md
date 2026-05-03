@@ -36,7 +36,7 @@ Bootstrap создает в смонтированном проекте:
 
 - `.agent/oacs/oacs.db` - project-local OACS state.
 - `.agent/mcp/onec-context-mcp.json` - MCP config для context tools.
-- `.agent/context-capsules/bootstrap-context-capsule.json` - минимальный capsule со ссылками на help, BSL developer guide, standards packs, metadata scan, registry и skills.
+- `.agent/context-capsules/bootstrap-context-capsule.json` - минимальный capsule с `orientation_prompt`, ссылками на help, BSL developer guide, standards packs, metadata scan, registry и skills.
 - `.agent/bootstrap-report.md` - короткий отчет и следующий шаг для агента.
 - `.agent/instructions/pai-agent-instructions.md` - инструкции для IDE-агента.
 - `.agent/instructions/oacs-memory-call-loop.md` - обязательный memory/context/evidence loop.

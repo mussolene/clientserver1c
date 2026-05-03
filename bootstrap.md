@@ -46,7 +46,7 @@ runtime-профили `root` и `usr1cv8`, поэтому сетевой HASP �
 
 - initializes project-local OACS state under `.agent/oacs/`;
 - writes `.agent/mcp/onec-context-mcp.json`;
-- builds `.agent/context-capsules/bootstrap-context-capsule.json`;
+- builds `.agent/context-capsules/bootstrap-context-capsule.json` with a compact PAI `orientation_prompt`;
 - writes `.agent/bootstrap-report.md`;
 - writes `.agent/instructions/pai-agent-instructions.md`;
 - writes `.agent/instructions/oacs-memory-call-loop.md`;
@@ -59,7 +59,7 @@ runtime-профили `root` и `usr1cv8`, поэтому сетевой HASP �
 - writes `.agent/context-capsules/cross-repo-findings-capsule.public.json`;
 - writes `.agent/reports/cross-repo-findings-memories.public.json`;
 - writes `.agent/reports/onec-context-metadata-ensure.log`;
-- records references to platform help, standards packs, project metadata status, registry, and skills.
+- records references to platform help, standards packs, project metadata status, registry, skills, and the agent orientation prompt.
 
 ## Agent Loop
 
