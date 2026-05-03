@@ -141,6 +141,53 @@ print(json.dumps(seen, ensure_ascii=False, indent=2))
 PY
 }
 
+write_public_capsule() {
+  local source_path="$1"
+  local dest_path="$2"
+  local project_root_path="$3"
+  python3 - "$source_path" "$dest_path" "$project_root_path" <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+source = Path(sys.argv[1])
+dest = Path(sys.argv[2])
+project_root = sys.argv[3]
+
+with source.open("r", encoding="utf-8") as fh:
+    data = json.load(fh)
+
+path_patterns = [
+    (re.compile(r"/Users/[^/\s]+"), "/Users/<user>"),
+    (re.compile(r"/home/[^/\s]+"), "/home/<user>"),
+    (re.compile(r"/var/folders/[^/\s]+"), "/var/folders/<redacted>"),
+]
+
+def sanitize_string(value: str) -> str:
+    if project_root:
+        value = value.replace(project_root, "<project_root>")
+    for pattern, replacement in path_patterns:
+        value = pattern.sub(replacement, value)
+    return value
+
+def sanitize(node):
+    if isinstance(node, dict):
+        return {k: sanitize(v) for k, v in node.items()}
+    if isinstance(node, list):
+        return [sanitize(v) for v in node]
+    if isinstance(node, str):
+        return sanitize_string(node)
+    return node
+
+sanitized = sanitize(data)
+dest.parent.mkdir(parents=True, exist_ok=True)
+with dest.open("w", encoding="utf-8") as fh:
+    json.dump(sanitized, fh, ensure_ascii=False, indent=2)
+    fh.write("\n")
+PY
+}
+
 main() {
   case "${1:-}" in
     -h|--help)
@@ -159,13 +206,14 @@ main() {
   [[ -f "$registry_path" ]] || die "Agent registry is missing: $registry_path"
   [[ -n "$oacs_passphrase" ]] || die "Set OACS_PASSPHRASE or ONEC_OACS_PASSPHRASE before bootstrap."
 
-  local agent_dir mcp_dir capsule_dir instructions_dir report_dir capsule_path report_path
+  local agent_dir mcp_dir capsule_dir instructions_dir report_dir capsule_path public_capsule_path report_path
   agent_dir="$project_root/.agent"
   mcp_dir="$agent_dir/mcp"
   capsule_dir="$agent_dir/context-capsules"
   instructions_dir="$agent_dir/instructions"
   report_dir="$agent_dir/reports"
   capsule_path="$capsule_dir/bootstrap-context-capsule.json"
+  public_capsule_path="$report_dir/bootstrap-context-capsule.public.json"
   report_path="$agent_dir/bootstrap-report.md"
 
   mkdir -p "$(dirname "$oacs_db")" "$mcp_dir" "$capsule_dir" "$instructions_dir" "$report_dir"
@@ -258,6 +306,8 @@ main() {
       ]
     }' >"$capsule_path"
 
+  write_public_capsule "$capsule_path" "$public_capsule_path" "$project_root"
+
   cat >"$report_path" <<EOF
 # PAI Bootstrap Report
 
@@ -267,6 +317,7 @@ Project root: \`$project_root\`
 OACS DB: \`$oacs_db\`
 MCP config: \`.agent/mcp/onec-context-mcp.json\`
 Context capsule: \`.agent/context-capsules/bootstrap-context-capsule.json\`
+Public capsule artifact: \`.agent/reports/bootstrap-context-capsule.public.json\`
 Agent instructions: \`.agent/instructions/pai-agent-instructions.md\`
 Memory loop: \`.agent/instructions/oacs-memory-call-loop.md\`
 
@@ -302,6 +353,7 @@ EOF
   printf 'PAI bootstrap: PASS\n'
   printf 'Report: %s\n' "$report_path"
   printf 'Capsule: %s\n' "$capsule_path"
+  printf 'Public capsule artifact: %s\n' "$public_capsule_path"
   printf 'Instructions: %s\n' "$instructions_dir/pai-agent-instructions.md"
   printf 'MCP config: %s\n' "$mcp_dir/onec-context-mcp.json"
 }
