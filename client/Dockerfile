@@ -158,7 +158,7 @@ if [[ -z "$installer_path" ]]; then
 fi
 
 installer_name="$(basename "$installer_path")"
-enable_components="client_full,desktop_icons,server,ws,server_admin,config_storage_server,additional_admin_functions,integrity_monitoring,liberica_jre,ru"
+enable_components="client_full,desktop_icons,server,ws,server_admin,additional_admin_functions,ru"
 
 chmod +x "$installer_path"
 cd "$tmp_installer_dir"
@@ -242,6 +242,7 @@ ENV BSL_DEV_DOCS_REF=${BSL_DEV_DOCS_REF}
 
 RUN --mount=type=secret,id=its_login,required=false \
   --mount=type=secret,id=its_password,required=false \
+  --mount=type=cache,target=/var/cache/onec-context/its-v8std \
   bash -euxo pipefail <<'EOF'
 skills_root=/opt/onec-skills
 mkdir -p "$skills_root"
@@ -266,6 +267,7 @@ context_commit="$(clone_skill onec-context-toolkit https://github.com/mussolene/
 context_root="$skills_root/onec-context-toolkit"
 context_workspace=/opt/onec-agent/context-workspace
 context_manifest="$context_workspace/.onec/workspace.manifest.json"
+standards_cache=/var/cache/onec-context/its-v8std
 bsl_docs_source=/tmp/bsl-dev-docs
 bsl_docs_pack="$context_workspace/.onec/packs/bsl-dev-${PLATFORM_VERSION}.kb.db.zst"
 bsl_docs_manifest="$context_workspace/.onec/manifests/bsl-dev-${PLATFORM_VERSION}.kb.manifest.json"
@@ -285,6 +287,11 @@ printf '%s\n' \
   'exec /opt/onec-skills/onec-context-toolkit/.venv/bin/onec-context-mcp "$@"' \
   > /usr/local/bin/onec-context-mcp
 chmod +x /usr/local/bin/onec-context-mcp
+if [[ ! -f "$standards_cache/_snapshot.json" ]]; then
+  onec-context fetch-its-standards --output-dir "$standards_cache"
+else
+  echo "Reusing cached ITS standards from $standards_cache"
+fi
 onec-context init \
   --workspace-root "$context_workspace" \
   --source-path "$context_workspace" \
@@ -292,7 +299,8 @@ onec-context init \
   --hbk-base /opt/1cv8 \
   --platform "${PLATFORM_VERSION}" \
   --with-standards \
-  --fetch-its-standards
+  --standards-dir "$standards_cache" \
+  --cleanup-intermediate
 context_platform_pack="$(onec-context resolve-packs \
   --workspace-root "$context_workspace" \
   --role platform \
@@ -421,7 +429,16 @@ onec-agent ibase --help >/dev/null
 onec-agent --help >/dev/null
 onec-context-mcp --help >/dev/null
 onec-agent-context-mcp --help >/dev/null
+onec-context query-kb --db "$context_platform_pack" --q "ЗаписьJSON" --limit 1 >/dev/null
+onec-context query-kb --db "$context_standards_pack" --q "стандарты разработки" --limit 1 >/dev/null
 onec-context query-kb --db "$bsl_docs_pack" --q "Фоновые задания" --limit 1 >/dev/null
+rm -rf \
+  "$context_workspace/.onec/cache" \
+  "$context_workspace/data" \
+  "$context_root/build" \
+  "$context_root/.git" \
+  "$skills_root/onec-vanessa-skill/.git" \
+  /root/.cache/pip
 EOF
 
 COPY artifacts/client-vnc/rootfs/etc/services.d/onec/run /etc/services.d/onec/run
