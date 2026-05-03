@@ -48,24 +48,30 @@ Work from the host IDE, but use the mounted Portable Agent Infrastructure contai
 Before changing 1C metadata, BSL, tests, or runtime scripts:
 
 1. Read `.agent/bootstrap-report.md`.
-2. Query project memory with ACS:
+2. Export project-local ACS state:
+   `export OACS_DB="${ONEC_PROJECT_ROOT:-/workspace/project}/.agent/oacs/oacs.db"`
+3. Query project memory with ACS:
    `acs memory query --query "<task intent>" --scope project --json`
-3. Build a 1C task context capsule:
+4. Build an ACS context capsule for the current task:
+   `acs context build --intent "<task intent>" --scope project --json`
+5. Build a 1C task context capsule:
    `onec-agent context --task "<task intent>" --query "<exact 1C term>" --pack platform --limit 5`
-4. Query developer-guide facts when the task needs behavior, patterns, or examples:
+6. Query developer-guide facts when the task needs behavior, patterns, or examples:
    `onec-agent context --task "<task intent>" --query "<1C developer guide topic>" --pack bsl-dev --limit 5`
-5. Query project metadata after bootstrap when the task is about project objects:
+7. Query project metadata after bootstrap when the task is about project objects:
    `onec-agent context --task "<task intent>" --query "<metadata object>" --pack metadata --limit 5`
-6. Use the relevant skill instructions from:
+8. Use the relevant skill instructions from:
    - `/opt/onec-skills/onec-context-toolkit/skill/SKILL.md`
    - `/opt/onec-skills/onec-vanessa-skill/skill/core/SKILL.md`
    - `/opt/onec-agent/skills/memory/SKILL.md`
-7. Run focused checks inside the container.
-8. Capture durable conclusions only after verification with direct ACS memory commands.
+9. Run focused checks inside the container.
+10. Capture durable conclusions only after verification with direct ACS memory commands.
 
 Rules:
 
 - Treat OACS as memory, evidence, and context governance. It is not the runtime orchestrator.
+- Use `acs` directly for memory, context capsules, MCP import, and evidence.
+  Use `onec-agent` for 1C retrieval, diagnostics, skills, and runtime checks.
 - Prefer exact platform, developer-guide, standards, and project context-pack facts over remembered guesses.
 - Do not store secrets, ITS credentials, license data, or full help dumps in OACS.
 - Keep project state under `.agent/`.
@@ -80,22 +86,27 @@ write_memory_loop() {
 Use this loop for every non-trivial task.
 
 1. `acs memory query`: find prior project decisions and constraints.
-2. `onec-agent context`: build a fresh 1C task context capsule with exact platform, developer-guide, standards, metadata, or code facts.
-3. Work against the current project files.
-4. Verify with the narrowest relevant command.
-5. `acs memory propose` / `commit` / `sharpen`: save only reusable verified conclusions, linked to evidence.
+2. `acs context build`: create the task capsule for current repo/project state.
+3. `onec-agent context`: build a fresh 1C task context capsule with exact platform, developer-guide, standards, metadata, or code facts.
+4. Work against the current project files.
+5. Verify with the narrowest relevant command.
+6. `acs tool ingest-result`: save important command outputs as evidence.
+7. `acs memory propose` / `commit` / `sharpen`: save only reusable verified conclusions, linked to evidence.
 
 Minimal commands:
 
 ```bash
+export OACS_DB="${ONEC_PROJECT_ROOT:-/workspace/project}/.agent/oacs/oacs.db"
 acs memory query --query "<task intent>" --scope project --json
+acs context build --intent "<task intent>" --scope project --json
 onec-agent context --task "<task intent>" --query "<1C term>" --pack platform --limit 5
 onec-agent context --task "<task intent>" --query "<1C behavior or example>" --pack bsl-dev --limit 5
 onec-agent context --task "<task intent>" --query "<metadata object>" --pack metadata --limit 5
+acs tool ingest-result --tool-id "<tool id>" --tool-name "<tool name>" --tool-type external --scope project --input '{"command":"<command>"}' --output '{"status":"pass","summary":"<summary>"}' --source-uri "repo://evidence/<name>" --status completed --json
 candidate="$(acs memory propose --type procedure --depth 2 --scope project --text "<verified conclusion>" --json)"
 memory_id="$(printf '%s' "$candidate" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
 acs memory commit "$memory_id" --json
-acs memory sharpen "$memory_id" --evidence "<evidence ref>" --json
+acs memory sharpen "$memory_id" --evidence "<ev_...>" --json
 ```
 EOF
 }
@@ -212,6 +223,10 @@ main() {
       project_root: $project_root,
       oacs: {
         db: $oacs_db,
+        direct_cli: "acs",
+        context_command: "acs context build --intent \"<task intent>\" --scope project --json",
+        memory_query_command: "acs memory query --query \"<task intent>\" --scope project --json",
+        evidence_command: "acs tool ingest-result ... --json",
         memory_call_loop: ".agent/instructions/oacs-memory-call-loop.md"
       },
       mcp: {
@@ -259,6 +274,7 @@ Read \`.agent/instructions/pai-agent-instructions.md\`. If bootstrap created \`.
 
 \`\`\`bash
 acs memory query --query "<task intent>" --scope project --json
+acs context build --intent "<task intent>" --scope project --json
 onec-agent context --task "<task intent>" --query "<exact 1C term>" --pack platform --limit 5
 onec-agent context --task "<task intent>" --query "<developer guide topic>" --pack bsl-dev --limit 5
 onec-agent context --task "<task intent>" --query "<metadata object>" --pack metadata --limit 5

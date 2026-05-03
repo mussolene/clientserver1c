@@ -17,13 +17,20 @@
 ## Volumes
 
 - `./volumes/1c-dev/data:/mnt/data`
-- `./volumes/1c-dev/cache:/root/.1cv8/1C/1cv8/`
+- `./volumes/1c-dev/cache:/home/usr1cv8/.1cv8/1C/1cv8/`
 - `onec-license-store:/var/1C/licenses` для локальной ручной активации
 
 Bootstrap, OACS memory и context packs не требуют активированной лицензии. Для запуска 1С runtime используйте один из двух путей:
 
 - локальная ручная активация через `license-ui` и volume `onec-license-store`; не удаляйте этот volume после активации;
 - сетевой HASP через `nethasp.ini`, размещенный в `/opt/1cv8/conf/nethasp.ini` и `/home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini`.
+
+`nethasp.ini` должен быть читаемым для `usr1cv8` (`chmod 644` на host-файле при bind mount). GUI-режимы контейнера запускают 1С от `usr1cv8`, поэтому ручные команды через `docker exec` для конфигуратора, загрузки `.cfe` или запуска файловой базы тоже выполняйте в том же профиле:
+
+```bash
+docker exec -u usr1cv8 -e DISPLAY=:0 1c-dev \
+  /opt/1cv8/current/1cv8 DESIGNER /F /mnt/data/testdb /N Администратор
+```
 
 ## Platform Staging
 

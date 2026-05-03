@@ -15,7 +15,7 @@ docker run -d \
   -v onec-license-store:/var/1C/licenses \
   -v "$PWD":/workspace/project \
   -v "$PWD/.onec-runtime/data":/mnt/data \
-  -v "$PWD/.onec-runtime/cache":/root/.1cv8/1C/1cv8 \
+  -v "$PWD/.onec-runtime/cache":/home/usr1cv8/.1cv8/1C/1cv8 \
   -e ONEC_RUNTIME_MODE=shell \
   -e ONEC_PROJECT_ROOT=/workspace/project \
   -e OACS_PASSPHRASE="$OACS_PASSPHRASE" \
@@ -34,9 +34,13 @@ docker exec -it 1c-dev onec-agent bootstrap
 Для сетевого HASP после старта контейнера:
 
 ```bash
+chmod 644 ./nethasp.ini
 docker cp ./nethasp.ini 1c-dev:/opt/1cv8/conf/nethasp.ini
 docker cp ./nethasp.ini 1c-dev:/home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini
+docker exec 1c-dev sh -lc 'chmod 644 /opt/1cv8/conf/nethasp.ini /home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini'
 ```
+
+Для новых запусков удобнее монтировать `nethasp.ini` сразу в оба пути с `:ro`. Файл должен быть читаемым для `usr1cv8`; 1С GUI, `license-ui` и `file-db` работают в этом профиле, а не в `root`.
 
 ## What Bootstrap Does
 

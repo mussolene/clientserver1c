@@ -90,7 +90,7 @@ services:
     volumes:
       - onec-license-store:/var/1C/licenses
       - ./volumes/1c-dev/data:/mnt/data
-      - ./volumes/1c-dev/cache:/root/.1cv8/1C/1cv8/
+      - ./volumes/1c-dev/cache:/home/usr1cv8/.1cv8/1C/1cv8/
 
   1c-pg:
     image: ${IMAGE_NAMESPACE:-ghcr.io/mussolene}/postgresql:${PG_1C_VERSION:-17.7-1.1C}

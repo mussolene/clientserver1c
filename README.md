@@ -31,7 +31,7 @@ docker run -d \
   -v onec-license-store:/var/1C/licenses \
   -v "$PWD":/workspace/project \
   -v "$PWD/.onec-runtime/data":/mnt/data \
-  -v "$PWD/.onec-runtime/cache":/root/.1cv8/1C/1cv8 \
+  -v "$PWD/.onec-runtime/cache":/home/usr1cv8/.1cv8/1C/1cv8 \
   -e ONEC_RUNTIME_MODE=shell \
   -e ONEC_PROJECT_ROOT=/workspace/project \
   -e OACS_PASSPHRASE="$OACS_PASSPHRASE" \
@@ -65,15 +65,29 @@ Bootstrap не требует лицензии 1С. Лицензия нужна 
 Запустить штатный UI для ручной активации:
 
 ```bash
-docker exec -d 1c-dev /opt/1cv8/current/1cv8c
+docker exec -d -u usr1cv8 -e DISPLAY=:0 1c-dev /opt/1cv8/current/1cv8c
 ```
 
 Пример для сетевого HASP:
 
 ```bash
-docker cp ./nethasp.ini 1c-dev:/opt/1cv8/conf/nethasp.ini
-docker cp ./nethasp.ini 1c-dev:/home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini
+chmod 644 ./nethasp.ini
+docker run -d \
+  --name 1c-dev \
+  --platform linux/amd64 \
+  -p 127.0.0.1:5900:5900 \
+  -v "$PWD":/workspace/project \
+  -v "$PWD/.onec-runtime/data":/mnt/data \
+  -v "$PWD/.onec-runtime/cache":/home/usr1cv8/.1cv8/1C/1cv8 \
+  -v "$PWD/nethasp.ini":/opt/1cv8/conf/nethasp.ini:ro \
+  -v "$PWD/nethasp.ini":/home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini:ro \
+  -e ONEC_RUNTIME_MODE=shell \
+  -e ONEC_PROJECT_ROOT=/workspace/project \
+  -e OACS_PASSPHRASE="$OACS_PASSPHRASE" \
+  ghcr.io/mussolene/1c-developer:8.5.1.1302
 ```
+
+Файл `nethasp.ini` не коммитьте. Он должен быть читаемым внутри контейнера для пользователя `usr1cv8`; GUI-режимы `license-ui` и `file-db` тоже запускаются от `usr1cv8`, чтобы лицензирование и пользовательский cache жили в одном профиле.
 
 ## Работа с агентом
 

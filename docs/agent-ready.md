@@ -48,6 +48,8 @@ Bootstrap создает в смонтированном проекте:
 
 После bootstrap агент должен начинать каждую нетривиальную задачу с прямого `acs memory query`, затем строить свежий `onec-agent context` capsule и сохранять в memory только проверенные выводы через `acs memory propose`, `acs memory commit` и `acs memory sharpen`.
 
+ACS используется напрямую. `onec-agent` не является оберткой над ACS: он добавляет 1С context retrieval, diagnostics, skills и runtime checks. Порядок для задачи: `acs memory query`, `acs context build`, затем нужные `onec-agent context` lookup и только после проверки `acs tool ingest-result` / `acs memory ...`.
+
 ## Запуск Runtime
 
 Из репозитория 1С-проекта:
@@ -61,6 +63,7 @@ make -C /path/to/1c-develop agent-doctor PROJECT_PATH="$PWD"
 
 ```bash
 docker exec -it 1c-dev onec-agent doctor
+docker exec -it 1c-dev acs context build --intent "task" --scope project --json
 docker exec -it 1c-dev onec-agent context --task "task" --query "ЗаписьJSON" --pack platform --limit 5
 docker exec -it 1c-dev onec-agent context --task "task" --query "Фоновые задания" --pack bsl-dev --limit 5
 docker exec -it 1c-dev acs memory query --query "task" --scope project --json
@@ -111,14 +114,17 @@ OACS здесь state/governance backend, а не оркестратор. `onec-
 Memory call loop после bootstrap:
 
 ```bash
+export OACS_DB=/workspace/project/.agent/oacs/oacs.db
 acs memory query --query "<task intent>" --scope project --json
+acs context build --intent "<task intent>" --scope project --json
 onec-agent context --task "<task intent>" --query "<точный термин 1С>" --pack platform --limit 5
 onec-agent context --task "<task intent>" --query "<поведение или пример из руководства>" --pack bsl-dev --limit 5
 onec-agent context --task "<task intent>" --query "<объект метаданных>" --pack metadata --limit 5
+acs tool ingest-result --tool-id "<tool id>" --tool-name "<tool name>" --tool-type external --scope project --input '{"command":"<command>"}' --output '{"status":"pass","summary":"<summary>"}' --source-uri "repo://evidence/<name>" --status completed --json
 candidate="$(acs memory propose --type procedure --depth 2 --scope project --text "<проверенный повторно используемый вывод>" --json)"
 memory_id="$(printf '%s' "$candidate" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
 acs memory commit "$memory_id" --json
-acs memory sharpen "$memory_id" --evidence "<evidence ref>" --json
+acs memory sharpen "$memory_id" --evidence "<ev_...>" --json
 ```
 
 MCP import внутри контейнера:
@@ -158,6 +164,7 @@ make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="metadata_que
 
 ```bash
 docker exec -it 1c-dev acs memory query --query "json writer" --scope project --json
+docker exec -it 1c-dev acs context build --intent "json writer" --scope project --json
 docker exec -it 1c-dev sh -lc '
 candidate_json=$(acs memory propose --type procedure --depth 2 --scope project --text "Use file-db runtime before UI smoke in this project." --json)
 memory_id=$(printf "%s" "$candidate_json" | python3 -c "import json,sys; print(json.load(sys.stdin)[\"id\"])")

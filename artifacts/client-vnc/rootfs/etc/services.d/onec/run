@@ -1,8 +1,6 @@
 #!/usr/bin/with-contenv sh
 set -eu
 
-export HOME=/root
-
 runtime_mode="${ONEC_RUNTIME_MODE:-shell}"
 file_db_path="${ONEC_FILE_DB_PATH:-/mnt/data/testdb}"
 srv_debug="${SRV1CV8_DEBUG:-1}"
@@ -10,6 +8,8 @@ srv_port="${SRV1CV8_PORT:-1540}"
 srv_regport="${SRV1CV8_REGPORT:-1541}"
 srv_range="${SRV1CV8_RANGE:-1560:1691}"
 disable_unsafe_actions_pattern="${ONEC_DISABLE_UNSAFE_ACTION_PROTECTION:-.*}"
+
+export HOME=/root
 
 ensure_conf_line() {
   conf_file="$1"
@@ -54,14 +54,19 @@ configure_unsafe_action_protection() {
 
   ensure_conf_line /opt/1cv8/conf/conf.cfg "$managed_line"
   ensure_conf_line /opt/1cv8/current/conf/conf.cfg "$managed_line"
-  ensure_conf_line "$HOME/.1cv8/1C/1cv8/conf/conf.cfg" "$managed_line"
+  ensure_conf_line /root/.1cv8/1C/1cv8/conf/conf.cfg "$managed_line"
+  if getent passwd usr1cv8 >/dev/null 2>&1; then
+    ensure_conf_line /home/usr1cv8/.1cv8/1C/1cv8/conf/conf.cfg "$managed_line"
+    chown -R usr1cv8:grp1cv8 /home/usr1cv8/.1cv8 2>/dev/null || true
+  fi
 }
 
 run_as() {
   target_user="$1"
   shift
   if getent passwd "$target_user" >/dev/null 2>&1; then
-    exec s6-setuidgid "$target_user" "$@"
+    target_home="$(getent passwd "$target_user" | cut -d: -f6)"
+    exec env HOME="$target_home" USER="$target_user" LOGNAME="$target_user" s6-setuidgid "$target_user" "$@"
   fi
 
   exec s6-setuidgid root "$@"
@@ -72,13 +77,13 @@ configure_unsafe_action_protection
 case "$runtime_mode" in
   license-ui)
     if [ -x /opt/1cv8/current/1cv8c ]; then
-      exec s6-setuidgid root /opt/1cv8/current/1cv8c
+      run_as usr1cv8 /opt/1cv8/current/1cv8c
     fi
-    exec s6-setuidgid root /opt/1cv8/current/1cv8
+    run_as usr1cv8 /opt/1cv8/current/1cv8
     ;;
   file-db)
     mkdir -p "$(dirname "$file_db_path")"
-    exec s6-setuidgid root /opt/1cv8/current/1cv8 ENTERPRISE /F "$file_db_path"
+    run_as usr1cv8 /opt/1cv8/current/1cv8 ENTERPRISE /F "$file_db_path"
     ;;
   server)
     if [ ! -x /opt/1cv8/current/ragent ]; then

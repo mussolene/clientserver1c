@@ -26,15 +26,28 @@ onec-agent context --task "..." --query "Заявки" --pack metadata
 onec-agent context-mcp-config
 ```
 
+Use `acs` directly for memory, context capsules, and evidence. `onec-agent`
+does not wrap ACS; it only prepares 1C-specific context and runtime checks.
+
+```bash
+export OACS_DB=/workspace/project/.agent/oacs/oacs.db
+export OACS_PASSPHRASE="$OACS_PASSPHRASE"
+acs memory query --query "<task intent>" --scope project --json
+acs context build --intent "<task intent>" --scope project --json
+```
+
 Before 1C work:
 
 1. Start or reuse the runtime with `make -C /path/to/1c-develop agent-up PROJECT_PATH="$PWD"`.
 2. Run `make -C /path/to/1c-develop agent-doctor PROJECT_PATH="$PWD"`.
 3. Read the skill registry with `make -C /path/to/1c-develop agent-skills PROJECT_PATH="$PWD"`.
-4. Read only the relevant `SKILL.md` before acting:
+4. Query ACS memory and build a fresh context capsule for the task.
+5. Read only the relevant `SKILL.md` before acting:
    - `context` for ConfigDump, metadata, BSL, platform help, and exact fact lookup.
    - `testing` for Vanessa Automation, xUnitFor1C, UI smoke, and test artifacts.
    - `memory` for OACS project memory, task context capsules, and evidence refs.
+6. After verification, save only reusable conclusions through
+   `acs memory propose`, `acs memory commit`, and `acs memory sharpen`.
 
 Use OACS evidence and context capsules for development traceability. Keep durable agent state in the mounted project under `.agent/oacs/`.
 

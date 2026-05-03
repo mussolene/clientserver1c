@@ -28,6 +28,7 @@ For each non-trivial repository task:
 export OACS_DB="$PWD/.agent/oacs/oacs.db"
 export OACS_PASSPHRASE="<local-passphrase>"
 
+acs memory query --query "<task intent>" --scope project --json
 acs context build --intent "<task intent>" --scope project --json
 ```
 
@@ -96,8 +97,13 @@ commit. Do not carry finished changes across iterations as uncommitted state.
 ## Policy
 
 - Use `acs` for repo memory, context capsules, and evidence references.
+- Always query memory before changing behavior, build a fresh context capsule,
+  and attach evidence before promoting a durable memory.
 - Use shell, Docker, Make, and git for execution.
-- Do not route repository development through container runtime commands.
+- Do not route repository development through container runtime commands unless
+  the behavior under test is the built image or 1C runtime itself.
+- Do not use `onec-agent` as an ACS wrapper. In this repository `onec-agent`
+  is a product/runtime CLI; repository workflow uses `acs` directly.
 - Do not store local paths, credentials, license data, `nethasp.ini` contents,
   platform archives, or complete platform help content in OACS.
 - Keep `.agent/` ignored. OACS state, capsules, and local reports are runtime
