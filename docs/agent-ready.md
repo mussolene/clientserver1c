@@ -41,6 +41,7 @@ Bootstrap создает в смонтированном проекте:
 - `.agent/instructions/pai-agent-instructions.md` - инструкции для IDE-агента.
 - `.agent/instructions/oacs-memory-call-loop.md` - обязательный memory/context/evidence loop.
 - `.agent/reports/bootstrap-context-capsule.public.json` - обезличенный capsule для отправки наружу без host-local absolute paths.
+- `.agent/context-capsules/cross-repo-findings-capsule.public.json` - отдельный обезличенный capsule с актуальными изысканиями по контейнерному и тестовому workspace для быстрого старта следующего агента.
 - `.agent/reports/onec-agent-doctor.txt` - снимок readiness-check.
 - `.agent/reports/oacs-bootstrap-context.json` - bootstrap context capsule.
 - `.agent/reports/oacs-standards-context.json` - standards context capsule.

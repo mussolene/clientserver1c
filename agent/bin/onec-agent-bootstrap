@@ -112,6 +112,39 @@ acs memory sharpen "$memory_id" --evidence "<ev_...>" --json
 EOF
 }
 
+write_cross_repo_findings_capsule() {
+  local target="$1"
+  cat >"$target" <<'EOF'
+{
+  "kind": "pai.cross_repo.findings_capsule",
+  "visibility": "public_anonymized",
+  "version": "1",
+  "sources": [
+    "<repo_container_infra>",
+    "<repo_extension_tests>"
+  ],
+  "confirmed_findings": [
+    "PAI runtime target is linux/amd64 only for current 1C ecosystem.",
+    "VNC should be enabled by default; 1C launcher should run through platform-installed 1cestart.",
+    "Onboarding model is README quick start plus in-container bootstrap that builds OACS state, context capsules, instructions, and reports.",
+    "Licensing should support local activation storage or hardware license via nethasp.ini with UseHwLicenses=1 for consistent GUI and CLI behavior.",
+    "ACS should be used directly for memory/context/evidence, while onec-agent is used as the 1C adapter and not as an ACS wrapper.",
+    "EPF round-trip is available via vrunner decompileepf and vrunner compileepf.",
+    "Compiled xUnit EPFs are inspectable after decompile because XML/forms/BSL become available in source form.",
+    "UI/xUnit wrappers should enforce timeout, deterministic failure status artifacts, and cleanup of leftover 1cv8/TestClient processes.",
+    "Vanessa failures should be diagnosed by stage: JSON parse, library path, duplicate snippets, and feature/tag loading."
+  ],
+  "next_agent_loop": [
+    "acs memory query",
+    "acs context build",
+    "onec-agent context lookups (platform/standards/bsl-dev/metadata)",
+    "targeted runtime check",
+    "acs evidence + memory commit/sharpen"
+  ]
+}
+EOF
+}
+
 project_file_sample_json() {
   python3 - "$project_root" <<'PY'
 import json
@@ -206,7 +239,7 @@ main() {
   [[ -f "$registry_path" ]] || die "Agent registry is missing: $registry_path"
   [[ -n "$oacs_passphrase" ]] || die "Set OACS_PASSPHRASE or ONEC_OACS_PASSPHRASE before bootstrap."
 
-  local agent_dir mcp_dir capsule_dir instructions_dir report_dir capsule_path public_capsule_path report_path
+  local agent_dir mcp_dir capsule_dir instructions_dir report_dir capsule_path public_capsule_path findings_capsule_path report_path
   agent_dir="$project_root/.agent"
   mcp_dir="$agent_dir/mcp"
   capsule_dir="$agent_dir/context-capsules"
@@ -214,6 +247,7 @@ main() {
   report_dir="$agent_dir/reports"
   capsule_path="$capsule_dir/bootstrap-context-capsule.json"
   public_capsule_path="$report_dir/bootstrap-context-capsule.public.json"
+  findings_capsule_path="$capsule_dir/cross-repo-findings-capsule.public.json"
   report_path="$agent_dir/bootstrap-report.md"
 
   mkdir -p "$(dirname "$oacs_db")" "$mcp_dir" "$capsule_dir" "$instructions_dir" "$report_dir"
@@ -249,6 +283,7 @@ main() {
     write_agent_instructions "$agent_dir/AGENTS.md"
   fi
   write_memory_loop "$instructions_dir/oacs-memory-call-loop.md"
+  write_cross_repo_findings_capsule "$findings_capsule_path"
 
   local project_files_json
   project_files_json="$(project_file_sample_json)"
@@ -303,6 +338,9 @@ main() {
         ".agent/reports/oacs-standards-context.json",
         ".agent/reports/oacs-bsl-dev-context.json",
         ".agent/reports/onec-context-metadata-ensure.log"
+      ],
+      additional_capsules: [
+        ".agent/context-capsules/cross-repo-findings-capsule.public.json"
       ]
     }' >"$capsule_path"
 
@@ -318,6 +356,7 @@ OACS DB: \`$oacs_db\`
 MCP config: \`.agent/mcp/onec-context-mcp.json\`
 Context capsule: \`.agent/context-capsules/bootstrap-context-capsule.json\`
 Public capsule artifact: \`.agent/reports/bootstrap-context-capsule.public.json\`
+Cross-repo findings capsule: \`.agent/context-capsules/cross-repo-findings-capsule.public.json\`
 Agent instructions: \`.agent/instructions/pai-agent-instructions.md\`
 Memory loop: \`.agent/instructions/oacs-memory-call-loop.md\`
 
@@ -354,6 +393,7 @@ EOF
   printf 'Report: %s\n' "$report_path"
   printf 'Capsule: %s\n' "$capsule_path"
   printf 'Public capsule artifact: %s\n' "$public_capsule_path"
+  printf 'Cross-repo findings capsule: %s\n' "$findings_capsule_path"
   printf 'Instructions: %s\n' "$instructions_dir/pai-agent-instructions.md"
   printf 'MCP config: %s\n' "$mcp_dir/onec-context-mcp.json"
 }
