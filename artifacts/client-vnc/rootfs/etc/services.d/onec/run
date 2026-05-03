@@ -16,14 +16,15 @@ export HOME=/root
 ensure_conf_line() {
   conf_file="$1"
   desired_line="$2"
+  desired_key="${desired_line%%=*}"
   conf_dir="$(dirname "$conf_file")"
 
   mkdir -p "$conf_dir"
-  if [ -f "$conf_file" ] && grep -q '^DisableUnsafeActionProtection=' "$conf_file"; then
+  if [ -f "$conf_file" ] && grep -q "^${desired_key}=" "$conf_file"; then
     tmp_file="${conf_file}.tmp.$$"
-    awk -v desired="$desired_line" '
+    awk -v desired="$desired_line" -v key="$desired_key" '
       BEGIN { replaced = 0 }
-      /^DisableUnsafeActionProtection=/ {
+      $0 ~ "^" key "=" {
         if (!replaced) {
           print desired
           replaced = 1
@@ -49,6 +50,45 @@ ensure_conf_line() {
   fi
 }
 
+ensure_1cestart_line() {
+  cfg_file="$1"
+  desired_line="$2"
+  owner="$3"
+  desired_key="${desired_line%%=*}"
+  cfg_dir="$(dirname "$cfg_file")"
+  text_file="${cfg_file}.utf8.$$"
+  next_file="${cfg_file}.next.$$"
+
+  mkdir -p "$cfg_dir"
+  if [ -f "$cfg_file" ]; then
+    iconv -f UTF-16LE -t UTF-8 "$cfg_file" >"$text_file" 2>/dev/null || cp "$cfg_file" "$text_file"
+  else
+    : >"$text_file"
+  fi
+
+  awk -v desired="$desired_line" -v key="$desired_key" '
+    BEGIN { replaced = 0 }
+    $0 ~ "^" key "=" {
+      if (!replaced) {
+        print desired
+        replaced = 1
+      }
+      next
+    }
+    { print }
+    END {
+      if (!replaced) {
+        print desired
+      }
+    }
+  ' "$text_file" >"${text_file}.next"
+
+  iconv -f UTF-8 -t UTF-16LE "${text_file}.next" >"$next_file"
+  mv "$next_file" "$cfg_file"
+  rm -f "$text_file" "${text_file}.next"
+  chown -R "$owner" "$cfg_dir" 2>/dev/null || true
+}
+
 configure_unsafe_action_protection() {
   [ -n "$disable_unsafe_actions_pattern" ] || return 0
 
@@ -59,6 +99,50 @@ configure_unsafe_action_protection() {
   ensure_conf_line /root/.1cv8/1C/1cv8/conf/conf.cfg "$managed_line"
   if getent passwd usr1cv8 >/dev/null 2>&1; then
     ensure_conf_line /home/usr1cv8/.1cv8/1C/1cv8/conf/conf.cfg "$managed_line"
+    chown -R usr1cv8:grp1cv8 /home/usr1cv8/.1cv8 2>/dev/null || true
+  fi
+}
+
+configure_hardware_license_defaults() {
+  ensure_1cestart_line /root/.1C/1cestart/1cestart.cfg "UseHwLicenses=1" root:root
+  if getent passwd usr1cv8 >/dev/null 2>&1; then
+    ensure_1cestart_line /home/usr1cv8/.1C/1cestart/1cestart.cfg "UseHwLicenses=1" usr1cv8:grp1cv8
+  fi
+}
+
+configure_nethasp_locations() {
+  source_file=""
+  for candidate in \
+    /opt/1cv8/conf/nethasp.ini \
+    /opt/1cv8/current/conf/nethasp.ini \
+    /etc/1C/1cv8/conf/nethasp.ini \
+    /root/.1cv8/1C/1cv8/conf/nethasp.ini \
+    /home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini
+  do
+    if [ -r "$candidate" ]; then
+      source_file="$candidate"
+      break
+    fi
+  done
+
+  [ -n "$source_file" ] || return 0
+
+  for target_file in \
+    /opt/1cv8/conf/nethasp.ini \
+    /opt/1cv8/current/conf/nethasp.ini \
+    /etc/1C/1cv8/conf/nethasp.ini \
+    /root/.1cv8/1C/1cv8/conf/nethasp.ini \
+    /home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini
+  do
+    mkdir -p "$(dirname "$target_file")"
+    if [ -f "$target_file" ] && cmp -s "$source_file" "$target_file"; then
+      continue
+    fi
+    cp "$source_file" "$target_file" 2>/dev/null || true
+    chmod 0644 "$target_file" 2>/dev/null || true
+  done
+
+  if getent passwd usr1cv8 >/dev/null 2>&1; then
     chown -R usr1cv8:grp1cv8 /home/usr1cv8/.1cv8 2>/dev/null || true
   fi
 }
@@ -134,6 +218,8 @@ run_as() {
 }
 
 configure_unsafe_action_protection
+configure_hardware_license_defaults
+configure_nethasp_locations
 configure_desktop_integration
 
 case "$runtime_mode" in

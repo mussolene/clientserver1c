@@ -66,6 +66,10 @@ Bootstrap, ACS memory и context packs не требуют лицензии 1С.
 - локальная ручная активация: используйте Docker volume `onec-license-store` (`/var/1C/licenses`) и не удаляйте его после активации;
 - сетевой HASP: подготовьте `nethasp.ini` и смонтируйте его в контейнер.
 
+По умолчанию контейнер включает поиск аппаратной лицензии 1С (`UseHwLicenses=1`)
+для профилей `root` и `usr1cv8`. Это важно для VNC-сессии, `vrunner`,
+`ibcmd`, `compileepf/decompileepf` и ручных команд через `docker exec`.
+
 Запустить штатный UI для ручной активации:
 
 ```bash
@@ -84,14 +88,16 @@ docker run -d \
   -v "$PWD/.onec-runtime/data":/mnt/data \
   -v "$PWD/.onec-runtime/cache":/home/usr1cv8/.1cv8/1C/1cv8 \
   -v "$PWD/nethasp.ini":/opt/1cv8/conf/nethasp.ini:ro \
-  -v "$PWD/nethasp.ini":/home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini:ro \
   -e ONEC_RUNTIME_MODE=shell \
   -e ONEC_PROJECT_ROOT=/workspace/project \
   -e OACS_PASSPHRASE="$OACS_PASSPHRASE" \
   ghcr.io/mussolene/1c-developer:8.5.1.1302
 ```
 
-Файл `nethasp.ini` не коммитьте. Он должен быть читаемым внутри контейнера для пользователя `usr1cv8`; GUI-режимы `license-ui` и `file-db` тоже запускаются от `usr1cv8`, чтобы лицензирование и пользовательский cache жили в одном профиле.
+Файл `nethasp.ini` не коммитьте. Достаточно смонтировать его в
+`/opt/1cv8/conf/nethasp.ini`; при старте контейнер синхронизирует этот файл в
+профили `root` и `usr1cv8`, чтобы одинаково работали GUI, `vrunner`, `ibcmd` и
+другие runtime-команды.
 
 ## Работа с агентом
 
@@ -128,6 +134,7 @@ docker run -d \
 | `make up-file-db` | запустить file DB mode после настройки лицензирования |
 | `make up-server` | запустить server mode вместе с PostgreSQL 1C |
 | `make ui-smoke` | прогнать минимальный Vanessa UI smoke |
+| `make xunit-smoke` | прогнать xUnit smoke по EPF |
 | `make agent-context` | transport-helper для context-команд внутри контейнера |
 | `make agent-bslls` | запустить BSL Language Server diagnostics |
 
@@ -181,6 +188,14 @@ make ui-smoke
 ```
 
 Runner: [`scripts/run-ui-smoke.sh`](scripts/run-ui-smoke.sh). Артефакты сохраняются в `./volumes/1c-dev/data/workspace/artifacts`.
+
+Для xUnit smoke:
+
+```bash
+make xunit-smoke
+```
+
+Runner: [`scripts/run-xunit-smoke.sh`](scripts/run-xunit-smoke.sh). Скрипт пишет `status.txt` даже при ошибках раннера/таймаутах и сохраняет process snapshot в `artifacts/xunit/processes.txt`.
 
 ## Локальная сборка
 

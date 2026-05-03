@@ -38,13 +38,15 @@ docker exec -it 1c-dev onec-agent bootstrap
 ```bash
 chmod 644 ./nethasp.ini
 docker cp ./nethasp.ini 1c-dev:/opt/1cv8/conf/nethasp.ini
-docker cp ./nethasp.ini 1c-dev:/home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini
-docker exec 1c-dev sh -lc 'chmod 644 /opt/1cv8/conf/nethasp.ini /home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini'
+docker exec 1c-dev sh -lc 'chmod 644 /opt/1cv8/conf/nethasp.ini'
+docker restart 1c-dev
 ```
 
-Для новых запусков удобнее монтировать `nethasp.ini` сразу в оба пути с `:ro`;
-пример есть в README. Файл должен быть читаемым для `usr1cv8`; 1С GUI,
-`license-ui` и `file-db` работают в этом профиле, а не в `root`.
+Для новых запусков удобнее монтировать `nethasp.ini` в
+`/opt/1cv8/conf/nethasp.ini:ro`; пример есть в README. На старте контейнер
+включает `UseHwLicenses=1` и синхронизирует `nethasp.ini` в runtime-профили
+`root` и `usr1cv8`, поэтому сетевой HASP доступен и для VNC, и для
+`vrunner`/`ibcmd` команд через `docker exec`.
 
 ## What Bootstrap Does
 

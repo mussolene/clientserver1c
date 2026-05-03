@@ -38,9 +38,19 @@ onec-agent ibase add --name "SmallBusiness30" --path /mnt/ib/sb30 --home /home/u
 Bootstrap, OACS memory и context packs не требуют активированной лицензии. Для запуска 1С runtime используйте один из двух путей:
 
 - локальная ручная активация через `license-ui` и volume `onec-license-store`; не удаляйте этот volume после активации;
-- сетевой HASP через `nethasp.ini`, размещенный в `/opt/1cv8/conf/nethasp.ini` и `/home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini`.
+- сетевой HASP через `nethasp.ini`, смонтированный или скопированный в `/opt/1cv8/conf/nethasp.ini`.
 
-`nethasp.ini` должен быть читаемым для `usr1cv8` (`chmod 644` на host-файле при bind mount). GUI-режимы контейнера запускают 1С от `usr1cv8`, поэтому ручные команды через `docker exec` для конфигуратора, загрузки `.cfe` или запуска файловой базы тоже выполняйте в том же профиле:
+Контейнер на каждом старте включает `UseHwLicenses=1` в
+`~/.1C/1cestart/1cestart.cfg` для `root` и `usr1cv8`. Если найден
+`nethasp.ini`, контейнер синхронизирует его в системные и пользовательские
+runtime-пути 1С. Это закрывает два сценария: GUI/VNC работает от `usr1cv8`, а
+agent-driven команды вроде `vrunner`, `ibcmd`, `compileepf` и `decompileepf`
+часто запускаются от `root`.
+
+`nethasp.ini` должен быть читаемым внутри контейнера (`chmod 644` на host-файле
+при bind mount). GUI-режимы контейнера запускают 1С от `usr1cv8`, поэтому
+ручные команды через `docker exec` для конфигуратора, загрузки `.cfe` или
+запуска файловой базы обычно выполняйте в том же профиле:
 
 ```bash
 docker exec -u usr1cv8 -e DISPLAY=:0 1c-dev \
@@ -103,7 +113,7 @@ VANESSA_ADD_VERSION=6.8.0
 VANESSA_RUNNER_VERSION=2.6.0
 VANESSA_AUTOMATION_VERSION=1.2.043.1
 BSLLS_VERSION=0.25.0
-OACS_VERSION=0.3.2a1
+OACS_VERSION=1.0.0
 BSL_DEV_DOCS_REPO=https://github.com/mussolene/BSL_8.5.1_dev_docs
 BSL_DEV_DOCS_REF=5feac5e9b9237d4bc134a517834a740157be2809
 ```
