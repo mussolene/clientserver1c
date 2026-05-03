@@ -18,17 +18,12 @@ ARG OACS_VERSION=1.0.0
 
 ENV PLATFORM_VERSION=${PLATFORM_VERSION}
 ENV PLATFORM_DIST_NAME=${PLATFORM_DIST_NAME}
-ENV BSL_DEV_DOCS_REPO=${BSL_DEV_DOCS_REPO}
-ENV BSL_DEV_DOCS_REF=${BSL_DEV_DOCS_REF}
 ENV ONESCRIPT_ROOT=/opt/onescript
 ENV PATH=/opt/onec-agent/bin:/opt/onescript:/opt/onescript/bin:${PATH}
 ENV OSCRIPT_CONFIG=lib.system=/opt/onescript/lib
 ENV OPM_CONFIG=/opt/onescript/opm.cfg
 ENV OSCRIPTBIN=/opt/onescript/bin
-ENV OACS_VERSION=${OACS_VERSION}
 ENV OACS_DB=/workspace/project/.agent/oacs/oacs.db
-COPY artifacts/ /tmp/build-artifacts/
-COPY artifacts/client-vnc/rootfs/etc/services.d/onec/run /etc/services.d/onec/run
 COPY --from=onescript_base /opt/onescript /opt/onescript
 COPY --from=onescript_base /usr/local/bin/oscript /usr/local/bin/oscript
 COPY --from=onescript_base /usr/local/bin/opm /usr/local/bin/opm
@@ -194,6 +189,7 @@ RUN mkdir -p /opt/bslls \
   && chmod +x /usr/local/bin/bsl-language-server \
   && bsl-language-server --version >/dev/null
 
+ENV OACS_VERSION=${OACS_VERSION}
 RUN python3 -m venv /opt/oacs \
   && /opt/oacs/bin/pip install --no-cache-dir "oacs==${OACS_VERSION}" \
   && ln -sf /opt/oacs/bin/acs /usr/local/bin/acs \
@@ -201,6 +197,8 @@ RUN python3 -m venv /opt/oacs \
   && command -v acs >/dev/null
 
 COPY agent/ /opt/onec-agent/
+ENV BSL_DEV_DOCS_REPO=${BSL_DEV_DOCS_REPO}
+ENV BSL_DEV_DOCS_REF=${BSL_DEV_DOCS_REF}
 
 RUN --mount=type=secret,id=its_login,required=false \
   --mount=type=secret,id=its_password,required=false \
@@ -385,6 +383,9 @@ onec-context-mcp --help >/dev/null
 onec-agent-context-mcp --help >/dev/null
 onec-context query-kb --db "$bsl_docs_pack" --q "Фоновые задания" --limit 1 >/dev/null
 EOF
+
+COPY artifacts/client-vnc/rootfs/etc/services.d/onec/run /etc/services.d/onec/run
+COPY artifacts/config/logcfg.xml /tmp/build-artifacts/config/logcfg.xml
 
 RUN chmod +x /etc/services.d/onec/run \
   && if ! getent group grp1cv8 >/dev/null; then \

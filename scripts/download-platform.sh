@@ -122,16 +122,15 @@ PLATFORM_ARCH="${INPUT_PLATFORM_ARCH:-${PLATFORM_ARCH:-}}"
 PLATFORM_DOWNLOAD_URL="${INPUT_PLATFORM_DOWNLOAD_URL:-${PLATFORM_DOWNLOAD_URL:-}}"
 ITS_LOGIN="${INPUT_ITS_LOGIN:-${ITS_LOGIN:-}}"
 ITS_PASSWORD="${INPUT_ITS_PASSWORD:-${ITS_PASSWORD:-}}"
-if [[ -z "$PLATFORM_ARCH" && -n "${DOCKER_DEFAULT_PLATFORM:-}" ]]; then
-  case "${DOCKER_DEFAULT_PLATFORM##*/}" in
-    amd64|arm64) PLATFORM_ARCH="${DOCKER_DEFAULT_PLATFORM##*/}" ;;
-  esac
+if [[ -n "${DOCKER_DEFAULT_PLATFORM:-}" && "${DOCKER_DEFAULT_PLATFORM##*/}" != "amd64" ]]; then
+  echo "Unsupported DOCKER_DEFAULT_PLATFORM: $DOCKER_DEFAULT_PLATFORM. This project supports linux/amd64 only." >&2
+  exit 1
 fi
 PLATFORM_ARCH="${PLATFORM_ARCH:-amd64}"
 case "$PLATFORM_ARCH" in
-  amd64|arm64) ;;
+  amd64) ;;
   *)
-    echo "Unsupported PLATFORM_ARCH: $PLATFORM_ARCH" >&2
+    echo "Unsupported PLATFORM_ARCH: $PLATFORM_ARCH. This project supports amd64 only." >&2
     exit 1
     ;;
 esac
@@ -141,10 +140,7 @@ default_dist_name() {
   local arch="$2"
   local version_underscored="${version//./_}"
 
-  case "$arch" in
-    arm64) printf 'server.arm.deb64_%s.zip\n' "$version" ;;
-    *) printf 'server64_with_all_clients_%s.zip\n' "$version_underscored" ;;
-  esac
+  printf 'server64_with_all_clients_%s.zip\n' "$version_underscored"
 }
 
 PLATFORM_DIST_NAME="${INPUT_PLATFORM_DIST_NAME:-${PLATFORM_DIST_NAME:-$(default_dist_name "$PLATFORM_VERSION" "$PLATFORM_ARCH")}}"
@@ -260,9 +256,6 @@ download_via_its() {
   seen_candidates="|"
   for candidate in \
     "$PLATFORM_DIST_NAME" \
-    "server.arm.deb64_${PLATFORM_VERSION}.zip" \
-    "client.arm.deb64_${PLATFORM_VERSION}.zip" \
-    "thin.client.arm.deb64_${PLATFORM_VERSION}.zip" \
     "server64_with_all_clients_${normalized_version}.zip" \
     "server64_with_clients_${normalized_version}.zip" \
     "server64_${normalized_version}.tar.gz" \

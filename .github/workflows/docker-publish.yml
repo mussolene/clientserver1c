@@ -65,8 +65,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       BUILD_TAG: build-${{ github.sha }}
-      PLATFORMS_MULTIARCH: linux/amd64,linux/arm64
-      PLATFORMS_ONEC: linux/amd64
+      PLATFORMS_AMD64: linux/amd64
       GHCR_REGISTRY: ghcr.io
       REPO_URL: ${{ github.server_url }}/${{ github.repository }}
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -83,7 +82,7 @@ jobs:
       VANESSA_RUNNER_VERSION: "2.6.0"
       VANESSA_AUTOMATION_VERSION: "1.2.043.1"
       BSLLS_VERSION: "0.25.0"
-      OACS_VERSION: "0.3.2a1"
+      OACS_VERSION: "1.0.0"
       ONEC_VANESSA_SKILL_REF: "58b8e8b4831f4f1457707b037c8a050f5cd32e86"
       ONEC_CONTEXT_TOOLKIT_REF: "6a1df34b06a7a71c65876298070cb13525896ee3"
       BSL_DEV_DOCS_REPO: "https://github.com/mussolene/BSL_8.5.1_dev_docs"
@@ -147,9 +146,6 @@ jobs:
           test -n "${{ secrets.ITS_LOGIN }}" || { echo "Missing repository secret ITS_LOGIN" >&2; exit 1; }
           test -n "${{ secrets.ITS_PASSWORD }}" || { echo "Missing repository secret ITS_PASSWORD" >&2; exit 1; }
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -210,7 +206,7 @@ jobs:
         with:
           context: .
           file: ./base/linux-common/Dockerfile
-          platforms: ${{ env.PLATFORMS_MULTIARCH }}
+          platforms: ${{ env.PLATFORMS_AMD64 }}
           pull: true
           push: true
           build-args: |
@@ -227,7 +223,7 @@ jobs:
         with:
           context: .
           file: ./base/linux-desktop/Dockerfile
-          platforms: ${{ env.PLATFORMS_MULTIARCH }}
+          platforms: ${{ env.PLATFORMS_AMD64 }}
           pull: true
           push: true
           build-args: |
@@ -246,7 +242,7 @@ jobs:
         with:
           context: .
           file: ./base/linux-onescript-builder/Dockerfile
-          platforms: ${{ env.PLATFORMS_MULTIARCH }}
+          platforms: ${{ env.PLATFORMS_AMD64 }}
           pull: true
           push: true
           build-args: |
@@ -264,7 +260,7 @@ jobs:
         with:
           context: .
           file: ./base/linux-onescript/Dockerfile
-          platforms: ${{ env.PLATFORMS_MULTIARCH }}
+          platforms: ${{ env.PLATFORMS_AMD64 }}
           pull: true
           push: true
           build-args: |
@@ -285,7 +281,7 @@ jobs:
         with:
           context: .
           file: ./pg/Dockerfile
-          platforms: ${{ env.PLATFORMS_MULTIARCH }}
+          platforms: ${{ env.PLATFORMS_AMD64 }}
           pull: true
           push: true
           build-args: |
@@ -307,7 +303,7 @@ jobs:
         with:
           context: .
           file: ./client/Dockerfile
-          platforms: ${{ env.PLATFORMS_ONEC }}
+          platforms: ${{ env.PLATFORMS_AMD64 }}
           pull: true
           push: true
           build-args: |

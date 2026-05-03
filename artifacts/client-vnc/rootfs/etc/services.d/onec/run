@@ -138,8 +138,13 @@ configure_nethasp_locations() {
     if [ -f "$target_file" ] && cmp -s "$source_file" "$target_file"; then
       continue
     fi
-    cp "$source_file" "$target_file" 2>/dev/null || true
-    chmod 0644 "$target_file" 2>/dev/null || true
+    if ! cp "$source_file" "$target_file" 2>/dev/null; then
+      echo "Warning: could not propagate nethasp.ini to a runtime profile path" >&2
+      continue
+    fi
+    if ! chmod 0644 "$target_file" 2>/dev/null; then
+      echo "Warning: could not set nethasp.ini permissions on a runtime profile path" >&2
+    fi
   done
 
   if getent passwd usr1cv8 >/dev/null 2>&1; then
@@ -214,7 +219,12 @@ run_as() {
     exec env HOME="$target_home" USER="$target_user" LOGNAME="$target_user" s6-setuidgid "$target_user" "$@"
   fi
 
-  exec s6-setuidgid root "$@"
+  if [ "$target_user" = "root" ]; then
+    exec s6-setuidgid root "$@"
+  fi
+
+  echo "Required runtime user is missing: $target_user" >&2
+  exit 1
 }
 
 configure_unsafe_action_protection

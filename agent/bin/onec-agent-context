@@ -12,10 +12,10 @@ usage() {
 Usage:
   onec-agent-context doctor
   onec-agent-context lookup --query <text> [--pack platform|standards|bsl-dev|metadata] [--limit n]
-  onec-agent-context build [--task <text>] [--query <text>] [--pack platform|standards|bsl-dev|metadata] [--limit n]
   onec-agent-context mcp-config
 
-OACS state defaults to /workspace/project/.agent/oacs/oacs.db.
+This command is a 1C context-pack lookup adapter. Use acs directly for OACS
+memory, task context capsules, and evidence.
 EOF
 }
 
@@ -29,24 +29,8 @@ require_project() {
 }
 
 require_acs() {
-  command -v acs >/dev/null 2>&1 || die "OACS CLI is not installed. Rebuild the 1c-dev image."
-}
-
-ensure_oacs() {
   require_project
-  require_acs
-  [[ -n "$oacs_passphrase" ]] || die "Set OACS_PASSPHRASE or ONEC_OACS_PASSPHRASE."
-  mkdir -p "$(dirname "$oacs_db")"
-  export OACS_DB="$oacs_db"
-  export OACS_PASSPHRASE="$oacs_passphrase"
-  if [[ ! -f "$oacs_db" ]]; then
-    acs init --json >/dev/null
-    acs key init --passphrase "$oacs_passphrase" --json >/dev/null
-  fi
-}
-
-url_quote() {
-  python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$1"
+  command -v acs >/dev/null 2>&1 || die "OACS CLI is not installed. Rebuild the 1c-dev image."
 }
 
 arg_value() {
@@ -84,8 +68,8 @@ pack_db() {
 }
 
 cmd_lookup() {
-  ensure_oacs
-  local query pack limit db pack_id stdout_file stderr_file rc input_json output_json
+  require_project
+  local query pack limit db
   query="$(arg_value query "$@" || true)"
   pack="$(arg_value pack "$@" || printf 'platform')"
   limit="$(arg_value limit "$@" || printf '5')"
@@ -93,61 +77,7 @@ cmd_lookup() {
 
   db="$(pack_db "$pack")"
   [[ -n "$db" && -f "$db" ]] || die "Context pack is missing for $pack: ${db:-<empty>}"
-  pack_id="$(basename "$db" .kb.db.zst)"
-  stdout_file="$(mktemp)"
-  stderr_file="$(mktemp)"
-  set +e
-  onec-context query-kb --db "$db" --q "$query" --limit "$limit" >"$stdout_file" 2>"$stderr_file"
-  rc="$?"
-  set -e
-
-  input_json="$(python3 - "$query" "$pack" "$limit" <<'PY'
-import json, sys
-print(json.dumps({"query": sys.argv[1], "pack": sys.argv[2], "limit": int(sys.argv[3])}, ensure_ascii=False))
-PY
-)"
-  output_json="$(python3 - "$pack" "$pack_id" "$db" "$query" "$limit" "$rc" "$stdout_file" "$stderr_file" <<'PY'
-import json, pathlib, sys
-print(json.dumps({
-    "source": "onec-context",
-    "pack": sys.argv[1],
-    "pack_id": sys.argv[2],
-    "db": sys.argv[3],
-    "query": sys.argv[4],
-    "limit": int(sys.argv[5]),
-    "returncode": int(sys.argv[6]),
-    "stdout": pathlib.Path(sys.argv[7]).read_text(encoding="utf-8"),
-    "stderr": pathlib.Path(sys.argv[8]).read_text(encoding="utf-8"),
-}, ensure_ascii=False))
-PY
-)"
-  rm -f "$stdout_file" "$stderr_file"
-
-  acs tool ingest-result \
-    --tool-id onec_context_lookup \
-    --tool-name onec_context_lookup \
-    --tool-type external \
-    --scope "$scope" \
-    --input "$input_json" \
-    --output "$output_json" \
-    --source-uri "onec-context://$pack_id/query/$(url_quote "$query")" \
-    --status "$([[ "$rc" = "0" ]] && printf completed || printf failed)" \
-    --json
-}
-
-cmd_build() {
-  ensure_oacs
-  local task query pack limit
-  task="$(arg_value task "$@" || printf 'agent_task')"
-  query="$(arg_value query "$@" || true)"
-  pack="$(arg_value pack "$@" || printf 'platform')"
-  limit="$(arg_value limit "$@" || printf '5')"
-
-  if [[ -n "$query" ]]; then
-    cmd_lookup --query "$query" --pack "$pack" --limit "$limit" >/dev/null
-  fi
-
-  acs context build --intent "$task" --scope "$scope" --budget "${ONEC_OACS_CONTEXT_BUDGET:-4000}" --json
+  onec-context query-kb --db "$db" --q "$query" --limit "$limit"
 }
 
 cmd_mcp_config() {
@@ -182,7 +112,7 @@ cmd_doctor() {
   fi
   printf 'OACS: '
   acs --help >/dev/null && printf 'OK %s\n' "$(command -v acs)"
-  printf 'OACS DB: %s\n' "$oacs_db"
+  printf 'OACS DB: project .agent/oacs/oacs.db\n'
 }
 
 mode="${1:-}"
@@ -190,7 +120,6 @@ shift || true
 case "$mode" in
   doctor) cmd_doctor "$@" ;;
   lookup) cmd_lookup "$@" ;;
-  build) cmd_build "$@" ;;
   mcp-config) cmd_mcp_config "$@" ;;
   ""|-h|--help) usage ;;
   *) die "Unknown mode: $mode" ;;

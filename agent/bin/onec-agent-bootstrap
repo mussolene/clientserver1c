@@ -56,11 +56,11 @@ Before changing 1C metadata, BSL, tests, or runtime scripts:
 4. Build an ACS context capsule for the current task:
    `acs context build --intent "<task intent>" --scope project --json`
 5. Build a 1C task context capsule:
-   `onec-agent context --task "<task intent>" --query "<exact 1C term>" --pack platform --limit 5`
+   `onec-agent context --query "<exact 1C term>" --pack platform --limit 5`
 6. Query developer-guide facts when the task needs behavior, patterns, or examples:
-   `onec-agent context --task "<task intent>" --query "<1C developer guide topic>" --pack bsl-dev --limit 5`
+   `onec-agent context --query "<1C developer guide topic>" --pack bsl-dev --limit 5`
 7. Query project metadata after bootstrap when the task is about project objects:
-   `onec-agent context --task "<task intent>" --query "<metadata object>" --pack metadata --limit 5`
+   `onec-agent context --query "<metadata object>" --pack metadata --limit 5`
 8. Use the relevant skill instructions from:
    - `/opt/onec-skills/onec-context-toolkit/skill/SKILL.md`
    - `/opt/onec-skills/onec-vanessa-skill/skill/core/SKILL.md`
@@ -101,9 +101,9 @@ export OACS_DB="${ONEC_PROJECT_ROOT:-/workspace/project}/.agent/oacs/oacs.db"
 export OACS_PASSPHRASE="<local-oacs-passphrase>"
 acs memory query --query "<task intent>" --scope project --json
 acs context build --intent "<task intent>" --scope project --json
-onec-agent context --task "<task intent>" --query "<1C term>" --pack platform --limit 5
-onec-agent context --task "<task intent>" --query "<1C behavior or example>" --pack bsl-dev --limit 5
-onec-agent context --task "<task intent>" --query "<metadata object>" --pack metadata --limit 5
+onec-agent context --query "<1C term>" --pack platform --limit 5
+onec-agent context --query "<1C behavior or example>" --pack bsl-dev --limit 5
+onec-agent context --query "<metadata object>" --pack metadata --limit 5
 acs run --label "<check label>" --scope project --json -- <check command>
 acs resume --scope project --json
 candidate="$(acs memory propose --type procedure --depth 2 --scope project --text "<verified conclusion>" --json)"
@@ -314,12 +314,14 @@ main() {
 
   onec-agent-doctor >"$report_dir/onec-agent-doctor.txt"
   onec-agent-context mcp-config >"$mcp_dir/onec-context-mcp.json"
-  onec-agent-context build --task "$task" --query "$query" --pack platform --limit "$limit" \
+  acs context build --intent "$task" --scope project --budget "${ONEC_OACS_CONTEXT_BUDGET:-4000}" --json \
     >"$report_dir/oacs-bootstrap-context.json"
-  onec-agent-context build --task "${task}_standards" --query "стандарты разработки" --pack standards --limit "$limit" \
-    >"$report_dir/oacs-standards-context.json"
-  onec-agent-context build --task "${task}_bsl_dev" --query "фоновые задания" --pack bsl-dev --limit "$limit" \
-    >"$report_dir/oacs-bsl-dev-context.json"
+  onec-agent-context lookup --query "$query" --pack platform --limit "$limit" \
+    >"$report_dir/onec-context-platform-lookup.json"
+  onec-agent-context lookup --query "стандарты разработки" --pack standards --limit "$limit" \
+    >"$report_dir/onec-context-standards-lookup.json"
+  onec-agent-context lookup --query "фоновые задания" --pack bsl-dev --limit "$limit" \
+    >"$report_dir/onec-context-bsl-dev-lookup.json"
 
   local metadata_status metadata_pack
   metadata_status="not-built"
@@ -390,8 +392,9 @@ main() {
       reports: [
         ".agent/reports/onec-agent-doctor.txt",
         ".agent/reports/oacs-bootstrap-context.json",
-        ".agent/reports/oacs-standards-context.json",
-        ".agent/reports/oacs-bsl-dev-context.json",
+        ".agent/reports/onec-context-platform-lookup.json",
+        ".agent/reports/onec-context-standards-lookup.json",
+        ".agent/reports/onec-context-bsl-dev-lookup.json",
         ".agent/reports/cross-repo-findings-memories.public.json",
         ".agent/reports/onec-context-metadata-ensure.log"
       ],
@@ -421,9 +424,9 @@ Read \`.agent/instructions/pai-agent-instructions.md\`. If bootstrap created \`.
 \`\`\`bash
 acs memory query --query "<task intent>" --scope project --json
 acs context build --intent "<task intent>" --scope project --json
-onec-agent context --task "<task intent>" --query "<exact 1C term>" --pack platform --limit 5
-onec-agent context --task "<task intent>" --query "<developer guide topic>" --pack bsl-dev --limit 5
-onec-agent context --task "<task intent>" --query "<metadata object>" --pack metadata --limit 5
+onec-agent context --query "<exact 1C term>" --pack platform --limit 5
+onec-agent context --query "<developer guide topic>" --pack bsl-dev --limit 5
+onec-agent context --query "<metadata object>" --pack metadata --limit 5
 acs run --label "<check label>" --scope project --json -- <check command>
 acs resume --scope project --json
 candidate_json=\$(acs memory propose --type procedure --depth 2 --scope project --text "<verified reusable fact>" --json)

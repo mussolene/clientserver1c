@@ -8,11 +8,11 @@ compose_args+=(-f "$ROOT_DIR/docker-compose.agent.yml")
 
 if [[ -n "${NETHASP_INI_PATH:-}" ]]; then
   if [[ ! -f "$NETHASP_INI_PATH" ]]; then
-    printf 'NETHASP_INI_PATH does not point to a file: %s\n' "$NETHASP_INI_PATH" >&2
+    printf 'NETHASP_INI_PATH does not point to a readable file.\n' >&2
     exit 2
   fi
   if [[ ! -r "$NETHASP_INI_PATH" ]]; then
-    printf 'NETHASP_INI_PATH is not readable: %s\n' "$NETHASP_INI_PATH" >&2
+    printf 'NETHASP_INI_PATH does not point to a readable file.\n' >&2
     exit 2
   fi
 

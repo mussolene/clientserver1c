@@ -28,8 +28,11 @@ build_args=(
   "-t" "${ONESCRIPT_BASE_IMAGE}:${ONESCRIPT_BASE_TAG}"
 )
 
-if [[ -n "${DOCKER_DEFAULT_PLATFORM:-}" ]]; then
-  build_args+=("--platform" "${DOCKER_DEFAULT_PLATFORM}")
+DOCKER_DEFAULT_PLATFORM="${DOCKER_DEFAULT_PLATFORM:-linux/amd64}"
+if [[ "$DOCKER_DEFAULT_PLATFORM" != "linux/amd64" ]]; then
+  printf 'Unsupported DOCKER_DEFAULT_PLATFORM: %s. This project supports linux/amd64 only.\n' "$DOCKER_DEFAULT_PLATFORM" >&2
+  exit 1
 fi
+build_args+=("--platform" "$DOCKER_DEFAULT_PLATFORM")
 
 docker build "${build_args[@]}" "$ROOT_DIR"

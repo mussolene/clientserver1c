@@ -52,7 +52,7 @@ docker exec -it 1c-dev onec-agent bootstrap
 docker exec -it 1c-dev onec-agent doctor
 docker exec -it 1c-dev acs memory query --query "текущая задача" --scope project --json
 docker exec -it 1c-dev acs context build --intent "текущая задача" --scope project --json
-docker exec -it 1c-dev onec-agent context --task "текущая задача" --query "ЗаписьJSON" --pack platform --limit 5
+docker exec -it 1c-dev onec-agent context --query "ЗаписьJSON" --pack platform --limit 5
 docker exec -it 1c-dev acs run --label "readiness" --scope project --json -- onec-agent doctor
 ```
 

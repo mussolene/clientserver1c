@@ -47,9 +47,8 @@ map_release_dist() {
 map_release_arch() {
   case "$1" in
     amd64) printf 'x86_64\n' ;;
-    arm64) printf 'aarch64\n' ;;
     *)
-      echo "Unsupported TARGETARCH: $1" >&2
+      echo "Unsupported TARGETARCH: $1. This project supports amd64 only." >&2
       exit 1
       ;;
   esac

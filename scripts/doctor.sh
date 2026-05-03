@@ -94,7 +94,7 @@ fi
 
 if [[ -n "${NETHASP_INI_PATH:-}" ]]; then
   if [[ -f "$NETHASP_INI_PATH" && -r "$NETHASP_INI_PATH" ]]; then
-    require_ok "nethasp.ini" "$NETHASP_INI_PATH"
+    require_ok "nethasp.ini" "configured via NETHASP_INI_PATH"
   else
     warn_missing "nethasp.ini" "NETHASP_INI_PATH is set but is not a readable file."
   fi

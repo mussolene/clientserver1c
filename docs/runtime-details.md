@@ -38,7 +38,7 @@ onec-agent ibase add --name "SmallBusiness30" --path /mnt/ib/sb30 --home /home/u
 Bootstrap, OACS memory и context packs не требуют активированной лицензии. Для запуска 1С runtime используйте один из двух путей:
 
 - локальная ручная активация через `license-ui` и volume `onec-license-store`; не удаляйте этот volume после активации;
-- сетевой HASP через `nethasp.ini`, смонтированный или скопированный в `/opt/1cv8/conf/nethasp.ini`.
+- сетевой HASP через `nethasp.ini`, смонтированный read-only в `/opt/1cv8/conf/nethasp.ini`.
 
 Контейнер на каждом старте включает `UseHwLicenses=1` в
 `~/.1C/1cestart/1cestart.cfg` для `root` и `usr1cv8`. Если найден
@@ -92,6 +92,29 @@ make prepare-platform
 make build
 ```
 
+## Build Layer Order
+
+Сборка намеренно идёт только для `linux/amd64`. ARM/arm64 сейчас не является
+поддержанным target, потому что платформа 1С, desktop runtime и внешние
+инструменты проверяются в amd64-контуре.
+
+Слои должны оставаться в таком порядке:
+
+1. `linux-common-base`: общие системные пакеты, locale, fonts, certificates.
+2. `linux-desktop-base`: Xfce/VNC/s6 поверх common base.
+3. `linux-onescript-builder`: сборка OneScript runtime.
+4. `linux-onescript`: runtime OneScript/OPM поверх common base.
+5. `postgresql`: опциональный PostgreSQL 1C, не влияет на developer image.
+6. `1c-developer`: платформа 1С, Vanessa, BSLLS, OACS, skills и context packs
+   поверх desktop base плюс onescript runtime.
+
+Правило зависимости: platform archives, skills, OACS и context packs живут
+только в `1c-developer`; базовые Linux/Desktop/OneScript слои не должны знать о
+1С platform staging, OACS DB, project `.agent/`, `nethasp.ini` или mounted
+workspace. Это держит rebuild scope узким: смена справки/skills/OACS не должна
+пересобирать desktop/common base, а смена PostgreSQL 1C не должна пересобирать
+developer image.
+
 ## Image namespace
 
 Compose и helper-скрипты читают `IMAGE_NAMESPACE`.
@@ -133,6 +156,38 @@ BSL_DEV_DOCS_REF=5feac5e9b9237d4bc134a517834a740157be2809
 Skills закреплены по commit SHA. Обновляйте эти значения только при осознанном refresh agent-ready слоя.
 BSL developer guide закреплен по commit SHA нашего fork и собирается в image как immutable KB pack.
 OACS является обязательным agent-layer dependency для Portable Agent Infrastructure memory/context/evidence.
+
+## Environment Contract
+
+Основной контракт переменных живёт в `.env.example`; локальные значения держите
+в ignored `.env`.
+
+Runtime/onboarding:
+
+- `PLATFORM_VERSION`: версия platform/image tag.
+- `PLATFORM_ARCH=amd64` и `DOCKER_DEFAULT_PLATFORM=linux/amd64`: единственный
+  поддержанный target.
+- `ONEC_RUNTIME_MODE`: `shell`, `license-ui`, `file-db` или `server`.
+- `ONEC_FILE_DB_PATH`, `ONEC_FILE_DB_NAME`: файловая база и имя в `ibases.v8i`.
+- `ONEC_PROJECT_PATH` или `PROJECT_PATH`: host project для `agent-*` helpers.
+- `OACS_PASSPHRASE`: локальный passphrase для project OACS DB.
+- `NETHASP_INI_PATH`: локальный путь к ignored `nethasp.ini`.
+
+Build pins:
+
+- `VANESSA_ADD_VERSION`, `VANESSA_RUNNER_VERSION`,
+  `VANESSA_AUTOMATION_VERSION`.
+- `BSLLS_VERSION`, `OACS_VERSION`.
+- `ONEC_VANESSA_SKILL_REF`, `ONEC_CONTEXT_TOOLKIT_REF`.
+- `BSL_DEV_DOCS_REPO`, `BSL_DEV_DOCS_REF`.
+
+Secrets:
+
+- `ITS_LOGIN`, `ITS_PASSWORD` нужны только для явного скачивания/build.
+- `POSTGRES_PASSWORD` нужен только при `server`/PostgreSQL mode.
+- `nethasp.ini`, ITS credentials, license data, `.agent/oacs/oacs.db`,
+  platform archives и local volumes не попадают в git, OACS memory или context
+  capsules.
 
 ## Agent Context Packs
 

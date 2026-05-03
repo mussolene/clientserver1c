@@ -33,20 +33,12 @@ docker exec -it 1c-dev onec-agent bootstrap
 - локальная ручная активация через `onec-license-store`;
 - сетевой HASP через `nethasp.ini`.
 
-Для сетевого HASP можно скопировать `nethasp.ini` в уже запущенный контейнер:
-
-```bash
-chmod 644 ./nethasp.ini
-docker cp ./nethasp.ini 1c-dev:/opt/1cv8/conf/nethasp.ini
-docker exec 1c-dev sh -lc 'chmod 644 /opt/1cv8/conf/nethasp.ini'
-docker restart 1c-dev
-```
-
-Для новых запусков удобнее монтировать `nethasp.ini` в
-`/opt/1cv8/conf/nethasp.ini:ro`; пример есть в README. На старте контейнер
-включает `UseHwLicenses=1` и синхронизирует `nethasp.ini` в runtime-профили
-`root` и `usr1cv8`, поэтому сетевой HASP доступен и для VNC, и для
-`vrunner`/`ibcmd` команд через `docker exec`.
+Для сетевого HASP монтируйте `nethasp.ini` read-only в
+`/opt/1cv8/conf/nethasp.ini:ro`; пример есть в README. Если используете helper
+commands, задайте `NETHASP_INI_PATH` в ignored `.env` или shell. На старте
+контейнер включает `UseHwLicenses=1` и синхронизирует mounted файл в
+runtime-профили `root` и `usr1cv8`, поэтому сетевой HASP доступен и для VNC, и
+для `vrunner`/`ibcmd` команд через `docker exec`.
 
 ## What Bootstrap Does
 
@@ -61,8 +53,9 @@ docker restart 1c-dev
 - writes `.agent/AGENTS.md` only when it does not already exist;
 - writes `.agent/reports/onec-agent-doctor.txt`;
 - writes `.agent/reports/oacs-bootstrap-context.json`;
-- writes `.agent/reports/oacs-standards-context.json`;
-- writes `.agent/reports/oacs-bsl-dev-context.json`;
+- writes `.agent/reports/onec-context-platform-lookup.json`;
+- writes `.agent/reports/onec-context-standards-lookup.json`;
+- writes `.agent/reports/onec-context-bsl-dev-lookup.json`;
 - writes `.agent/context-capsules/cross-repo-findings-capsule.public.json`;
 - writes `.agent/reports/cross-repo-findings-memories.public.json`;
 - writes `.agent/reports/onec-context-metadata-ensure.log`;
@@ -76,7 +69,7 @@ After bootstrap, agents use the same running container:
 export OACS_PASSPHRASE="<local-oacs-passphrase>"
 docker exec -it 1c-dev acs memory query --query "<task intent>" --scope project --json
 docker exec -it 1c-dev acs context build --intent "<task intent>" --scope project --json
-docker exec -it 1c-dev onec-agent context --task "<task intent>" --query "<exact 1C term>" --pack platform --limit 5
+docker exec -it 1c-dev onec-agent context --query "<exact 1C term>" --pack platform --limit 5
 docker exec -it 1c-dev acs run --label "<check label>" --scope project --json -- <check command>
 docker exec -it 1c-dev acs resume --scope project --json
 ```

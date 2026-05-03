@@ -34,7 +34,7 @@ RUN rm -rf /var/lib/apt/lists/* \
     xvfb \
   && sed -i 's%<property name="ThemeName" type="string" value="Xfce"/>%<property name="ThemeName" type="string" value="Raleigh"/>%' /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml \
   && curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors \
-    "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-$(case "${TARGETARCH:-$(dpkg --print-architecture)}" in amd64) echo amd64 ;; arm64) echo aarch64 ;; arm) echo arm ;; *) echo amd64 ;; esac).tar.gz" \
+    "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-$(case "${TARGETARCH:-amd64}" in amd64) echo amd64 ;; *) echo "Unsupported TARGETARCH for desktop base: ${TARGETARCH}" >&2; exit 1 ;; esac).tar.gz" \
     -o /tmp/s6-overlay.tar.gz \
     && tar xzf /tmp/s6-overlay.tar.gz -C / \
   && ln -sf /usr/bin/bash /bin/bash \

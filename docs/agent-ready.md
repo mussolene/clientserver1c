@@ -44,8 +44,9 @@ Bootstrap создает в смонтированном проекте:
 - `.agent/reports/cross-repo-findings-memories.public.json` - OACS MemoryRecord seed records, на которые ссылается cross-repo capsule.
 - `.agent/reports/onec-agent-doctor.txt` - снимок readiness-check.
 - `.agent/reports/oacs-bootstrap-context.json` - bootstrap context capsule.
-- `.agent/reports/oacs-standards-context.json` - standards context capsule.
-- `.agent/reports/oacs-bsl-dev-context.json` - developer guide context capsule.
+- `.agent/reports/onec-context-platform-lookup.json` - platform help lookup sample.
+- `.agent/reports/onec-context-standards-lookup.json` - standards lookup sample.
+- `.agent/reports/onec-context-bsl-dev-lookup.json` - developer guide lookup sample.
 - `.agent/reports/onec-context-metadata-ensure.log` - результат подготовки metadata pack.
 
 Если `.agent/AGENTS.md` еще нет, bootstrap создаст IDE entrypoint. Если файл уже существует, bootstrap его не перезаписывает.
@@ -74,8 +75,8 @@ make -C /path/to/1c-develop agent-doctor PROJECT_PATH="$PWD"
 docker exec -it 1c-dev onec-agent doctor
 docker exec -it 1c-dev acs memory query --query "task" --scope project --json
 docker exec -it 1c-dev acs context build --intent "task" --scope project --json
-docker exec -it 1c-dev onec-agent context --task "task" --query "ЗаписьJSON" --pack platform --limit 5
-docker exec -it 1c-dev onec-agent context --task "task" --query "Фоновые задания" --pack bsl-dev --limit 5
+docker exec -it 1c-dev onec-agent context --query "ЗаписьJSON" --pack platform --limit 5
+docker exec -it 1c-dev onec-agent context --query "Фоновые задания" --pack bsl-dev --limit 5
 docker exec -it 1c-dev acs run --label "bslls_check" --scope project --json -- onec-agent bslls src/cf
 docker exec -it 1c-dev acs resume --scope project --json
 ```
@@ -141,7 +142,7 @@ OACS здесь state/governance backend, а не оркестратор. `onec-
 export OACS_DB=/workspace/project/.agent/oacs/oacs.db
 acs memory query --query "<task intent>" --scope project --json
 acs context build --intent "<task intent>" --scope project --json
-onec-agent context --task "<task intent>" --query "<точный термин 1С>" --pack platform --limit 5
+onec-agent context --query "<точный термин 1С>" --pack platform --limit 5
 acs run --label "<check label>" --scope project --json -- <check command>
 acs resume --scope project --json
 ```

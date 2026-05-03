@@ -13,7 +13,7 @@ Usage:
   onec-agent skill <context|testing|memory>
   onec-agent bslls [src-dir]
   onec-agent bslls-format <src-dir>
-  onec-agent context [--task text] [--query text] [--pack platform|standards|bsl-dev|metadata] [--limit n]
+  onec-agent context --query text [--pack platform|standards|bsl-dev|metadata] [--limit n]
   onec-agent context-mcp [--debug]
   onec-agent context-mcp-config
   onec-agent ibase add --name <display-name> --path <file-db-path> [--home <home-dir>] [--owner <user:group>]
@@ -64,7 +64,7 @@ case "$mode" in
     BSLLS_MODE=format exec onec-agent-bslls "$@"
     ;;
   context)
-    exec onec-agent-context build "$@"
+    exec onec-agent-context lookup "$@"
     ;;
   context-mcp)
     exec onec-agent-context-mcp "$@"

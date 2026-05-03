@@ -17,18 +17,16 @@ RUN rm -rf /var/lib/apt/lists/* \
   && echo "Cloning OneScript sources v${ONESCRIPT_VERSION}" \
   && git clone --branch "v${ONESCRIPT_VERSION}" --depth 1 "$ONESCRIPT_GIT_URL" /tmp/OneScript
 
-RUN case "$TARGETARCH" in \
+RUN case "${TARGETARCH:-amd64}" in \
       amd64) rid='linux-x64' ;; \
-      arm64) rid='linux-arm64' ;; \
       *) echo "Unsupported TARGETARCH for OneScript builder: $TARGETARCH" >&2; exit 1 ;; \
     esac \
   && echo "Restoring OneScript projects for $rid" \
   && cd /tmp/OneScript \
   && dotnet restore src/oscript/oscript.csproj --verbosity minimal
 
-RUN case "$TARGETARCH" in \
+RUN case "${TARGETARCH:-amd64}" in \
       amd64) rid='linux-x64' ;; \
-      arm64) rid='linux-arm64' ;; \
       *) echo "Unsupported TARGETARCH for OneScript builder: $TARGETARCH" >&2; exit 1 ;; \
     esac \
   && echo "Publishing OneScript runtime for $rid" \
@@ -55,9 +53,8 @@ RUN echo "Preparing OPM runtime and core packages" \
      > /opt/onescript/bin/opm \
   && chmod +x /opt/onescript/bin/opm \
   && OSCRIPT_CONFIG='lib.system=/opt/onescript/lib' /opt/onescript/bin/opm install -d /opt/onescript/lib asserts logos fs tempfiles cli \
-  && case "$TARGETARCH" in \
+  && case "${TARGETARCH:-amd64}" in \
        amd64) rid='linux-x64' ;; \
-       arm64) rid='linux-arm64' ;; \
        *) echo "Unsupported TARGETARCH for OneScript builder: $TARGETARCH" >&2; exit 1 ;; \
      esac \
   && printf 'onescript_version=%s\nruntime_id=%s\n' "$ONESCRIPT_VERSION" "$rid" > /opt/onescript/BUILDINFO \
