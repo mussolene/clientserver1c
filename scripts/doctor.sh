@@ -106,11 +106,11 @@ printf '\nNext commands:\n'
 if [[ ! -f "$ENV_FILE" ]]; then
   printf '  make env\n'
 fi
-printf '  make pull            # pull configured developer image\n'
-printf '  make first-start     # optional local license UI start\n'
-printf '  make up-file-db      # normal file DB mode after licensing is configured\n'
-printf '  make ui-smoke        # Vanessa smoke when runtime is ready\n'
+printf '  make pull                              # pull configured developer image\n'
 printf '  make agent-up PROJECT_PATH=/path/to/project\n'
+printf '  docker exec -it 1c-dev onec-agent bootstrap\n'
+printf '  make first-start                       # optional local license UI\n'
+printf '  make ui-smoke                          # Vanessa smoke when runtime is ready\n'
 
 if [[ "$strict" == "1" ]]; then
   exit "$status"

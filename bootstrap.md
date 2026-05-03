@@ -1,6 +1,8 @@
 # Bootstrap
 
-Bootstrap больше не является host-side prompt/runbook. Runtime запускается отдельно, а подготовка agent/OACS контекста выполняется внутри уже запущенного Portable Agent Infrastructure контейнера.
+Bootstrap выполняется внутри уже запущенного Portable Agent Infrastructure
+контейнера. Он не управляет Docker lifecycle и не заменяет README: здесь только
+команды для подготовки agent/OACS контекста.
 
 ## Quick Start
 
@@ -26,12 +28,12 @@ docker exec -it 1c-dev onec-agent bootstrap
 
 Лицензия не нужна для bootstrap, OACS memory и context capsule. Для OACS нужен только локальный `OACS_PASSPHRASE`; не коммитьте его. Лицензия нужна только для запуска 1С runtime.
 
-Есть два поддержанных пути:
+Для запуска 1С runtime после bootstrap есть два поддержанных пути:
 
 - локальная ручная активация через `onec-license-store`;
 - сетевой HASP через `nethasp.ini`.
 
-Для сетевого HASP после старта контейнера:
+Для сетевого HASP можно скопировать `nethasp.ini` в уже запущенный контейнер:
 
 ```bash
 chmod 644 ./nethasp.ini
@@ -40,7 +42,9 @@ docker cp ./nethasp.ini 1c-dev:/home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini
 docker exec 1c-dev sh -lc 'chmod 644 /opt/1cv8/conf/nethasp.ini /home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini'
 ```
 
-Для новых запусков удобнее монтировать `nethasp.ini` сразу в оба пути с `:ro`. Файл должен быть читаемым для `usr1cv8`; 1С GUI, `license-ui` и `file-db` работают в этом профиле, а не в `root`.
+Для новых запусков удобнее монтировать `nethasp.ini` сразу в оба пути с `:ro`;
+пример есть в README. Файл должен быть читаемым для `usr1cv8`; 1С GUI,
+`license-ui` и `file-db` работают в этом профиле, а не в `root`.
 
 ## What Bootstrap Does
 
@@ -61,17 +65,15 @@ docker exec 1c-dev sh -lc 'chmod 644 /opt/1cv8/conf/nethasp.ini /home/usr1cv8/.1
 
 ## Agent Loop
 
-After bootstrap, agents should use the same running container and follow the memory/context/evidence loop:
+After bootstrap, agents use the same running container:
 
 ```bash
 docker exec -it 1c-dev acs memory query --query "<task intent>" --scope project --json
+docker exec -it 1c-dev acs context build --intent "<task intent>" --scope project --json
 docker exec -it 1c-dev onec-agent context --task "<task intent>" --query "<exact 1C term>" --pack platform --limit 5
-docker exec -it 1c-dev sh -lc '
-candidate_json=$(acs memory propose --type procedure --depth 2 --scope project --text "<verified reusable fact>" --json)
-memory_id=$(printf "%s" "$candidate_json" | python3 -c "import json,sys; print(json.load(sys.stdin)[\"id\"])")
-acs memory commit "$memory_id" --json
-acs memory sharpen "$memory_id" --evidence "<evidence ref>" --json
-'
 ```
 
-Do not recreate the container for normal agent work. Keep it in `shell` runtime and run 1C-dependent commands through `docker exec`, Compose transport commands, or IDE tooling.
+Persist only verified reusable conclusions with direct `acs memory
+propose/commit/sharpen`. Do not recreate the container for normal agent work.
+Keep it in `shell` runtime and run 1C-dependent commands through `docker exec`,
+Compose transport commands, or IDE tooling.

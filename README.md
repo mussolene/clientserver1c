@@ -18,7 +18,9 @@
 
 ## Быстрый старт
 
-Запускайте из корня вашего 1С-проекта.
+Запускайте из корня вашего 1С-проекта. Это минимальный путь: скачать image,
+поднять PAI-контейнер, собрать agent context и продолжить работу через тот же
+запущенный контейнер.
 
 ```bash
 docker pull ghcr.io/mussolene/1c-developer:8.5.1.1302
@@ -42,18 +44,19 @@ docker exec -it 1c-dev onec-agent bootstrap
 
 После bootstrap:
 
-1. Откройте VNC: `localhost:5900`. В меню приложений будет штатный ярлык 1С из installer-а, а на рабочий стол контейнер положит его копию; файловая база из `ONEC_FILE_DB_PATH` будет добавлена в список баз 1С.
-2. Дайте IDE-агенту прочитать `.agent/bootstrap-report.md` и `.agent/instructions/pai-agent-instructions.md`.
+1. Откройте VNC: `localhost:5900`. В меню приложений и на рабочем столе будет штатный launcher 1С; файловая база из `ONEC_FILE_DB_PATH` будет добавлена в список баз 1С.
+2. Дайте IDE-агенту прочитать `.agent/bootstrap-report.md`.
 3. Держите контейнер запущенным и выполняйте дальнейшие команды через `docker exec`.
 
 ```bash
 docker exec -it 1c-dev onec-agent doctor
 docker exec -it 1c-dev acs memory query --query "текущая задача" --scope project --json
+docker exec -it 1c-dev acs context build --intent "текущая задача" --scope project --json
 docker exec -it 1c-dev onec-agent context --task "текущая задача" --query "ЗаписьJSON" --pack platform --limit 5
-docker exec -it 1c-dev onec-agent context --task "текущая задача" --query "Фоновые задания" --pack bsl-dev --limit 5
 ```
 
-Bootstrap не требует лицензии 1С. Лицензия нужна только для запуска самого 1С runtime.
+Bootstrap, ACS memory и context packs не требуют лицензии 1С. Лицензия нужна
+только для запуска самого 1С runtime.
 
 ## Лицензирование
 
@@ -95,18 +98,12 @@ docker run -d \
 
 `onec-agent bootstrap` создает в смонтированном проекте:
 
-- `.agent/oacs/oacs.db`
-- `.agent/mcp/onec-context-mcp.json`
-- `.agent/context-capsules/bootstrap-context-capsule.json`
-- `.agent/bootstrap-report.md`
-- `.agent/instructions/pai-agent-instructions.md`
-- `.agent/instructions/oacs-memory-call-loop.md`
-- `.agent/reports/onec-agent-doctor.txt`
-- `.agent/reports/oacs-bootstrap-context.json`
-- `.agent/reports/oacs-standards-context.json`
-- `.agent/reports/oacs-bsl-dev-context.json`
+- `.agent/oacs/` с project-local ACS state;
+- `.agent/bootstrap-report.md` и инструкции для IDE-агента;
+- `.agent/context-capsules/`, `.agent/mcp/` и `.agent/reports/` с context/evidence артефактами.
 
 Если `.agent/AGENTS.md` еще нет, bootstrap создаст IDE entrypoint. Если файл уже существует, bootstrap его не перезаписывает.
+Полный список bootstrap-артефактов: [bootstrap.md](bootstrap.md).
 
 Правило работы:
 
@@ -130,7 +127,7 @@ docker run -d \
 | `make up-file-db` | запустить file DB mode после настройки лицензирования |
 | `make up-server` | запустить server mode вместе с PostgreSQL 1C |
 | `make ui-smoke` | прогнать минимальный Vanessa UI smoke |
-| `make agent-context` | собрать OACS task context capsule |
+| `make agent-context` | transport-helper для context-команд внутри контейнера |
 | `make agent-bslls` | запустить BSL Language Server diagnostics |
 
 Пример из 1С-проекта:
@@ -144,7 +141,12 @@ make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="метада
 
 ## Runtime
 
-Обычный `make up` поднимает shell/agent-ready контейнер без окна добавления базы. VNC поднимается по умолчанию и доступен только на localhost. 1С installer ставит штатный launcher и иконки через компонент `desktop_icons`; при старте контейнер копирует этот launcher на рабочий стол и готовит `ibases.v8i` для пользователя `usr1cv8`. Имя и путь базы задаются через `ONEC_FILE_DB_NAME` и `ONEC_FILE_DB_PATH`.
+Обычный `make up` поднимает shell/agent-ready контейнер без окна добавления базы.
+VNC поднимается по умолчанию и доступен только на localhost. 1С installer ставит
+штатный launcher и иконки через компонент `desktop_icons`; при старте контейнер
+копирует этот launcher на рабочий стол и готовит `ibases.v8i` для пользователя
+`usr1cv8`. Имя и путь базы задаются через `ONEC_FILE_DB_NAME` и
+`ONEC_FILE_DB_PATH`.
 
 После ручного создания или восстановления файловой базы обновите список баз без перезапуска контейнера:
 
@@ -161,7 +163,14 @@ Server ports 1C наружу по умолчанию не публикуются
 
 Runtime modes, platform staging, volumes, architecture и prebuilt context packs описаны в [docs/runtime-details.md](docs/runtime-details.md).
 
-## UI smoke
+## Проверки
+
+Быстрая проверка agent-ready слоя:
+
+```bash
+docker exec -it 1c-dev onec-agent doctor
+docker exec -it 1c-dev acs memory query --query "readiness" --scope project --json
+```
 
 В репозитории есть минимальный Vanessa smoke для связки `TestManager -> TestClient`.
 

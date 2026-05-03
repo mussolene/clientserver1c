@@ -87,7 +87,7 @@ Use this loop for every non-trivial task.
 
 1. `acs memory query`: find prior project decisions and constraints.
 2. `acs context build`: create the task capsule for current repo/project state.
-3. `onec-agent context`: build a fresh 1C task context capsule with exact platform, developer-guide, standards, metadata, or code facts.
+3. `onec-agent context`: run exact 1C lookups against platform, developer-guide, standards, metadata, or code packs.
 4. Work against the current project files.
 5. Verify with the narrowest relevant command.
 6. `acs tool ingest-result`: save important command outputs as evidence.

@@ -60,7 +60,7 @@ Staging directory: `.local/1c/dev-platform`. Она намеренно ignored b
 Runtime targets используют готовый image:
 
 - если настроенный image есть локально, он используется как есть;
-- если image отсутствует, scripts пробуют `docker pull`;
+- если image отсутствует, scripts скачивают настроенный опубликованный image;
 - если image нельзя скачать или он не agent-ready, команда падает с явной подсказкой `make build`.
 
 Local platform staging запускается только в явных build-командах:

@@ -11,16 +11,18 @@ IDE-агент на host
 
 контейнер 1c-dev
   видит тот же проект как /workspace/project
-  запускает 1С, OneScript, Vanessa, BSLLS, OACS helpers и skill-guided проверки через onec-agent
+  запускает 1С, OneScript, Vanessa, BSLLS и 1C-specific проверки через onec-agent
+  вызывает ACS/OACS напрямую через acs
 ```
 
-Главный интерфейс Portable Agent Infrastructure находится внутри image:
+Главный 1С-интерфейс Portable Agent Infrastructure находится внутри image:
 
 ```bash
 onec-agent --help
 ```
 
-Host-side `make agent-*` targets остаются transport-командами для Docker Compose, но они не являются основной частью Portable Agent Infrastructure runtime.
+Host-side `make agent-*` targets остаются transport-командами для Docker Compose,
+но они не являются основной частью Portable Agent Infrastructure runtime.
 
 ## Bootstrap
 
@@ -46,9 +48,14 @@ Bootstrap создает в смонтированном проекте:
 
 Если `.agent/AGENTS.md` еще нет, bootstrap создаст IDE entrypoint. Если файл уже существует, bootstrap его не перезаписывает.
 
-После bootstrap агент должен начинать каждую нетривиальную задачу с прямого `acs memory query`, затем строить свежий `onec-agent context` capsule и сохранять в memory только проверенные выводы через `acs memory propose`, `acs memory commit` и `acs memory sharpen`.
+После bootstrap агент должен начинать каждую нетривиальную задачу с прямого
+`acs memory query` и `acs context build`. Затем он делает точечные
+`onec-agent context` lookup для 1С-фактов и сохраняет в memory только
+проверенные выводы через `acs memory propose`, `acs memory commit` и
+`acs memory sharpen`.
 
-ACS используется напрямую. `onec-agent` не является оберткой над ACS: он добавляет 1С context retrieval, diagnostics, skills и runtime checks. Порядок для задачи: `acs memory query`, `acs context build`, затем нужные `onec-agent context` lookup и только после проверки `acs tool ingest-result` / `acs memory ...`.
+ACS используется напрямую. `onec-agent` не является оберткой над ACS: он
+добавляет 1С context retrieval, diagnostics, skills и runtime checks.
 
 ## Запуск Runtime
 
@@ -63,10 +70,10 @@ make -C /path/to/1c-develop agent-doctor PROJECT_PATH="$PWD"
 
 ```bash
 docker exec -it 1c-dev onec-agent doctor
+docker exec -it 1c-dev acs memory query --query "task" --scope project --json
 docker exec -it 1c-dev acs context build --intent "task" --scope project --json
 docker exec -it 1c-dev onec-agent context --task "task" --query "ЗаписьJSON" --pack platform --limit 5
 docker exec -it 1c-dev onec-agent context --task "task" --query "Фоновые задания" --pack bsl-dev --limit 5
-docker exec -it 1c-dev acs memory query --query "task" --scope project --json
 ```
 
 ## Прочитать skills
@@ -111,52 +118,40 @@ State хранится в смонтированном проекте: `.agent/o
 
 OACS здесь state/governance backend, а не оркестратор. `onec-context` остаётся retrieval engine для platform help, BSL developer guide, ITS standards и project packs.
 
-Memory call loop после bootstrap:
+Минимальный memory call loop после bootstrap:
 
 ```bash
 export OACS_DB=/workspace/project/.agent/oacs/oacs.db
 acs memory query --query "<task intent>" --scope project --json
 acs context build --intent "<task intent>" --scope project --json
 onec-agent context --task "<task intent>" --query "<точный термин 1С>" --pack platform --limit 5
-onec-agent context --task "<task intent>" --query "<поведение или пример из руководства>" --pack bsl-dev --limit 5
-onec-agent context --task "<task intent>" --query "<объект метаданных>" --pack metadata --limit 5
-acs tool ingest-result --tool-id "<tool id>" --tool-name "<tool name>" --tool-type external --scope project --input '{"command":"<command>"}' --output '{"status":"pass","summary":"<summary>"}' --source-uri "repo://evidence/<name>" --status completed --json
-candidate="$(acs memory propose --type procedure --depth 2 --scope project --text "<проверенный повторно используемый вывод>" --json)"
-memory_id="$(printf '%s' "$candidate" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
-acs memory commit "$memory_id" --json
-acs memory sharpen "$memory_id" --evidence "<ev_...>" --json
 ```
 
-MCP import внутри контейнера:
+Для сохранения результата используйте `acs tool ingest-result` для evidence и
+`acs memory propose/commit/sharpen` только после проверки факта. Не сохраняйте
+в OACS ITS credentials, license data, platform archives, полные help packs или
+другие секреты.
+
+## Advanced OACS Tools
+
+MCP import внутри контейнера нужен только когда агент умеет вызывать governed
+MCP tools через ACS. Для первого запуска достаточно прямых `acs` команд и
+точечных `onec-agent context` lookup.
 
 ```bash
 onec-agent context-mcp-config > /tmp/onec-context-mcp.json
 acs mcp import /tmp/onec-context-mcp.json
 ```
 
-После import OACS видит `onec_status`, `onec_ensure`, `onec_resolve_packs`, `onec_query_kb`, `onec_query_code`, `onec_query_config` как governed tools.
+После import OACS видит `onec_status`, `onec_ensure`, `onec_resolve_packs`,
+`onec_query_kb`, `onec_query_code`, `onec_query_config` как governed tools.
 
-Собрать task context:
+`make agent-context` является transport-helper поверх `docker exec`, а не
+отдельным workflow:
 
 ```bash
 make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="answer_1c_platform_question"
-```
-
-Собрать context с lookup в справке:
-
-```bash
 make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="json_writer_question" QUERY="ЗаписьJSON" PACK=platform LIMIT=5
-```
-
-Собрать context с lookup в руководстве разработчика:
-
-```bash
-make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="background_jobs_question" QUERY="Фоновые задания" PACK=bsl-dev LIMIT=5
-```
-
-Собрать context с lookup по project metadata после bootstrap:
-
-```bash
 make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="metadata_question" QUERY="Заявки" PACK=metadata LIMIT=5
 ```
 
@@ -171,8 +166,6 @@ memory_id=$(printf "%s" "$candidate_json" | python3 -c "import json,sys; print(j
 acs memory commit "$memory_id" --json
 '
 ```
-
-Не сохраняйте в OACS ITS credentials, license data, platform archives, полные help packs или другие секреты.
 
 ## Пути в контейнере
 
