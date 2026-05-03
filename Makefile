@@ -28,8 +28,8 @@ PLATFORM_ENV := $(foreach v,PLATFORM_VERSION PLATFORM_ARCH PLATFORM_DIST_NAME DO
 IMAGE_ENV := $(foreach v,PLATFORM_VERSION PG_1C_VERSION IMAGE_NAMESPACE ONEC_WITH_PG,$(call env_var,$(v)))
 RUNTIME_ENV := $(foreach v,DOCKER_DEFAULT_PLATFORM PG_MAJOR PG_1C_VERSION PG_REPO_DIST PLATFORM_VERSION PLATFORM_ARCH PLATFORM_DIST_NAME OACS_VERSION BSL_DEV_DOCS_REPO BSL_DEV_DOCS_REF,$(call env_var,$(v)))
 BUILD_ENV := $(RUNTIME_ENV) $(call env_var,IMAGE_NAMESPACE)
-AGENT_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH PLATFORM_VERSION PLATFORM_ARCH PLATFORM_DIST_NAME OACS_VERSION,$(call env_var,$(v)))
-AGENT_CMD_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH,$(call env_var,$(v)))
+AGENT_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH PLATFORM_VERSION PLATFORM_ARCH PLATFORM_DIST_NAME OACS_VERSION NETHASP_INI_PATH,$(call env_var,$(v)))
+AGENT_CMD_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH NETHASP_INI_PATH,$(call env_var,$(v)))
 CONFIG_ENV := $(BUILD_ENV) POSTGRES_PASSWORD="$(POSTGRES_PASSWORD)"
 
 .PHONY: help env doctor first-start pull download prepare-platform build-common-base build-desktop-base build-onescript-builder build-onescript-base up up-file-db up-server build build-server-stack ui-smoke xunit-smoke agent-up agent-exec agent-doctor agent-skills agent-skill agent-context agent-bslls agent-bslls-format agent-epf-roundtrip config down ps logs clean-platform clean
@@ -48,6 +48,7 @@ help:
 	  '' \
 	  'IDE-agent targets:' \
 	  '  make agent-up PROJECT_PATH=$$PWD       - start 1c-dev with project mounted' \
+	  '  make agent-up PROJECT_PATH=$$PWD NETHASP_INI_PATH=/secure/nethasp.ini - mount HASP config' \
 	  '  make agent-doctor PROJECT_PATH=$$PWD   - check agent-ready runtime inside 1c-dev' \
 	  '  make agent-exec CMD="..."             - run command in /workspace/project' \
 	  '  make agent-context TASK="..."         - build OACS task context capsule' \

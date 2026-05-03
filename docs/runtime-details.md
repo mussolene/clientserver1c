@@ -57,6 +57,18 @@ docker exec -u usr1cv8 -e DISPLAY=:0 1c-dev \
   /opt/1cv8/current/1cv8 DESIGNER /F /mnt/data/testdb /N Администратор
 ```
 
+Для host helper-команд используйте локальный путь, а не содержимое файла:
+
+```bash
+NETHASP_INI_PATH=/absolute/path/to/nethasp.ini \
+  make agent-up PROJECT_PATH=/path/to/1c-project
+```
+
+Helper создаёт локальный ignored Compose override и монтирует файл read-only в
+`/opt/1cv8/conf/nethasp.ini`; startup-скрипт контейнера дальше синхронизирует
+его в runtime-профили. В OACS допустимо фиксировать только факт и результат
+проверки доступности лицензирования, но не содержимое `nethasp.ini`.
+
 ## Platform Staging
 
 Платформа 1С готовится на host до Docker build:

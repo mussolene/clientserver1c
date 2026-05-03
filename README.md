@@ -99,6 +99,18 @@ docker run -d \
 профили `root` и `usr1cv8`, чтобы одинаково работали GUI, `vrunner`, `ibcmd` и
 другие runtime-команды.
 
+Если используете helper-команды из этого репозитория, задайте только локальный
+путь к файлу:
+
+```bash
+export NETHASP_INI_PATH=/absolute/path/to/nethasp.ini
+make -C /path/to/1c-develop agent-up PROJECT_PATH="$PWD"
+```
+
+`NETHASP_INI_PATH` можно положить в локальный `.env`, но сам `nethasp.ini`, его
+содержимое и данные лицензии не должны попадать в git, OACS memory или
+context capsule.
+
 ## Работа с агентом
 
 Агент остается в Cursor, Codex, VS Code или другом IDE на host. Контейнер дает runtime и проверенные 1C facts.
@@ -148,6 +160,8 @@ make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="текуща
 make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="метаданные" QUERY="Заявки" PACK=metadata LIMIT=5
 make -C /path/to/1c-develop agent-epf-roundtrip PROJECT_PATH="$PWD" EPF_PATH=tests/xunit/epf/Test.epf
 ```
+
+Для сетевого HASP добавьте к `agent-up` `NETHASP_INI_PATH=/absolute/path/to/nethasp.ini`.
 
 ## Runtime
 

@@ -92,6 +92,16 @@ else
   print_check "local license volume" "OPTIONAL" "Only needed for local activation; network HASP can use nethasp.ini."
 fi
 
+if [[ -n "${NETHASP_INI_PATH:-}" ]]; then
+  if [[ -f "$NETHASP_INI_PATH" && -r "$NETHASP_INI_PATH" ]]; then
+    require_ok "nethasp.ini" "$NETHASP_INI_PATH"
+  else
+    warn_missing "nethasp.ini" "NETHASP_INI_PATH is set but is not a readable file."
+  fi
+else
+  print_check "nethasp.ini" "OPTIONAL" "Set NETHASP_INI_PATH=/absolute/path/to/nethasp.ini for network HASP."
+fi
+
 if [[ -n "$project_path" ]]; then
   if [[ -d "$project_path" ]]; then
     require_ok "project mount path" "$project_path"
@@ -108,6 +118,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 printf '  make pull                              # pull configured developer image\n'
 printf '  export OACS_PASSPHRASE="<local-oacs-passphrase>"\n'
+printf '  export NETHASP_INI_PATH=/absolute/path/to/nethasp.ini  # optional network HASP\n'
 printf '  make agent-up PROJECT_PATH=/path/to/project\n'
 printf '  docker exec -it 1c-dev onec-agent bootstrap\n'
 printf '  make first-start                       # optional local license UI\n'

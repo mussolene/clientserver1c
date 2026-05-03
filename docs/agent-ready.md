@@ -154,6 +154,11 @@ Durable memory пишите через `acs memory propose/commit/sharpen` то�
 проверки факта. Не сохраняйте в OACS ITS credentials, license data, platform
 archives, полные help packs или другие секреты.
 
+Для лицензирования через сетевой HASP агенту можно передавать только локальный
+путь `NETHASP_INI_PATH=/absolute/path/to/nethasp.ini`. Сам файл, его содержимое,
+адреса/параметры лицензирования и копии из рабочих контейнеров не записывайте в
+OACS memory, reports или context capsules.
+
 ## Advanced OACS Tools
 
 MCP import внутри контейнера нужен только когда агент умеет вызывать governed
