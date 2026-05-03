@@ -71,9 +71,13 @@ After bootstrap, agents use the same running container:
 docker exec -it 1c-dev acs memory query --query "<task intent>" --scope project --json
 docker exec -it 1c-dev acs context build --intent "<task intent>" --scope project --json
 docker exec -it 1c-dev onec-agent context --task "<task intent>" --query "<exact 1C term>" --pack platform --limit 5
+docker exec -it 1c-dev acs run --label "<check label>" --scope project --json -- <check command>
+docker exec -it 1c-dev acs resume --scope project --json
 ```
 
-Persist only verified reusable conclusions with direct `acs memory
-propose/commit/sharpen`. Do not recreate the container for normal agent work.
-Keep it in `shell` runtime and run 1C-dependent commands through `docker exec`,
-Compose transport commands, or IDE tooling.
+`acs run` is the preferred path for command evidence. Use `acs tool
+ingest-result` only for results that were produced outside the CLI. Persist only
+verified reusable conclusions with direct `acs memory propose/commit/sharpen`.
+Do not recreate the container for normal agent work. Keep it in `shell` runtime
+and run 1C-dependent commands through `docker exec`, Compose transport commands,
+or IDE tooling.

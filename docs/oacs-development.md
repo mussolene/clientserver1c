@@ -37,9 +37,20 @@ acs context build --intent "<task intent>" --scope project --json
 ```
 
 Run the actual work with normal tools: shell, `git`, `docker`, `make`, and
-focused scripts.
+focused scripts. Prefer `acs run` when command output should become evidence:
 
-Record canonical command output as evidence when it matters for the task:
+```bash
+acs run \
+  --label "make_doctor" \
+  --scope project \
+  --json \
+  -- make doctor
+
+acs resume --scope project --json
+```
+
+For command results produced outside `acs run`, record canonical output
+explicitly:
 
 ```bash
 acs tool ingest-result \

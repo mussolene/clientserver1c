@@ -34,6 +34,8 @@ export OACS_DB=/workspace/project/.agent/oacs/oacs.db
 export OACS_PASSPHRASE="$OACS_PASSPHRASE"
 acs memory query --query "<task intent>" --scope project --json
 acs context build --intent "<task intent>" --scope project --json
+acs run --label "<check label>" --scope project --json -- <check command>
+acs resume --scope project --json
 ```
 
 Before 1C work:
@@ -46,7 +48,8 @@ Before 1C work:
    - `context` for ConfigDump, metadata, BSL, platform help, and exact fact lookup.
    - `testing` for Vanessa Automation, xUnitFor1C, UI smoke, and test artifacts.
    - `memory` for OACS project memory, task context capsules, and evidence refs.
-6. After verification, save only reusable conclusions through
+6. Run checks through `acs run` when their output should become evidence.
+7. After verification, save only reusable conclusions through
    `acs memory propose`, `acs memory commit`, and `acs memory sharpen`.
 
 Use OACS evidence and context capsules for development traceability. Keep durable agent state in the mounted project under `.agent/oacs/`.

@@ -90,7 +90,7 @@ Use this loop for every non-trivial task.
 3. `onec-agent context`: run exact 1C lookups against platform, developer-guide, standards, metadata, or code packs.
 4. Work against the current project files.
 5. Verify with the narrowest relevant command.
-6. `acs tool ingest-result`: save important command outputs as evidence.
+6. `acs run`: execute checks and save command outputs as evidence.
 7. `acs memory propose` / `commit` / `sharpen`: save only reusable verified conclusions, linked to evidence.
 
 Minimal commands:
@@ -102,7 +102,8 @@ acs context build --intent "<task intent>" --scope project --json
 onec-agent context --task "<task intent>" --query "<1C term>" --pack platform --limit 5
 onec-agent context --task "<task intent>" --query "<1C behavior or example>" --pack bsl-dev --limit 5
 onec-agent context --task "<task intent>" --query "<metadata object>" --pack metadata --limit 5
-acs tool ingest-result --tool-id "<tool id>" --tool-name "<tool name>" --tool-type external --scope project --input '{"command":"<command>"}' --output '{"status":"pass","summary":"<summary>"}' --source-uri "repo://evidence/<name>" --status completed --json
+acs run --label "<check label>" --scope project --json -- <check command>
+acs resume --scope project --json
 candidate="$(acs memory propose --type procedure --depth 2 --scope project --text "<verified conclusion>" --json)"
 memory_id="$(printf '%s' "$candidate" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
 acs memory commit "$memory_id" --json
@@ -226,7 +227,8 @@ main() {
         direct_cli: "acs",
         context_command: "acs context build --intent \"<task intent>\" --scope project --json",
         memory_query_command: "acs memory query --query \"<task intent>\" --scope project --json",
-        evidence_command: "acs tool ingest-result ... --json",
+        evidence_command: "acs run --label \"<check label>\" --scope project --json -- <check command>",
+        resume_command: "acs resume --scope project --json",
         memory_call_loop: ".agent/instructions/oacs-memory-call-loop.md"
       },
       mcp: {
@@ -278,6 +280,8 @@ acs context build --intent "<task intent>" --scope project --json
 onec-agent context --task "<task intent>" --query "<exact 1C term>" --pack platform --limit 5
 onec-agent context --task "<task intent>" --query "<developer guide topic>" --pack bsl-dev --limit 5
 onec-agent context --task "<task intent>" --query "<metadata object>" --pack metadata --limit 5
+acs run --label "<check label>" --scope project --json -- <check command>
+acs resume --scope project --json
 candidate_json=\$(acs memory propose --type procedure --depth 2 --scope project --text "<verified reusable fact>" --json)
 memory_id=\$(printf '%s' "\$candidate_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
 acs memory commit "\$memory_id" --json

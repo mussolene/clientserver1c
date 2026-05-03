@@ -53,6 +53,7 @@ docker exec -it 1c-dev onec-agent doctor
 docker exec -it 1c-dev acs memory query --query "текущая задача" --scope project --json
 docker exec -it 1c-dev acs context build --intent "текущая задача" --scope project --json
 docker exec -it 1c-dev onec-agent context --task "текущая задача" --query "ЗаписьJSON" --pack platform --limit 5
+docker exec -it 1c-dev acs run --label "readiness" --scope project --json -- onec-agent doctor
 ```
 
 Bootstrap, ACS memory и context packs не требуют лицензии 1С. Лицензия нужна
@@ -169,7 +170,8 @@ Runtime modes, platform staging, volumes, architecture и prebuilt context packs
 
 ```bash
 docker exec -it 1c-dev onec-agent doctor
-docker exec -it 1c-dev acs memory query --query "readiness" --scope project --json
+docker exec -it 1c-dev acs run --label "readiness" --scope project --json -- onec-agent doctor
+docker exec -it 1c-dev acs resume --scope project --json
 ```
 
 В репозитории есть минимальный Vanessa smoke для связки `TestManager -> TestClient`.

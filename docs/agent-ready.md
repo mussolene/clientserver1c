@@ -74,6 +74,8 @@ docker exec -it 1c-dev acs memory query --query "task" --scope project --json
 docker exec -it 1c-dev acs context build --intent "task" --scope project --json
 docker exec -it 1c-dev onec-agent context --task "task" --query "ЗаписьJSON" --pack platform --limit 5
 docker exec -it 1c-dev onec-agent context --task "task" --query "Фоновые задания" --pack bsl-dev --limit 5
+docker exec -it 1c-dev acs run --label "bslls_check" --scope project --json -- onec-agent bslls src/cf
+docker exec -it 1c-dev acs resume --scope project --json
 ```
 
 ## Прочитать skills
@@ -125,12 +127,17 @@ export OACS_DB=/workspace/project/.agent/oacs/oacs.db
 acs memory query --query "<task intent>" --scope project --json
 acs context build --intent "<task intent>" --scope project --json
 onec-agent context --task "<task intent>" --query "<точный термин 1С>" --pack platform --limit 5
+acs run --label "<check label>" --scope project --json -- <check command>
+acs resume --scope project --json
 ```
 
-Для сохранения результата используйте `acs tool ingest-result` для evidence и
-`acs memory propose/commit/sharpen` только после проверки факта. Не сохраняйте
-в OACS ITS credentials, license data, platform archives, полные help packs или
-другие секреты.
+Для команд используйте `acs run`: он выполняет команду и сохраняет `tool_result`
+evidence. `acs resume` показывает последние command evidence, checkpoints,
+memory и context capsules после сжатия контекста или возврата к задаче.
+`acs tool ingest-result` оставляйте для результатов, полученных вне CLI.
+Durable memory пишите через `acs memory propose/commit/sharpen` только после
+проверки факта. Не сохраняйте в OACS ITS credentials, license data, platform
+archives, полные help packs или другие секреты.
 
 ## Advanced OACS Tools
 
@@ -166,6 +173,17 @@ memory_id=$(printf "%s" "$candidate_json" | python3 -c "import json,sys; print(j
 acs memory commit "$memory_id" --json
 '
 ```
+
+Agent Workflow UX:
+
+```bash
+acs loop explain --json
+acs loop run --request "<task intent>" --scope project --json
+```
+
+`acs loop run` строит memory-call oriented context/prompt. Он не заменяет
+фактическую работу агента с файлами и runtime, но помогает восстановить
+контекст задачи и явно увидеть, какие memory calls были выполнены.
 
 ## Пути в контейнере
 

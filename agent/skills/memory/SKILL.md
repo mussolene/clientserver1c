@@ -52,6 +52,14 @@ Query project memory:
 
 ```bash
 acs memory query --query "json writer" --scope project --json
+acs context build --intent "json writer" --scope project --json
+```
+
+Run checks through ACS when their command output should be evidence:
+
+```bash
+acs run --label "bslls_json_writer" --scope project --json -- onec-agent bslls src/cf
+acs resume --scope project --json
 ```
 
 If you have a specific `ev_...` from a lookup, attach it:
