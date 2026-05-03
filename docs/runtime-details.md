@@ -14,6 +14,21 @@
 - `file-db`: запускает `1cv8 ENTERPRISE /F <path>`.
 - `server`: запускает `ragent`.
 
+Во время сборки контейнера 1С installer запускается с компонентом
+`desktop_icons`, поэтому меню приложений и icon theme наполняются штатными
+launcher/icon файлами 1С. На каждом старте контейнер копирует штатный
+`1cestart` launcher на VNC desktop и готовит список баз 1С `ibases.v8i` для
+профиля `usr1cv8`. По умолчанию список баз указывает на
+`ONEC_FILE_DB_PATH=/mnt/data/testdb`; отображаемое имя задается через
+`ONEC_FILE_DB_NAME`.
+
+Если база создана или восстановлена уже после старта контейнера, обновите
+список баз вручную:
+
+```bash
+onec-agent ibase add --name "SmallBusiness30" --path /mnt/ib/sb30 --home /home/usr1cv8 --owner usr1cv8:grp1cv8
+```
+
 ## Volumes
 
 - `./volumes/1c-dev/data:/mnt/data`

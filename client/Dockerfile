@@ -123,7 +123,7 @@ if [[ -z "$installer_path" ]]; then
 fi
 
 installer_name="$(basename "$installer_path")"
-enable_components="client_full,server,ws,server_admin,config_storage_server,additional_admin_functions,integrity_monitoring,liberica_jre,ru"
+enable_components="client_full,desktop_icons,server,ws,server_admin,config_storage_server,additional_admin_functions,integrity_monitoring,liberica_jre,ru"
 
 chmod +x "$installer_path"
 cd "$tmp_installer_dir"
@@ -131,6 +131,10 @@ cd "$tmp_installer_dir"
   --mode unattended \
   --unattendedmodeui none \
   --enable-components "$enable_components"
+icon_version="${PLATFORM_VERSION%.*}-${PLATFORM_VERSION##*.}"
+test -f "/usr/share/applications/1cestart-${icon_version}.desktop"
+test -f "/usr/share/icons/hicolor/128x128/apps/1cestart-${icon_version}.png"
+test -f "/usr/share/pixmaps/1cestart-${icon_version}.png"
 find /opt/1cv8 -type d -name distr -prune -exec rm -rf {} +
 rm -rf "$unpack_dir"/* "$tmp_installer_dir"/* /tmp/*.run /tmp/*.tar.gz /tmp/*.zip
 EOF
@@ -371,6 +375,7 @@ command -v onec-agent-doctor >/dev/null
 command -v onec-agent-skill >/dev/null
 command -v onec-agent-bslls >/dev/null
 command -v onec-agent-bootstrap >/dev/null
+command -v onec-agent-ibase >/dev/null
 command -v onec-agent >/dev/null
 command -v onec-context >/dev/null
 command -v onec-context-mcp >/dev/null
@@ -378,6 +383,7 @@ command -v onec-agent-context-mcp >/dev/null
 ONEC_PROJECT_ROOT=/tmp onec-agent-doctor >/dev/null
 onec-agent-skill list >/dev/null
 onec-agent bootstrap --help >/dev/null
+onec-agent ibase --help >/dev/null
 onec-agent --help >/dev/null
 onec-context-mcp --help >/dev/null
 onec-agent-context-mcp --help >/dev/null

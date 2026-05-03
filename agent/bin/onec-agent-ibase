@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage:
+  onec-agent-ibase add --name <display-name> --path <file-db-path> [--home <home-dir>] [--owner <user:group>] [--version <version>]
+
+Adds or updates a file infobase entry in <home-dir>/.1C/1cestart/ibases.v8i.
+EOF
+}
+
+die() {
+  printf '%s\n' "$*" >&2
+  exit 2
+}
+
+mode="${1:-}"
+if [[ -n "$mode" ]]; then
+  shift
+fi
+
+case "$mode" in
+  add)
+    name=""
+    path=""
+    home_dir="${HOME:-/root}"
+    owner=""
+    version="${PLATFORM_VERSION:-8.5}"
+    version="${version%.*}"
+
+    while [[ "$#" -gt 0 ]]; do
+      case "$1" in
+        --name)
+          [[ "$#" -ge 2 ]] || die "Missing value for --name"
+          name="$2"
+          shift 2
+          ;;
+        --path)
+          [[ "$#" -ge 2 ]] || die "Missing value for --path"
+          path="$2"
+          shift 2
+          ;;
+        --home)
+          [[ "$#" -ge 2 ]] || die "Missing value for --home"
+          home_dir="$2"
+          shift 2
+          ;;
+        --owner)
+          [[ "$#" -ge 2 ]] || die "Missing value for --owner"
+          owner="$2"
+          shift 2
+          ;;
+        --version)
+          [[ "$#" -ge 2 ]] || die "Missing value for --version"
+          version="$2"
+          shift 2
+          ;;
+        -h|--help)
+          usage
+          exit 0
+          ;;
+        *)
+          die "Unknown option for ibase add: $1"
+          ;;
+      esac
+    done
+
+    [[ -n "$name" ]] || die "Set --name"
+    [[ -n "$path" ]] || die "Set --path"
+    [[ -n "$home_dir" ]] || die "Set --home"
+
+    python3 - "$home_dir" "$name" "$path" "$version" <<'PY'
+import hashlib
+import re
+import sys
+from pathlib import Path
+
+home = Path(sys.argv[1])
+name = sys.argv[2]
+path = sys.argv[3]
+version = sys.argv[4]
+
+target_dir = home / ".1C" / "1cestart"
+target = target_dir / "ibases.v8i"
+target_dir.mkdir(parents=True, exist_ok=True)
+
+source = target.read_text(encoding="utf-8-sig") if target.exists() else ""
+lines = source.splitlines()
+
+sections = []
+current_name = None
+current_lines = []
+for line in lines:
+    if re.match(r"^\[[^\]]+\]$", line):
+        if current_name is not None:
+            sections.append((current_name, current_lines))
+        current_name = line[1:-1]
+        current_lines = [line]
+    else:
+        if current_name is None:
+            if line.strip():
+                sections.append((None, [line]))
+        else:
+            current_lines.append(line)
+
+if current_name is not None:
+    sections.append((current_name, current_lines))
+
+digest = hashlib.md5(f"{name}|{path}".encode("utf-8")).hexdigest()
+ibase_id = f"{digest[:8]}-{digest[8:12]}-{digest[12:16]}-{digest[16:20]}-{digest[20:32]}"
+escaped_path = path.replace('"', '""')
+entry = [
+    f"[{name}]",
+    f'Connect=File="{escaped_path}";',
+    f"ID={ibase_id}",
+    "OrderInList=16384",
+    "Folder=/",
+    "OrderInTree=16384",
+    "External=0",
+    "ClientConnectionSpeed=Normal",
+    "App=Auto",
+    "WA=1",
+    f"Version={version}",
+]
+
+updated = False
+result = []
+for section_name, section_lines in sections:
+    if section_name == name:
+        result.extend(entry)
+        updated = True
+    else:
+        result.extend(section_lines)
+    result.append("")
+
+if not updated:
+    result.extend(entry)
+    result.append("")
+
+target.write_text("\n".join(result), encoding="utf-8")
+PY
+
+    chmod 0644 "$home_dir/.1C/1cestart/ibases.v8i"
+    if [[ -n "$owner" ]]; then
+      chown -R "$owner" "$home_dir/.1C"
+    fi
+    ;;
+  -h|--help|"")
+    usage
+    ;;
+  *)
+    die "Unknown ibase command: $mode"
+    ;;
+esac

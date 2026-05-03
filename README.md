@@ -42,7 +42,7 @@ docker exec -it 1c-dev onec-agent bootstrap
 
 После bootstrap:
 
-1. Откройте VNC: `localhost:5900`.
+1. Откройте VNC: `localhost:5900`. В меню приложений будет штатный ярлык 1С из installer-а, а на рабочий стол контейнер положит его копию; файловая база из `ONEC_FILE_DB_PATH` будет добавлена в список баз 1С.
 2. Дайте IDE-агенту прочитать `.agent/bootstrap-report.md` и `.agent/instructions/pai-agent-instructions.md`.
 3. Держите контейнер запущенным и выполняйте дальнейшие команды через `docker exec`.
 
@@ -144,7 +144,13 @@ make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="метада
 
 ## Runtime
 
-Обычный `make up` поднимает shell/agent-ready контейнер без окна добавления базы. VNC поднимается по умолчанию и доступен только на localhost.
+Обычный `make up` поднимает shell/agent-ready контейнер без окна добавления базы. VNC поднимается по умолчанию и доступен только на localhost. 1С installer ставит штатный launcher и иконки через компонент `desktop_icons`; при старте контейнер копирует этот launcher на рабочий стол и готовит `ibases.v8i` для пользователя `usr1cv8`. Имя и путь базы задаются через `ONEC_FILE_DB_NAME` и `ONEC_FILE_DB_PATH`.
+
+После ручного создания или восстановления файловой базы обновите список баз без перезапуска контейнера:
+
+```bash
+docker exec -it 1c-dev onec-agent ibase add --name "SmallBusiness30" --path /mnt/ib/sb30 --home /home/usr1cv8 --owner usr1cv8:grp1cv8
+```
 
 Порты:
 

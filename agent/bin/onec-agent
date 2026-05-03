@@ -16,6 +16,7 @@ Usage:
   onec-agent context [--task text] [--query text] [--pack platform|standards|bsl-dev|metadata] [--limit n]
   onec-agent context-mcp [--debug]
   onec-agent context-mcp-config
+  onec-agent ibase add --name <display-name> --path <file-db-path> [--home <home-dir>] [--owner <user:group>]
   onec-agent exec -- <command...>
 
 Run inside the Portable Agent Infrastructure container with a project mounted at /workspace/project,
@@ -70,6 +71,9 @@ case "$mode" in
     ;;
   context-mcp-config)
     exec onec-agent-context mcp-config "$@"
+    ;;
+  ibase)
+    exec onec-agent-ibase "$@"
     ;;
   exec)
     cd_project

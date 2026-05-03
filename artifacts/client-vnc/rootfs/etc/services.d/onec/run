@@ -3,6 +3,8 @@ set -eu
 
 runtime_mode="${ONEC_RUNTIME_MODE:-shell}"
 file_db_path="${ONEC_FILE_DB_PATH:-/mnt/data/testdb}"
+file_db_name="${ONEC_FILE_DB_NAME:-1C Development}"
+platform_version="${PLATFORM_VERSION:-8.5.1.1302}"
 srv_debug="${SRV1CV8_DEBUG:-1}"
 srv_port="${SRV1CV8_PORT:-1540}"
 srv_regport="${SRV1CV8_REGPORT:-1541}"
@@ -61,6 +63,49 @@ configure_unsafe_action_protection() {
   fi
 }
 
+write_ibases() {
+  target_home="$1"
+  target_user="$2"
+  target_group="$3"
+
+  /opt/onec-agent/bin/onec-agent-ibase add \
+    --name "$file_db_name" \
+    --path "$file_db_path" \
+    --home "$target_home" \
+    --owner "$target_user:$target_group" \
+    --version "${platform_version%.*}"
+}
+
+write_desktop_shortcut() {
+  target_home="$1"
+  target_user="$2"
+  target_group="$3"
+  desktop_dir="$target_home/Desktop"
+  desktop_file="$desktop_dir/1cestart.desktop"
+  icon_version="${platform_version%.*}-${platform_version##*.}"
+  source_file="/usr/share/applications/1cestart-${icon_version}.desktop"
+
+  [ -f "$source_file" ] || {
+    echo "1C desktop launcher is missing: $source_file" >&2
+    exit 1
+  }
+
+  mkdir -p "$desktop_dir"
+  cp "$source_file" "$desktop_file"
+  chmod 0755 "$desktop_file"
+  chown -R "$target_user:$target_group" "$desktop_dir" 2>/dev/null || true
+}
+
+configure_desktop_integration() {
+  if getent passwd usr1cv8 >/dev/null 2>&1; then
+    write_ibases /home/usr1cv8 usr1cv8 grp1cv8
+    write_desktop_shortcut /home/usr1cv8 usr1cv8 grp1cv8
+  fi
+
+  write_ibases /root root root
+  write_desktop_shortcut /root root root
+}
+
 run_as() {
   target_user="$1"
   shift
@@ -73,6 +118,7 @@ run_as() {
 }
 
 configure_unsafe_action_protection
+configure_desktop_integration
 
 case "$runtime_mode" in
   license-ui)
