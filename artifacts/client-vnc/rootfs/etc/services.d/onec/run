@@ -83,15 +83,31 @@ write_desktop_shortcut() {
   desktop_dir="$target_home/Desktop"
   desktop_file="$desktop_dir/1cestart.desktop"
   icon_version="${platform_version%.*}-${platform_version##*.}"
-  source_file="/usr/share/applications/1cestart-${icon_version}.desktop"
+  icon_name="1cestart-${icon_version}"
+  launcher_binary="/opt/1cv8/common/1cestart"
 
-  [ -f "$source_file" ] || {
-    echo "1C desktop launcher is missing: $source_file" >&2
+  [ -x "$launcher_binary" ] || {
+    echo "1C desktop launcher is missing: $launcher_binary" >&2
+    exit 1
+  }
+  [ -f "/usr/share/pixmaps/${icon_name}.png" ] || {
+    echo "1C desktop launcher icon is missing: /usr/share/pixmaps/${icon_name}.png" >&2
     exit 1
   }
 
   mkdir -p "$desktop_dir"
-  cp "$source_file" "$desktop_file"
+  cat >"$desktop_file" <<EOF_DESKTOP
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=1C:Enterprise Launcher
+Comment=Launch 1C:Enterprise
+Exec=${launcher_binary}
+Icon=${icon_name}
+Terminal=false
+Categories=Office;Development;
+StartupNotify=true
+EOF_DESKTOP
   chmod 0755 "$desktop_file"
   chown -R "$target_user:$target_group" "$desktop_dir" 2>/dev/null || true
 }
