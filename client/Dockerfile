@@ -11,11 +11,15 @@ ARG VANESSA_RUNNER_VERSION=2.6.0
 ARG VANESSA_AUTOMATION_VERSION=1.2.043.1
 ARG ONEC_VANESSA_SKILL_REF=58b8e8b4831f4f1457707b037c8a050f5cd32e86
 ARG ONEC_CONTEXT_TOOLKIT_REF=6a1df34b06a7a71c65876298070cb13525896ee3
+ARG BSL_DEV_DOCS_REPO=https://github.com/mussolene/BSL_8.5.1_dev_docs
+ARG BSL_DEV_DOCS_REF=5feac5e9b9237d4bc134a517834a740157be2809
 ARG BSLLS_VERSION=0.25.0
 ARG OACS_VERSION=0.3.1a2
 
 ENV PLATFORM_VERSION=${PLATFORM_VERSION}
 ENV PLATFORM_DIST_NAME=${PLATFORM_DIST_NAME}
+ENV BSL_DEV_DOCS_REPO=${BSL_DEV_DOCS_REPO}
+ENV BSL_DEV_DOCS_REF=${BSL_DEV_DOCS_REF}
 ENV ONESCRIPT_ROOT=/opt/onescript
 ENV PATH=/opt/onec-agent/bin:/opt/onescript:/opt/onescript/bin:${PATH}
 ENV OSCRIPT_CONFIG=lib.system=/opt/onescript/lib
@@ -224,6 +228,9 @@ context_commit="$(clone_skill onec-context-toolkit https://github.com/mussolene/
 context_root="$skills_root/onec-context-toolkit"
 context_workspace=/opt/onec-agent/context-workspace
 context_manifest="$context_workspace/.onec/workspace.manifest.json"
+bsl_docs_source=/tmp/bsl-dev-docs
+bsl_docs_pack="$context_workspace/.onec/packs/bsl-dev-${PLATFORM_VERSION}.kb.db.zst"
+bsl_docs_manifest="$context_workspace/.onec/manifests/bsl-dev-${PLATFORM_VERSION}.kb.manifest.json"
 
 printf '%s\n' \
   '#!/usr/bin/env bash' \
@@ -257,10 +264,26 @@ context_standards_pack="$(onec-context resolve-packs \
   --role standards \
   --path-only)"
 context_standards_manifest="$context_workspace/.onec/manifests/standards.its-v8std.kb.manifest.json"
+bsl_docs_commit="$(clone_skill bsl-dev-docs "${BSL_DEV_DOCS_REPO}" "${BSL_DEV_DOCS_REF}")"
+rm -rf "$bsl_docs_source"
+cp -a "$skills_root/bsl-dev-docs" "$bsl_docs_source"
+/opt/onec-skills/onec-context-toolkit/.venv/bin/python \
+  /opt/onec-agent/bin/onec-agent-build-bsl-docs \
+  --source-dir "$bsl_docs_source" \
+  --db-path "$context_workspace/.onec/cache/bsl-dev-${PLATFORM_VERSION}.kb.db" \
+  --out-zst "$bsl_docs_pack" \
+  --manifest "$bsl_docs_manifest" \
+  --version "$PLATFORM_VERSION" \
+  --source-url "$BSL_DEV_DOCS_REPO" \
+  --source-ref "$BSL_DEV_DOCS_REF" \
+  --source-commit "$bsl_docs_commit"
+rm -rf "$bsl_docs_source" "$skills_root/bsl-dev-docs"
 test -f "$context_manifest"
 test -f "$context_platform_pack"
 test -f "$context_standards_pack"
 test -f "$context_standards_manifest"
+test -f "$bsl_docs_pack"
+test -f "$bsl_docs_manifest"
 
 jq -n \
   --arg vanessa_ref "${ONEC_VANESSA_SKILL_REF}" \
@@ -273,6 +296,11 @@ jq -n \
   --arg context_platform_pack "$context_platform_pack" \
   --arg context_standards_pack "$context_standards_pack" \
   --arg context_standards_manifest "$context_standards_manifest" \
+  --arg bsl_docs_repo "${BSL_DEV_DOCS_REPO}" \
+  --arg bsl_docs_ref "${BSL_DEV_DOCS_REF}" \
+  --arg bsl_docs_commit "$bsl_docs_commit" \
+  --arg bsl_docs_pack "$bsl_docs_pack" \
+  --arg bsl_docs_manifest "$bsl_docs_manifest" \
   '{
     skills_root: "/opt/onec-skills",
     project_root: "/workspace/project",
@@ -302,10 +330,12 @@ jq -n \
     },
     packs: {
       platform: $context_platform_pack,
-      standards: $context_standards_pack
+      standards: $context_standards_pack,
+      bsl_dev: $bsl_docs_pack
     },
     manifests: {
-      standards: $context_standards_manifest
+      standards: $context_standards_manifest,
+      bsl_dev: $bsl_docs_manifest
     },
     skills: {
       "onec-vanessa-skill": {
@@ -320,6 +350,12 @@ jq -n \
         commit: $context_commit,
         entrypoint: "/opt/onec-skills/onec-context-toolkit/skill/SKILL.md"
       },
+      "bsl-dev-docs": {
+        source: $bsl_docs_repo,
+        ref: $bsl_docs_ref,
+        commit: $bsl_docs_commit,
+        entrypoint: $bsl_docs_manifest
+      },
       "oacs-memory": {
         source: "local",
         ref: env.OACS_VERSION,
@@ -329,8 +365,8 @@ jq -n \
     }
   }' > /opt/onec-agent/registry.json
 
-chmod +x /opt/onec-agent/bin/*
-ln -sf /opt/onec-agent/bin/* /usr/local/bin/
+find /opt/onec-agent/bin -maxdepth 1 -type f -exec chmod +x {} +
+find /opt/onec-agent/bin -maxdepth 1 -type f -exec ln -sf {} /usr/local/bin/ \;
 command -v onec-agent-doctor >/dev/null
 command -v onec-agent-skill >/dev/null
 command -v onec-agent-bslls >/dev/null
@@ -345,6 +381,7 @@ onec-agent bootstrap --help >/dev/null
 onec-agent --help >/dev/null
 onec-context-mcp --help >/dev/null
 onec-agent-context-mcp --help >/dev/null
+onec-context query-kb --db "$bsl_docs_pack" --q "Фоновые задания" --limit 1 >/dev/null
 EOF
 
 RUN chmod +x /etc/services.d/onec/run \

@@ -11,7 +11,7 @@
 - OneScript, Vanessa Runner, Vanessa Automation и `bsl-language-server`.
 - `onec-agent` для 1C-specific операций: bootstrap, context, MCP config, BSLLS, skills.
 - OACS/ACS как прямой слой памяти, evidence и context capsules.
-- Prebuilt context packs: platform help, ITS standards и локальный metadata pack после bootstrap.
+- Prebuilt context packs: platform help, BSL developer guide, ITS standards и локальный metadata pack после bootstrap.
 - Опциональный PostgreSQL 1C для server/client-server сценариев.
 
 Изюминка проекта: контейнер не просто запускает 1С. Он подготавливает корректный контекст для IDE-агента: где искать справку, какие skills читать, как строить OACS capsule, куда писать evidence и как не терять проектные решения между итерациями.
@@ -50,6 +50,7 @@ docker exec -it 1c-dev onec-agent bootstrap
 docker exec -it 1c-dev onec-agent doctor
 docker exec -it 1c-dev acs memory query --query "текущая задача" --scope project --json
 docker exec -it 1c-dev onec-agent context --task "текущая задача" --query "ЗаписьJSON" --pack platform --limit 5
+docker exec -it 1c-dev onec-agent context --task "текущая задача" --query "Фоновые задания" --pack bsl-dev --limit 5
 ```
 
 Bootstrap не требует лицензии 1С. Лицензия нужна только для запуска самого 1С runtime.
@@ -89,6 +90,7 @@ docker cp ./nethasp.ini 1c-dev:/home/usr1cv8/.1cv8/1C/1cv8/conf/nethasp.ini
 - `.agent/reports/onec-agent-doctor.txt`
 - `.agent/reports/oacs-bootstrap-context.json`
 - `.agent/reports/oacs-standards-context.json`
+- `.agent/reports/oacs-bsl-dev-context.json`
 
 Если `.agent/AGENTS.md` еще нет, bootstrap создаст IDE entrypoint. Если файл уже существует, bootstrap его не перезаписывает.
 

@@ -52,17 +52,19 @@ Before changing 1C metadata, BSL, tests, or runtime scripts:
    `acs memory query --query "<task intent>" --scope project --json`
 3. Build a 1C task context capsule:
    `onec-agent context --task "<task intent>" --query "<exact 1C term>" --pack platform --limit 5`
-4. Use the relevant skill instructions from:
+4. Query developer-guide facts when the task needs behavior, patterns, or examples:
+   `onec-agent context --task "<task intent>" --query "<1C developer guide topic>" --pack bsl-dev --limit 5`
+5. Use the relevant skill instructions from:
    - `/opt/onec-skills/onec-context-toolkit/skill/SKILL.md`
    - `/opt/onec-skills/onec-vanessa-skill/skill/core/SKILL.md`
    - `/opt/onec-agent/skills/memory/SKILL.md`
-5. Run focused checks inside the container.
-6. Capture durable conclusions only after verification with direct ACS memory commands.
+6. Run focused checks inside the container.
+7. Capture durable conclusions only after verification with direct ACS memory commands.
 
 Rules:
 
 - Treat OACS as memory, evidence, and context governance. It is not the runtime orchestrator.
-- Prefer exact platform/standards/context-pack facts over remembered guesses.
+- Prefer exact platform, developer-guide, standards, and project context-pack facts over remembered guesses.
 - Do not store secrets, ITS credentials, license data, or full help dumps in OACS.
 - Keep project state under `.agent/`.
 EOF
@@ -76,7 +78,7 @@ write_memory_loop() {
 Use this loop for every non-trivial task.
 
 1. `acs memory query`: find prior project decisions and constraints.
-2. `onec-agent context`: build a fresh 1C task context capsule with exact platform, standards, metadata, or code facts.
+2. `onec-agent context`: build a fresh 1C task context capsule with exact platform, developer-guide, standards, metadata, or code facts.
 3. Work against the current project files.
 4. Verify with the narrowest relevant command.
 5. `acs memory propose` / `commit` / `sharpen`: save only reusable verified conclusions, linked to evidence.
@@ -86,6 +88,7 @@ Minimal commands:
 ```bash
 acs memory query --query "<task intent>" --scope project --json
 onec-agent context --task "<task intent>" --query "<1C term>" --pack platform --limit 5
+onec-agent context --task "<task intent>" --query "<1C behavior or example>" --pack bsl-dev --limit 5
 candidate="$(acs memory propose --type procedure --depth 2 --scope project --text "<verified conclusion>" --json)"
 memory_id="$(printf '%s' "$candidate" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
 acs memory commit "$memory_id" --json
@@ -163,6 +166,8 @@ main() {
     >"$report_dir/oacs-bootstrap-context.json"
   onec-agent-context build --task "${task}_standards" --query "стандарты разработки" --pack standards --limit "$limit" \
     >"$report_dir/oacs-standards-context.json"
+  onec-agent-context build --task "${task}_bsl_dev" --query "фоновые задания" --pack bsl-dev --limit "$limit" \
+    >"$report_dir/oacs-bsl-dev-context.json"
 
   local metadata_status metadata_pack
   metadata_status="not-built"
@@ -192,6 +197,7 @@ main() {
     --arg mcp_config "$mcp_dir/onec-context-mcp.json" \
     --arg platform_pack "$(jq -r '.packs.platform // empty' "$registry_path")" \
     --arg standards_pack "$(jq -r '.packs.standards // empty' "$registry_path")" \
+    --arg bsl_dev_pack "$(jq -r '.packs.bsl_dev // empty' "$registry_path")" \
     --arg metadata_status "$metadata_status" \
     --arg metadata_pack "$metadata_pack" \
     --argjson project_files "$project_files_json" \
@@ -211,6 +217,7 @@ main() {
       required_context: {
         platform_help_pack: $platform_pack,
         standards_pack: $standards_pack,
+        bsl_dev_docs_pack: $bsl_dev_pack,
         metadata_pack_status: $metadata_status,
         metadata_pack: $metadata_pack,
         skills: ($registry_json[0].skills // {})
@@ -225,6 +232,7 @@ main() {
         ".agent/reports/onec-agent-doctor.txt",
         ".agent/reports/oacs-bootstrap-context.json",
         ".agent/reports/oacs-standards-context.json",
+        ".agent/reports/oacs-bsl-dev-context.json",
         ".agent/reports/onec-context-metadata-ensure.log"
       ]
     }' >"$capsule_path"
@@ -248,6 +256,7 @@ Read \`.agent/instructions/pai-agent-instructions.md\`. If bootstrap created \`.
 \`\`\`bash
 acs memory query --query "<task intent>" --scope project --json
 onec-agent context --task "<task intent>" --query "<exact 1C term>" --pack platform --limit 5
+onec-agent context --task "<task intent>" --query "<developer guide topic>" --pack bsl-dev --limit 5
 candidate_json=\$(acs memory propose --type procedure --depth 2 --scope project --text "<verified reusable fact>" --json)
 memory_id=\$(printf '%s' "\$candidate_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
 acs memory commit "\$memory_id" --json
@@ -258,6 +267,7 @@ acs memory sharpen "\$memory_id" --evidence "<evidence ref>" --json
 
 - Platform help pack: \`$(jq -r '.packs.platform // empty' "$registry_path")\`
 - Standards pack: \`$(jq -r '.packs.standards // empty' "$registry_path")\`
+- BSL developer docs pack: \`$(jq -r '.packs.bsl_dev // empty' "$registry_path")\`
 - Metadata pack status: \`$metadata_status\`
 - Skills registry: \`$registry_path\`
 

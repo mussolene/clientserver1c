@@ -92,7 +92,9 @@ if [[ -f "$registry_path" ]]; then
   context_manifest="$(jq -r '.tools["onec-context"].manifest // empty' "$registry_path")"
   context_platform_pack="$(jq -r '.packs.platform // empty' "$registry_path")"
   context_standards_pack="$(jq -r '.packs.standards // empty' "$registry_path")"
+  context_bsl_dev_pack="$(jq -r '.packs.bsl_dev // empty' "$registry_path")"
   context_standards_manifest="$(jq -r '.manifests.standards // empty' "$registry_path")"
+  context_bsl_dev_manifest="$(jq -r '.manifests.bsl_dev // empty' "$registry_path")"
 
   printf '\ncontext packs\n'
   if [[ -n "$context_manifest" ]]; then
@@ -116,10 +118,24 @@ if [[ -f "$registry_path" ]]; then
     status=1
   fi
 
+  if [[ -n "$context_bsl_dev_pack" ]]; then
+    check_path "bsl dev docs pack" "$context_bsl_dev_pack"
+  else
+    printf '%-28s MISSING registry packs.bsl_dev\n' "bsl dev docs pack:"
+    status=1
+  fi
+
   if [[ -n "$context_standards_manifest" ]]; then
     check_path "standards manifest" "$context_standards_manifest"
   else
     printf '%-28s MISSING registry manifests.standards\n' "standards manifest:"
+    status=1
+  fi
+
+  if [[ -n "$context_bsl_dev_manifest" ]]; then
+    check_path "bsl dev docs manifest" "$context_bsl_dev_manifest"
+  else
+    printf '%-28s MISSING registry manifests.bsl_dev\n' "bsl dev docs manifest:"
     status=1
   fi
 

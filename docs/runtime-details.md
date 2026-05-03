@@ -2,7 +2,7 @@
 
 Репозиторий даёт один основной developer-контейнер:
 
-- `1c-dev`: платформа 1С, GUI/VNC, OneScript, Vanessa tooling, BSL diagnostics и agent-ready skills layer с предсобранными platform help и standards packs.
+- `1c-dev`: платформа 1С, GUI/VNC, OneScript, Vanessa tooling, BSL diagnostics и agent-ready skills layer с предсобранными platform help, BSL developer guide и standards packs.
 - `1c-pg`: опциональный PostgreSQL 1C для server/client-server сценариев.
 
 ## Runtime modes
@@ -82,9 +82,12 @@ VANESSA_RUNNER_VERSION=2.6.0
 VANESSA_AUTOMATION_VERSION=1.2.043.1
 BSLLS_VERSION=0.25.0
 OACS_VERSION=0.3.1a2
+BSL_DEV_DOCS_REPO=https://github.com/mussolene/BSL_8.5.1_dev_docs
+BSL_DEV_DOCS_REF=5feac5e9b9237d4bc134a517834a740157be2809
 ```
 
 Skills закреплены по commit SHA. Обновляйте эти значения только при осознанном refresh agent-ready слоя.
+BSL developer guide закреплен по commit SHA нашего fork и собирается в image как immutable KB pack.
 OACS является обязательным agent-layer dependency для Portable Agent Infrastructure memory/context/evidence.
 
 ## Agent Context Packs
@@ -92,6 +95,7 @@ OACS является обязательным agent-layer dependency для Por
 Во время сборки `1c-dev` `onec-context` создаёт workspace `/opt/onec-agent/context-workspace`:
 
 - platform help pack строится из HBK под `/opt/1cv8`;
+- BSL developer guide pack строится из pinned GitHub fork в SQLite/FTS `.db.zst`;
 - standards pack строится из ITS `v8std` в SQLite/FTS `.db.zst`;
 - пути записываются в `/opt/onec-agent/registry.json`.
 

@@ -4,7 +4,7 @@ Use this skill when a 1C task benefits from project memory, task context capsule
 
 ## Model
 
-- `onec-context` remains the canonical retrieval engine for platform help, ITS standards, and project packs.
+- `onec-context` remains the canonical retrieval engine for platform help, BSL developer guide, ITS standards, and project packs.
 - OACS stores governed memory, `EvidenceRef` records, audit entries, and `ContextCapsule` metadata.
 - Do not copy whole help pages, standards packs, platform archives, ITS credentials, license data, or secrets into memory.
 - Treat OACS memory as project-specific guidance. Treat `onec-context` lookup output as canonical evidence.
@@ -23,10 +23,11 @@ Host transport command:
 make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="short_task_intent"
 ```
 
-When the task needs a specific 1C help or standards lookup, include a query:
+When the task needs a specific 1C help, developer-guide, or standards lookup, include a query:
 
 ```bash
 onec-agent context --task "json_writer_question" --query "ЗаписьJSON" --pack platform --limit 5
+onec-agent context --task "background_jobs_question" --query "Фоновые задания" --pack bsl-dev --limit 5
 ```
 
 Host transport command:

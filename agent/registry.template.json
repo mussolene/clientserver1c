@@ -21,10 +21,12 @@
   },
   "packs": {
     "platform": "/opt/onec-agent/context-workspace/.onec/packs/platform.<version>.kb.db.zst",
-    "standards": "/opt/onec-agent/context-workspace/.onec/packs/standards.kb.db.zst"
+    "standards": "/opt/onec-agent/context-workspace/.onec/packs/standards.kb.db.zst",
+    "bsl_dev": "/opt/onec-agent/context-workspace/.onec/packs/bsl-dev-<version>.kb.db.zst"
   },
   "manifests": {
-    "standards": "/opt/onec-agent/context-workspace/.onec/manifests/standards.kb.manifest.json"
+    "standards": "/opt/onec-agent/context-workspace/.onec/manifests/standards.kb.manifest.json",
+    "bsl_dev": "/opt/onec-agent/context-workspace/.onec/manifests/bsl-dev-<version>.kb.manifest.json"
   },
   "skills": {
     "onec-vanessa-skill": {
@@ -34,6 +36,10 @@
     "onec-context-toolkit": {
       "source": "https://github.com/mussolene/onec-context-toolkit",
       "entrypoint": "/opt/onec-skills/onec-context-toolkit/skill/SKILL.md"
+    },
+    "bsl-dev-docs": {
+      "source": "https://github.com/mussolene/BSL_8.5.1_dev_docs",
+      "entrypoint": "/opt/onec-agent/context-workspace/.onec/manifests/bsl-dev-<version>.kb.manifest.json"
     },
     "oacs-memory": {
       "source": "local",

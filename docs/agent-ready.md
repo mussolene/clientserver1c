@@ -34,13 +34,14 @@ Bootstrap создает в смонтированном проекте:
 
 - `.agent/oacs/oacs.db` - project-local OACS state.
 - `.agent/mcp/onec-context-mcp.json` - MCP config для context tools.
-- `.agent/context-capsules/bootstrap-context-capsule.json` - минимальный capsule со ссылками на help/standards packs, metadata scan, registry и skills.
+- `.agent/context-capsules/bootstrap-context-capsule.json` - минимальный capsule со ссылками на help, BSL developer guide, standards packs, metadata scan, registry и skills.
 - `.agent/bootstrap-report.md` - короткий отчет и следующий шаг для агента.
 - `.agent/instructions/pai-agent-instructions.md` - инструкции для IDE-агента.
 - `.agent/instructions/oacs-memory-call-loop.md` - обязательный memory/context/evidence loop.
 - `.agent/reports/onec-agent-doctor.txt` - снимок readiness-check.
 - `.agent/reports/oacs-bootstrap-context.json` - bootstrap context capsule.
 - `.agent/reports/oacs-standards-context.json` - standards context capsule.
+- `.agent/reports/oacs-bsl-dev-context.json` - developer guide context capsule.
 - `.agent/reports/onec-context-metadata-ensure.log` - результат подготовки metadata pack.
 
 Если `.agent/AGENTS.md` еще нет, bootstrap создаст IDE entrypoint. Если файл уже существует, bootstrap его не перезаписывает.
@@ -61,6 +62,7 @@ make -C /path/to/1c-develop agent-doctor PROJECT_PATH="$PWD"
 ```bash
 docker exec -it 1c-dev onec-agent doctor
 docker exec -it 1c-dev onec-agent context --task "task" --query "ЗаписьJSON" --pack platform --limit 5
+docker exec -it 1c-dev onec-agent context --task "task" --query "Фоновые задания" --pack bsl-dev --limit 5
 docker exec -it 1c-dev acs memory query --query "task" --scope project --json
 ```
 
@@ -103,13 +105,14 @@ OACS входит в Portable Agent Infrastructure image как обязател
 
 State хранится в смонтированном проекте: `.agent/oacs/oacs.db`. Для shared/private проектов задавайте `OACS_PASSPHRASE` или `ONEC_OACS_PASSPHRASE` явно и не коммитьте `.agent/oacs/`.
 
-OACS здесь state/governance backend, а не оркестратор. `onec-context` остаётся retrieval engine для platform help, ITS standards и project packs.
+OACS здесь state/governance backend, а не оркестратор. `onec-context` остаётся retrieval engine для platform help, BSL developer guide, ITS standards и project packs.
 
 Memory call loop после bootstrap:
 
 ```bash
 acs memory query --query "<task intent>" --scope project --json
 onec-agent context --task "<task intent>" --query "<точный термин 1С>" --pack platform --limit 5
+onec-agent context --task "<task intent>" --query "<поведение или пример из руководства>" --pack bsl-dev --limit 5
 candidate="$(acs memory propose --type procedure --depth 2 --scope project --text "<проверенный повторно используемый вывод>" --json)"
 memory_id="$(printf '%s' "$candidate" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
 acs memory commit "$memory_id" --json
@@ -135,6 +138,12 @@ make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="answer_1c_pl
 
 ```bash
 make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="json_writer_question" QUERY="ЗаписьJSON" PACK=platform LIMIT=5
+```
+
+Собрать context с lookup в руководстве разработчика:
+
+```bash
+make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="background_jobs_question" QUERY="Фоновые задания" PACK=bsl-dev LIMIT=5
 ```
 
 Прочитать и записать project memory напрямую через ACS:
