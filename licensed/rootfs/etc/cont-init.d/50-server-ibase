@@ -1,0 +1,95 @@
+#!/usr/bin/with-contenv sh
+set -eu
+
+db_name="${ONEC_SERVER_DB_NAME:-}"
+server_name="${ONEC_SERVER_HOST:-onec-all}"
+display_name="${ONEC_SERVER_DB_DISPLAY_NAME:-$db_name}"
+platform_version="${PLATFORM_VERSION:-8.5.1.1302}"
+
+[ -n "$db_name" ] || exit 0
+
+add_server_ibase() {
+  target_home="$1"
+  target_owner="$2"
+  target_file="$target_home/.1C/1cestart/ibases.v8i"
+
+  mkdir -p "$(dirname "$target_file")"
+
+  python3 - "$target_file" "$display_name" "$server_name" "$db_name" "$platform_version" <<'PY'
+import hashlib
+import re
+import sys
+from pathlib import Path
+
+target = Path(sys.argv[1])
+name = sys.argv[2]
+server = sys.argv[3]
+db_name = sys.argv[4]
+version = sys.argv[5]
+
+source = target.read_text(encoding="utf-8-sig") if target.exists() else ""
+lines = source.splitlines()
+
+sections = []
+current_name = None
+current_lines = []
+for line in lines:
+    if re.match(r"^\[[^\]]+\]$", line):
+        if current_name is not None:
+            sections.append((current_name, current_lines))
+        current_name = line[1:-1]
+        current_lines = [line]
+    else:
+        if current_name is None:
+            if line.strip():
+                sections.append((None, [line]))
+        else:
+            current_lines.append(line)
+
+if current_name is not None:
+    sections.append((current_name, current_lines))
+
+digest = hashlib.md5(f"{name}|{server}|{db_name}".encode("utf-8")).hexdigest()
+ibase_id = f"{digest[:8]}-{digest[8:12]}-{digest[12:16]}-{digest[16:20]}-{digest[20:32]}"
+escaped_server = server.replace('"', '""')
+escaped_db_name = db_name.replace('"', '""')
+entry = [
+    f"[{name}]",
+    f'Connect=Srvr="{escaped_server}";Ref="{escaped_db_name}";',
+    f"ID={ibase_id}",
+    "OrderInList=16384",
+    "Folder=/",
+    "OrderInTree=16384",
+    "External=0",
+    "ClientConnectionSpeed=Normal",
+    "App=Auto",
+    "WA=1",
+    f"Version={version}",
+]
+
+updated = False
+result = []
+for section_name, section_lines in sections:
+    if section_name == name:
+        result.extend(entry)
+        updated = True
+    else:
+        result.extend(section_lines)
+    result.append("")
+
+if not updated:
+    result.extend(entry)
+    result.append("")
+
+target.write_text("\n".join(result), encoding="utf-8")
+PY
+
+  chmod 0644 "$target_file"
+  chown -R "$target_owner" "$target_home/.1C" 2>/dev/null || true
+}
+
+add_server_ibase /root root:root
+if getent passwd usr1cv8 >/dev/null 2>&1; then
+  usr_home="$(getent passwd usr1cv8 | cut -d: -f6)"
+  add_server_ibase "$usr_home" usr1cv8:grp1cv8
+fi
