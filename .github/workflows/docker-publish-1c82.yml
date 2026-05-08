@@ -1,0 +1,186 @@
+name: Publish 1C 8.2 Wine image
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform_version:
+        description: "1C 8.2 platform version"
+        required: true
+        default: "8.2.19.130"
+      platform_dist_name:
+        description: "1C Windows distribution archive name"
+        required: true
+        default: "windows.rar"
+      publish_dockerhub:
+        description: "Also publish to Docker Hub"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  GHCR_REGISTRY: ghcr.io
+  IMAGE_NAME: 1c82-platform
+  COMMON_BASE_TAG: bookworm
+  COMMON_BASE_IMAGE: ghcr.io/mussolene/linux-common-base:bookworm
+  PLATFORMS_AMD64: linux/amd64
+
+concurrency:
+  group: docker-publish-1c82-${{ github.ref }}-${{ inputs.platform_version }}
+  cancel-in-progress: false
+
+jobs:
+  prepare-platform82:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${{ secrets.ITS_LOGIN }}" || { echo "Missing repository secret ITS_LOGIN" >&2; exit 1; }
+          test -n "${{ secrets.ITS_PASSWORD }}" || { echo "Missing repository secret ITS_PASSWORD" >&2; exit 1; }
+
+      - name: Download 1C 8.2 Windows distribution
+        shell: bash
+        run: |
+          set -euo pipefail
+          PLATFORM_VERSION="${{ inputs.platform_version }}" \
+          PLATFORM_ARCH=amd64 \
+          PLATFORM_DIST_NAME="${{ inputs.platform_dist_name }}" \
+          ENV_FILE="$PWD/.env" \
+          bash ./scripts/download-platform.sh
+        env:
+          ITS_LOGIN: ${{ secrets.ITS_LOGIN }}
+          ITS_PASSWORD: ${{ secrets.ITS_PASSWORD }}
+
+      - name: Stage 1C 8.2 Windows distribution
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .local/1c/wine82-platform
+          cp ".local/1c/platform/${{ inputs.platform_dist_name }}" ".local/1c/wine82-platform/${{ inputs.platform_dist_name }}"
+          tar -cf wine82-platform-staging.tar -C .local/1c wine82-platform
+
+      - name: Upload staged 1C 8.2 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wine82-platform-staging-${{ inputs.platform_version }}
+          path: wine82-platform-staging.tar
+          if-no-files-found: error
+          compression-level: 0
+
+  publish:
+    needs: prepare-platform82
+    runs-on: ubuntu-24.04
+    env:
+      BUILD_TAG: build-${{ github.sha }}
+      REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download staged 1C 8.2 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wine82-platform-staging-${{ inputs.platform_version }}
+          path: .local/1c
+
+      - name: Restore staged 1C 8.2 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .local/1c/wine82-platform-staging.tar
+          tar -xf .local/1c/wine82-platform-staging.tar -C .local/1c
+          test -f ".local/1c/wine82-platform/${{ inputs.platform_dist_name }}"
+
+      - name: Load publish settings
+        id: cfg
+        shell: bash
+        run: |
+          set -euo pipefail
+          ghcr_namespace="${GHCR_NAMESPACE:-${GITHUB_REPOSITORY_OWNER,,}}"
+          dockerhub_username="${DOCKERHUB_USERNAME:-}"
+          dockerhub_namespace="${DOCKERHUB_NAMESPACE:-${dockerhub_username}}"
+          {
+            echo "ghcr_namespace=${ghcr_namespace}"
+            echo "dockerhub_username=${dockerhub_username}"
+            echo "dockerhub_namespace=${dockerhub_namespace}"
+          } >> "$GITHUB_OUTPUT"
+        env:
+          GHCR_NAMESPACE: ${{ vars.GHCR_NAMESPACE }}
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          DOCKERHUB_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE }}
+
+      - name: Validate Docker Hub settings
+        if: inputs.publish_dockerhub == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${{ steps.cfg.outputs.dockerhub_username }}" || { echo "Missing repository variable DOCKERHUB_USERNAME" >&2; exit 1; }
+          test -n "${{ steps.cfg.outputs.dockerhub_namespace }}" || { echo "Missing repository variable DOCKERHUB_NAMESPACE or DOCKERHUB_USERNAME" >&2; exit 1; }
+          test -n "${{ secrets.DOCKERHUB_TOKEN }}" || { echo "Missing repository secret DOCKERHUB_TOKEN" >&2; exit 1; }
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        if: inputs.publish_dockerhub == 'true'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ steps.cfg.outputs.dockerhub_username }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Compute image tags
+        id: tags
+        shell: bash
+        run: |
+          set -euo pipefail
+          ghcr_base="${GHCR_REGISTRY}/${{ steps.cfg.outputs.ghcr_namespace }}/${IMAGE_NAME}"
+          {
+            echo "image_tags<<EOF"
+            echo "${ghcr_base}:${BUILD_TAG}"
+            echo "${ghcr_base}:${{ inputs.platform_version }}"
+            if [[ "${{ inputs.publish_dockerhub }}" == "true" ]]; then
+              dockerhub_base="docker.io/${{ steps.cfg.outputs.dockerhub_namespace }}/${IMAGE_NAME}"
+              echo "${dockerhub_base}:${BUILD_TAG}"
+              echo "${dockerhub_base}:${{ inputs.platform_version }}"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push 1C 8.2 Wine image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./platform82-wine/Dockerfile
+          platforms: ${{ env.PLATFORMS_AMD64 }}
+          pull: true
+          push: true
+          build-args: |
+            COMMON_BASE_IMAGE=${{ env.COMMON_BASE_IMAGE }}
+            PLATFORM_VERSION=${{ inputs.platform_version }}
+            PLATFORM_ARCHIVE_NAME=${{ inputs.platform_dist_name }}
+          tags: ${{ steps.tags.outputs.image_tags }}
+          labels: |
+            org.opencontainers.image.source=${{ env.REPO_URL }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.description=Standalone Wine-based 1C Enterprise 8.2 image for legacy CheckConfig workflows
+          cache-from: type=gha,scope=1c82-platform
+          cache-to: type=gha,mode=max,scope=1c82-platform

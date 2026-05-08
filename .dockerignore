@@ -17,3 +17,5 @@ volumes
 !.local/1c/dev-platform/*.tar.gz
 !.local/1c/dev-platform/*.deb
 !.local/1c/dev-platform/setup-full-*.run
+!.local/1c/wine82-platform/
+!.local/1c/wine82-platform/*.rar

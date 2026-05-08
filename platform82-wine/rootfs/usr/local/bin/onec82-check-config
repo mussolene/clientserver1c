@@ -1,0 +1,179 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage:
+  onec82-check-config --cf /workspace/config.cf --out-dir /workspace/out [options]
+
+Options:
+  --cf PATH             Path to .cf file inside the container.
+  --out-dir PATH        Directory for create/check logs and temporary file DB.
+  --locale LOCALE       Infobase locale. Default: ru_RU.
+  --timeout SECONDS     Timeout for each 1C command. Default: 300.
+  --nethasp PATH        Optional nethasp.ini path mounted at runtime.
+  --version             Print installed 1C 8.2 binary path and version.
+
+The runner creates a file infobase with CREATEINFOBASE /UseTemplate and then
+runs CONFIG /CheckConfig. It does not embed license files in the image.
+EOF
+}
+
+copy_nethasp() {
+  local source_path="$1"
+  local prefix="${WINEPREFIX:-/opt/wineprefix}"
+  local version="${ONEC82_VERSION:-8.2.19.130}"
+  local home="${ONEC82_HOME:-$prefix/drive_c/Program Files/1cv82/$version}"
+  local target_dir
+
+  [[ -n "$source_path" ]] || return 0
+  if [[ ! -r "$source_path" ]]; then
+    echo "nethasp.ini is not readable: $source_path" >&2
+    exit 2
+  fi
+
+  for target_dir in \
+    "$prefix/drive_c/Program Files/1cv82/conf" \
+    "$home/conf" \
+    "$home/bin" \
+    "$prefix/drive_c/windows" \
+    "$prefix/drive_c/users/root/Application Data/1C/1cv82/conf"; do
+    mkdir -p "$target_dir"
+    cp "$source_path" "$target_dir/nethasp.ini"
+  done
+}
+
+if [[ "${1:-}" == "--version" ]]; then
+  printf '1C 8.2 runner\n'
+  printf '  ONEC82_VERSION=%s\n' "${ONEC82_VERSION:-8.2.19.130}"
+  printf '  ONEC82_BIN=%s\n' "${ONEC82_BIN:-}"
+  test -x "${ONEC82_BIN:-}" || exit 1
+  exit 0
+fi
+
+cf_path=""
+out_dir=""
+ib_locale="ru_RU"
+command_timeout="300"
+nethasp_path="${NETHASP_INI:-}"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --cf)
+      cf_path="${2:-}"
+      shift 2
+      ;;
+    --out-dir)
+      out_dir="${2:-}"
+      shift 2
+      ;;
+    --locale)
+      ib_locale="${2:-}"
+      shift 2
+      ;;
+    --timeout)
+      command_timeout="${2:-}"
+      shift 2
+      ;;
+    --nethasp)
+      nethasp_path="${2:-}"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [[ -z "$cf_path" || -z "$out_dir" ]]; then
+  usage >&2
+  exit 2
+fi
+if [[ ! -f "$cf_path" ]]; then
+  echo "Configuration file does not exist: $cf_path" >&2
+  exit 2
+fi
+
+onec_bin="${ONEC82_BIN:-}"
+if [[ -z "$onec_bin" || ! -x "$onec_bin" ]]; then
+  echo "1C 8.2 executable is missing: ${onec_bin:-<empty>}" >&2
+  exit 2
+fi
+
+copy_nethasp "$nethasp_path"
+
+mkdir -p "$out_dir"
+run_id="$(date +%s)-$$"
+prefix="${WINEPREFIX:-/opt/wineprefix}"
+work_dir="$prefix/drive_c/onec82-runs/$run_id"
+mkdir -p "$work_dir"
+trap 'rm -rf "$work_dir"' EXIT
+
+cp "$cf_path" "$work_dir/config.cf"
+
+ib_win="C:\\onec82-runs\\$run_id\\ib"
+cf_win="C:\\onec82-runs\\$run_id\\config.cf"
+create_log_win="C:\\onec82-runs\\$run_id\\create.txt"
+check_log_win="C:\\onec82-runs\\$run_id\\check.txt"
+create_log="$out_dir/create.txt"
+check_log="$out_dir/check.txt"
+create_console="$out_dir/create-console.txt"
+check_console="$out_dir/check-console.txt"
+result_file="$out_dir/result.txt"
+
+set +e
+xvfb-run -a timeout "$command_timeout" wine "$onec_bin" \
+  CREATEINFOBASE "File=${ib_win};Locale=${ib_locale};" \
+  /UseTemplate "$cf_win" \
+  /Out "$create_log_win" \
+  /DisableStartupMessages \
+  /DisableStartupDialogs \
+  /Visible- \
+  /WA- \
+  >"$create_console" 2>&1
+create_rc=$?
+
+xvfb-run -a timeout "$command_timeout" wine "$onec_bin" \
+  CONFIG /F "$ib_win" \
+  /CheckConfig \
+  -ThinClient \
+  -Client \
+  -ClientServer \
+  -Server \
+  -DistributiveModules \
+  -IncorrectReferences \
+  -ConfigLogicalIntegrity \
+  -UnreferenceProcedures \
+  -HandlersExistence \
+  -EmptyHandlers \
+  /Out "$check_log_win" \
+  /DisableStartupMessages \
+  /DisableStartupDialogs \
+  /Visible- \
+  /WA- \
+  >"$check_console" 2>&1
+check_rc=$?
+set -e
+
+cp "$work_dir/create.txt" "$create_log" 2>/dev/null || true
+cp "$work_dir/check.txt" "$check_log" 2>/dev/null || true
+
+{
+  printf 'create_rc=%s\n' "$create_rc"
+  printf 'check_rc=%s\n' "$check_rc"
+  printf 'create_log=%s\n' "$create_log"
+  printf 'check_log=%s\n' "$check_log"
+} > "$result_file"
+
+cat "$result_file"
+
+if [[ "$create_rc" -ne 0 ]]; then
+  exit "$create_rc"
+fi
+exit "$check_rc"
