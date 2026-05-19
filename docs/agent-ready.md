@@ -153,7 +153,11 @@ make -C /path/to/1c-develop agent-epf-roundtrip PROJECT_PATH="$PWD" EPF_PATH=tes
 
 OACS входит в Portable Agent Infrastructure image как обязательный слой.
 
-State хранится в смонтированном проекте: `.agent/oacs/oacs.db`. Для shared/private проектов задавайте `OACS_PASSPHRASE` или `ONEC_OACS_PASSPHRASE` явно и не коммитьте `.agent/oacs/`.
+State хранится в смонтированном проекте: `.agent/oacs/oacs.db`. Новые local
+stores могут использовать `local_unlocked` key material без passphrase. Для
+существующих passphrase-wrapped хранилищ задавайте `OACS_PASSPHRASE` или
+`ONEC_OACS_PASSPHRASE` явно. Не коммитьте `.agent/oacs/`, `.oacs`, OACS DB,
+`key.json`, `unlocked.key`, passphrases и private agent state.
 
 OACS здесь state/governance backend, а не оркестратор. `onec-context` остаётся retrieval engine для platform help, BSL developer guide, ITS standards и project packs.
 
@@ -161,6 +165,7 @@ OACS здесь state/governance backend, а не оркестратор. `onec-
 
 ```bash
 export OACS_DB=/workspace/project/.agent/oacs/oacs.db
+acs context gate --intent repo_development --scope project --task "<task intent>" --json
 acs memory query --query "<task intent>" --scope project --json
 acs context build --intent "<task intent>" --scope project --json
 onec-agent context --query "<точный термин 1С>" --pack platform --limit 5
@@ -172,6 +177,9 @@ acs resume --scope project --json
 evidence. `acs resume` показывает последние command evidence, checkpoints,
 memory и context capsules после сжатия контекста или возврата к задаче.
 `acs tool ingest-result` оставляйте для результатов, полученных вне CLI.
+Запускайте `acs context build`, когда gate возвращает `decision=build` или
+когда prior memory/evidence явно важны; не добавляйте OACS context в prompt
+безусловно.
 Durable memory пишите через `acs memory propose/commit/sharpen` только после
 проверки факта. Не сохраняйте в OACS ITS credentials, license data, platform
 archives, полные help packs или другие секреты.

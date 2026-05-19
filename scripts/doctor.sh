@@ -117,7 +117,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
   printf '  make env\n'
 fi
 printf '  make pull                              # pull configured developer image\n'
-printf '  export OACS_PASSPHRASE="<local-oacs-passphrase>"\n'
+printf '  # OACS_PASSPHRASE is optional; set it only for existing passphrase-wrapped OACS state.\n'
 printf '  export NETHASP_INI_PATH=/absolute/path/to/nethasp.ini  # optional network HASP\n'
 printf '  make agent-up PROJECT_PATH=/path/to/project\n'
 printf '  docker exec -it 1c-dev onec-agent bootstrap\n'

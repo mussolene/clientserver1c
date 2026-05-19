@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from oacs.app import OacsServices, services
+from oacs.core.attribution import Attribution
 from oacs.core.json import hash_json
 from oacs.memory.models import EvidenceItem
 
@@ -221,6 +222,12 @@ def _commit_repo_episode(
             confidence=1.0,
             scope=repo_scope,
             slot="evidence",
+            attribution=Attribution(
+                source_actor_id=actor,
+                source_actor_type="agent",
+                recorded_by_actor_id=actor,
+                role="agent_decision",
+            ),
         )
     ]
     proposed = svc.memory.propose(
@@ -230,6 +237,12 @@ def _commit_repo_episode(
         actor,
         repo_scope,
         evidence=evidence,
+        attribution=Attribution(
+            source_actor_id=actor,
+            source_actor_type="agent",
+            recorded_by_actor_id=actor,
+            role="agent_decision",
+        ),
     )
     committed = svc.memory.commit(proposed.id, actor)
     svc.audit.record(

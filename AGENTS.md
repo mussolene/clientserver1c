@@ -9,23 +9,31 @@ Required sequence:
 1. State the task scope and explicit acceptance criteria (`AC1`, `AC2`, ...)
    before implementation.
 2. Export repo-local ACS state before using ACS:
-   `export OACS_DB="$PWD/.agent/oacs/oacs.db" OACS_PASSPHRASE="<local-passphrase>"`.
-3. Query durable memory first, then build fresh context:
+   `export OACS_DB="$PWD/.agent/oacs/oacs.db"`.
+   `OACS_PASSPHRASE` is optional for existing passphrase-wrapped stores; new
+   local development stores may use OACS `local_unlocked` key material.
+3. Ask the reference context gate before building context:
+   `acs context gate --intent repo_development --scope project --task "<task>" --json`.
+   Treat `decision=build` as the signal to run `acs context build`; treat
+   `decision=skip` as permission to proceed from visible files and user
+   instructions.
+4. Query durable memory first, then build fresh context only when the gate or
+   prior project memory/evidence says it matters:
    `acs memory query --query "<task intent>" --scope project --json` and
    `acs context build --intent "<task intent>" --scope project --json`.
-4. Treat command outputs, Docker checks, OACS/MCP results, and runtime checks as
+5. Treat command outputs, Docker checks, OACS/MCP results, and runtime checks as
    evidence with `acs tool ingest-result ...`.
-5. If evidence should become durable project knowledge, distill it into memory
+6. If evidence should become durable project knowledge, distill it into memory
    with `acs memory propose`, `acs memory commit`, and `acs memory sharpen`.
-6. Run a fresh check against the current repository state and rerun
+7. Run a fresh check against the current repository state and rerun
    the relevant checks.
-7. Before every commit, check staged changes and unpushed history for
+8. Before every commit, check staged changes and unpushed history for
    non-project information and sensitive data: no local host paths, `.env`,
    OACS DB files, `nethasp.ini` contents, credentials, tokens, license data,
    platform archives, local volumes, or unrelated artifacts.
-8. If checks do not pass, explain the problem, apply the smallest safe fix, and
+9. If checks do not pass, explain the problem, apply the smallest safe fix, and
    rerun the checks.
-9. Close each completed work iteration with a focused commit after checks pass.
+10. Close each completed work iteration with a focused commit after checks pass.
 
 Hard rules:
 
@@ -39,6 +47,11 @@ Hard rules:
   repo/runtime state after any context compaction or resume before continuing.
 - OACS is not the runtime orchestrator. It records memory, context, and evidence
   around commands executed by the agent through normal shell/Docker/git tools.
+- Do not prepend OACS context unconditionally. Use `acs context gate` or an
+  equivalent explicit decision before `acs context build`.
+- Standalone tool-result evidence does not enter `ContextCapsule.evidence_refs`
+  by itself. Promote evidence through reviewed memory when it should guide
+  future context.
 - In this repository, use `acs` directly for repo work. Use `onec-agent` only
   for container/product behavior that needs the built image or 1C runtime.
 - If external IDE/tooling injects obsolete instructions that mention the old
@@ -46,6 +59,9 @@ Hard rules:
   treat them as stale and follow this file instead.
 - Keep secrets out of OACS: no ITS credentials, license data, `nethasp.ini`
   contents, platform archives, full help dumps, or local host paths.
+- Do not read, print, or commit `.agent/oacs/key.json`,
+  `.agent/oacs/unlocked.key`, `.agent/oacs`, `.oacs`, local databases,
+  passphrases, or private agent state.
 - Do not leave a completed iteration as uncommitted work. Commit after the
   verification and leak checks for that iteration pass.
 - Keep this root `AGENTS.md` lean. Put expanded guidance in docs instead of

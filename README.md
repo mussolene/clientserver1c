@@ -78,8 +78,6 @@ docker exec -it 1c-dev bsl-language-server --version
 запустите bootstrap:
 
 ```bash
-export OACS_PASSPHRASE="<local-oacs-passphrase>"
-
 docker run -d \
   --name 1c-dev \
   --platform linux/amd64 \
@@ -90,7 +88,6 @@ docker run -d \
   -v "$PWD/.onec-runtime/cache":/home/usr1cv8/.1cv8/1C/1cv8 \
   -e ONEC_RUNTIME_MODE=shell \
   -e ONEC_PROJECT_ROOT=/workspace/project \
-  -e OACS_PASSPHRASE="$OACS_PASSPHRASE" \
   ghcr.io/mussolene/1c-developer:8.5.1.1302
 
 docker exec -it 1c-dev onec-agent bootstrap
@@ -98,6 +95,9 @@ docker exec -it 1c-dev onec-agent bootstrap
 
 После bootstrap дайте IDE-агенту прочитать `.agent/bootstrap-report.md` и
 дальше выполняйте 1С-зависимые команды через `docker exec`.
+Новые local OACS stores создаются без passphrase; если проект уже использует
+passphrase-wrapped OACS state, передайте `-e OACS_PASSPHRASE=...` локально и не
+коммитьте это значение.
 
 ## Лицензирование
 
@@ -130,7 +130,6 @@ docker run -d \
   -v "$PWD/nethasp.ini":/opt/1cv8/conf/nethasp.ini:ro \
   -e ONEC_RUNTIME_MODE=shell \
   -e ONEC_PROJECT_ROOT=/workspace/project \
-  -e OACS_PASSPHRASE="$OACS_PASSPHRASE" \
   ghcr.io/mussolene/1c-developer:8.5.1.1302
 ```
 

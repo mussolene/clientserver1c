@@ -50,32 +50,36 @@ Before changing 1C metadata, BSL, tests, or runtime scripts:
 1. Read `.agent/bootstrap-report.md`.
 2. Export project-local ACS state:
    `export OACS_DB="${ONEC_PROJECT_ROOT:-/workspace/project}/.agent/oacs/oacs.db"`
-   `export OACS_PASSPHRASE="<local-oacs-passphrase>"`
-3. Query project memory with ACS:
+   `OACS_PASSPHRASE` is optional for existing passphrase-wrapped stores.
+3. Ask the reference context gate:
+   `acs context gate --intent repo_development --scope project --task "<task intent>" --json`
+4. Query project memory with ACS:
    `acs memory query --query "<task intent>" --scope project --json`
-4. Build an ACS context capsule for the current task:
+5. Build an ACS context capsule for the current task when the gate returns `decision=build`:
    `acs context build --intent "<task intent>" --scope project --json`
-5. Build a 1C task context capsule:
+6. Build a 1C task context capsule:
    `onec-agent context --query "<exact 1C term>" --pack platform --limit 5`
-6. Query developer-guide facts when the task needs behavior, patterns, or examples:
+7. Query developer-guide facts when the task needs behavior, patterns, or examples:
    `onec-agent context --query "<1C developer guide topic>" --pack bsl-dev --limit 5`
-7. Query project metadata after bootstrap when the task is about project objects:
+8. Query project metadata after bootstrap when the task is about project objects:
    `onec-agent context --query "<metadata object>" --pack metadata --limit 5`
-8. Use the relevant skill instructions from:
+9. Use the relevant skill instructions from:
    - `/opt/onec-skills/onec-context-toolkit/skill/SKILL.md`
    - `/opt/onec-skills/onec-vanessa-skill/skill/core/SKILL.md`
    - `/opt/onec-agent/skills/memory/SKILL.md`
    - `/opt/onec-agent/skills/codex_oacs_runtime/SKILL.md`
-9. Run focused checks inside the container.
-10. Capture durable conclusions only after verification with direct ACS memory commands.
+10. Run focused checks inside the container.
+11. Capture durable conclusions only after verification with direct ACS memory commands.
 
 Rules:
 
 - Treat OACS as memory, evidence, and context governance. It is not the runtime orchestrator.
+- Do not prepend OACS context unconditionally. Use `acs context gate` or an equivalent explicit decision.
 - Use `acs` directly for memory, context capsules, MCP import, and evidence.
   Use `onec-agent` for 1C retrieval, diagnostics, skills, and runtime checks.
 - Prefer exact platform, developer-guide, standards, and project context-pack facts over remembered guesses.
 - Do not store secrets, ITS credentials, license data, or full help dumps in OACS.
+- Do not read, print, or commit `.agent/oacs/key.json`, `.agent/oacs/unlocked.key`, OACS DB files, passphrases, or private agent state.
 - Keep project state under `.agent/`.
 EOF
 }
@@ -87,19 +91,20 @@ write_memory_loop() {
 
 Use this loop for every non-trivial task.
 
-1. `acs memory query`: find prior project decisions and constraints.
-2. `acs context build`: create the task capsule for current repo/project state.
-3. `onec-agent context`: run exact 1C lookups against platform, developer-guide, standards, metadata, or code packs.
-4. Work against the current project files.
-5. Verify with the narrowest relevant command.
-6. `acs run`: execute checks and save command outputs as evidence.
-7. `acs memory propose` / `commit` / `sharpen`: save only reusable verified conclusions, linked to evidence.
+1. `acs context gate`: decide whether this task needs OACS context.
+2. `acs memory query`: find prior project decisions and constraints.
+3. `acs context build`: create the task capsule for current repo/project state when the gate returns `decision=build`.
+4. `onec-agent context`: run exact 1C lookups against platform, developer-guide, standards, metadata, or code packs.
+5. Work against the current project files.
+6. Verify with the narrowest relevant command.
+7. `acs run`: execute checks and save command outputs as evidence.
+8. `acs memory propose` / `commit` / `sharpen`: save only reusable verified conclusions, linked to evidence.
 
 Minimal commands:
 
 ```bash
 export OACS_DB="${ONEC_PROJECT_ROOT:-/workspace/project}/.agent/oacs/oacs.db"
-export OACS_PASSPHRASE="<local-oacs-passphrase>"
+acs context gate --intent repo_development --scope project --task "<task intent>" --json
 acs memory query --query "<task intent>" --scope project --json
 acs context build --intent "<task intent>" --scope project --json
 onec-agent context --query "<1C term>" --pack platform --limit 5
@@ -113,6 +118,15 @@ acs memory commit "$memory_id" --json
 acs memory sharpen "$memory_id" --evidence "<ev_...>" --json
 ```
 EOF
+}
+
+init_oacs_key() {
+  local report_path="$1"
+  if [[ -n "$oacs_passphrase" ]]; then
+    acs key init --passphrase "$oacs_passphrase" --json >"$report_path"
+  else
+    acs key init --json >"$report_path"
+  fi
 }
 
 write_cross_repo_findings_capsule() {
@@ -293,7 +307,6 @@ main() {
   require_command onec-agent-doctor
   require_command onec-context
   [[ -f "$registry_path" ]] || die "Agent registry is missing: $registry_path"
-  [[ -n "$oacs_passphrase" ]] || die "Set OACS_PASSPHRASE or ONEC_OACS_PASSPHRASE before bootstrap."
 
   local agent_dir mcp_dir capsule_dir instructions_dir report_dir capsule_path findings_capsule_path findings_memories_path report_path
   agent_dir="$project_root/.agent"
@@ -309,12 +322,16 @@ main() {
   mkdir -p "$(dirname "$oacs_db")" "$mcp_dir" "$capsule_dir" "$instructions_dir" "$report_dir"
 
   export OACS_DB="$oacs_db"
-  export OACS_PASSPHRASE="$oacs_passphrase"
+  if [[ -n "$oacs_passphrase" ]]; then
+    export OACS_PASSPHRASE="$oacs_passphrase"
+  else
+    unset OACS_PASSPHRASE
+  fi
   export ONEC_PROJECT_ROOT="$project_root"
   export ONEC_AGENT_REGISTRY="$registry_path"
 
   acs init --json >"$report_dir/oacs-init.json"
-  acs key init --passphrase "$oacs_passphrase" --json >"$report_dir/oacs-key-init.json"
+  init_oacs_key "$report_dir/oacs-key-init.json"
   onec-agent-doctor >"$report_dir/onec-agent-doctor.txt"
   onec-agent-context mcp-config >"$mcp_dir/onec-context-mcp.json"
   acs context build --intent "$task" --scope project --budget "${ONEC_OACS_CONTEXT_BUDGET:-4000}" --json \
@@ -359,7 +376,7 @@ main() {
     --arg bsl_dev_pack "$(jq -r '.packs.bsl_dev // empty' "$registry_path")" \
     --arg metadata_status "$metadata_status" \
     --arg metadata_pack "$metadata_pack" \
-    --arg orientation_prompt 'You are working inside a project prepared by Portable Agent Infrastructure (PAI) for 1C development. PAI is the container/runtime infrastructure, not a product object named pai. The host IDE agent edits the mounted project; the container provides 1C runtime, VNC, OneScript, Vanessa, BSL Language Server, OACS/ACS, skills, and onec-context knowledge packs. Start every non-trivial task with direct acs memory query and acs context build against the project OACS DB, then use onec-agent only as the 1C adapter for context lookup, diagnostics, skills, bootstrap artifacts, ibase helpers, and runtime checks. Treat platform help, BSL developer guide, standards, and metadata packs as retrieval sources; do not paste full corpora into memory. The supported runtime/build target is linux/amd64. Licensing is optional for bootstrap/OACS/context, but 1C runtime checks need activation or a readable nethasp.ini mounted by local path only. Never store nethasp.ini contents, license data, ITS credentials, OACS DB files, platform archives, local host paths, or unrelated artifacts in git, reports, OACS memory, or context capsules.' \
+    --arg orientation_prompt 'You are working inside a project prepared by Portable Agent Infrastructure (PAI) for 1C development. PAI is the container/runtime infrastructure, not a product object named pai. The host IDE agent edits the mounted project; the container provides 1C runtime, VNC, OneScript, Vanessa, BSL Language Server, OACS/ACS, skills, and onec-context knowledge packs. Start every non-trivial task with acs context gate, direct acs memory query, and acs context build only when the gate or prior memory/evidence says context matters. Use onec-agent only as the 1C adapter for context lookup, diagnostics, skills, bootstrap artifacts, ibase helpers, and runtime checks. Treat platform help, BSL developer guide, standards, and metadata packs as retrieval sources; do not paste full corpora into memory. The supported runtime/build target is linux/amd64. Licensing is optional for bootstrap/OACS/context, but 1C runtime checks need activation or a readable nethasp.ini mounted by local path only. Never read, print, or store nethasp.ini contents, license data, ITS credentials, OACS DB/key files, passphrases, platform archives, local host paths, or unrelated artifacts in git, reports, OACS memory, or context capsules.' \
     --argjson project_files "$project_files_json" \
     --slurpfile registry_json "$registry_path" \
     '{
@@ -430,6 +447,7 @@ Memory loop: \`.agent/instructions/oacs-memory-call-loop.md\`
 Read \`.agent/instructions/pai-agent-instructions.md\`. If bootstrap created \`.agent/AGENTS.md\`, read it as the IDE entrypoint too. Then use:
 
 \`\`\`bash
+acs context gate --intent repo_development --scope project --task "<task intent>" --json
 acs memory query --query "<task intent>" --scope project --json
 acs context build --intent "<task intent>" --scope project --json
 onec-agent context --query "<exact 1C term>" --pack platform --limit 5

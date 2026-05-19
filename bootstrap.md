@@ -12,7 +12,6 @@ README. `onec-agent bootstrap` нужен позже, когда конкрет�
 
 ```bash
 docker pull ghcr.io/mussolene/1c-developer:8.5.1.1302
-export OACS_PASSPHRASE="<local-oacs-passphrase>"
 mkdir -p .onec-runtime/data .onec-runtime/cache
 
 docker run -d \
@@ -25,15 +24,16 @@ docker run -d \
   -v "$PWD/.onec-runtime/cache":/home/usr1cv8/.1cv8/1C/1cv8 \
   -e ONEC_RUNTIME_MODE=shell \
   -e ONEC_PROJECT_ROOT=/workspace/project \
-  -e OACS_PASSPHRASE="$OACS_PASSPHRASE" \
   ghcr.io/mussolene/1c-developer:8.5.1.1302
 
 docker exec -it 1c-dev onec-agent bootstrap
 ```
 
-Лицензия не нужна для bootstrap, OACS memory и context capsule. Для OACS нужен
-только локальный `OACS_PASSPHRASE`; не коммитьте его. Лицензия нужна только для
-запуска 1С runtime.
+Лицензия не нужна для bootstrap, OACS memory и context capsule. Для новых
+локальных проектов OACS может создать `local_unlocked` key material без
+passphrase. Для существующих passphrase-wrapped хранилищ передайте
+`OACS_PASSPHRASE` или `ONEC_OACS_PASSPHRASE`, но не коммитьте их и не
+печатайте в отчётах. Лицензия нужна только для запуска 1С runtime.
 
 Для запуска 1С runtime после bootstrap есть два поддержанных пути:
 
@@ -79,13 +79,17 @@ will report that the metadata context pack is missing.
 After bootstrap, agents use the same running container:
 
 ```bash
-export OACS_PASSPHRASE="<local-oacs-passphrase>"
+docker exec -it 1c-dev acs context gate --intent repo_development --scope project --task "<task intent>" --json
 docker exec -it 1c-dev acs memory query --query "<task intent>" --scope project --json
 docker exec -it 1c-dev acs context build --intent "<task intent>" --scope project --json
 docker exec -it 1c-dev onec-agent context --query "<exact 1C term>" --pack platform --limit 5
 docker exec -it 1c-dev acs run --label "<check label>" --scope project --json -- <check command>
 docker exec -it 1c-dev acs resume --scope project --json
 ```
+
+Run `acs context build` when the gate returns `decision=build`, or when prior
+memory/evidence clearly matters. For simple visible-file edits, `decision=skip`
+means the agent can proceed from current files and user instructions.
 
 `acs run` is the preferred path for command evidence. Use `acs tool
 ingest-result` only for results that were produced outside the CLI. Persist only

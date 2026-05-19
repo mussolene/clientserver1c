@@ -15,11 +15,16 @@ Use repo-local ignored OACS state:
 
 ```bash
 export OACS_DB="$PWD/.agent/oacs/oacs.db"
-export OACS_PASSPHRASE="<local-passphrase>"
 
 acs init --json
-acs key init --passphrase "$OACS_PASSPHRASE" --json
+acs key init --json
 ```
+
+`acs key init --json` creates local `local_unlocked` key material by default
+for development repositories. Existing passphrase-wrapped stores remain
+supported: export `OACS_PASSPHRASE` when the current store requires it. Do not
+read, print, or commit `.agent/oacs/key.json`, `.agent/oacs/unlocked.key`,
+`.agent/oacs`, `.oacs`, local databases, passphrases, or private agent state.
 
 Do not commit `.agent/`, `.env`, local volumes, license data, or platform
 archives.
@@ -30,11 +35,15 @@ For each non-trivial repository task:
 
 ```bash
 export OACS_DB="$PWD/.agent/oacs/oacs.db"
-export OACS_PASSPHRASE="<local-passphrase>"
 
+acs context gate --intent repo_development --scope project --task "<task intent>" --json
 acs memory query --query "<task intent>" --scope project --json
 acs context build --intent "<task intent>" --scope project --json
 ```
+
+Treat `decision=build` from the gate as the signal to build OACS context.
+Treat `decision=skip` as permission to proceed from visible files and user
+instructions. Do not prepend OACS context unconditionally.
 
 Run the actual work with normal tools: shell, `git`, `docker`, `make`, and
 focused scripts. Prefer `acs run` when command output should become evidence:
@@ -112,8 +121,9 @@ commit. Do not carry finished changes across iterations as uncommitted state.
 ## Policy
 
 - Use `acs` for repo memory, context capsules, and evidence references.
-- Always query memory before changing behavior, build a fresh context capsule,
-  and attach evidence before promoting a durable memory.
+- Query memory before changing behavior, use `acs context gate` before building
+  a fresh context capsule, and attach evidence before promoting a durable
+  memory.
 - Use shell, Docker, Make, and git for execution.
 - Do not route repository development through container runtime commands unless
   the behavior under test is the built image or 1C runtime itself.
@@ -121,6 +131,9 @@ commit. Do not carry finished changes across iterations as uncommitted state.
   is a product/runtime CLI; repository workflow uses `acs` directly.
 - Do not store local paths, credentials, license data, `nethasp.ini` contents,
   platform archives, or complete platform help content in OACS.
+- Standalone tool-result evidence does not enter `ContextCapsule.evidence_refs`
+  by itself. Promote it through reviewed memory if it should guide future
+  context.
 - Keep `.agent/` ignored. OACS state, capsules, and local reports are runtime
   artifacts.
 - Commit after each completed, verified iteration.

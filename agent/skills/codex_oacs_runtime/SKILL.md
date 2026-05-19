@@ -34,6 +34,12 @@ Policy:
   through `memory propose`, `memory commit`, and `memory sharpen`.
 - Standalone tool-result evidence does not enter context by itself; attach the
   evidence ref to reviewed memory if it should guide future context builds.
+- Preserve attribution when distilling memory: user instructions, agent
+  decisions, tool observations, project policies, and human approvals are
+  different roles in the standard and should not be collapsed into plain text.
+- In strict policy mode, the actor running this skill needs ordinary
+  `context.build`, `context.explain`, memory, evidence, checkpoint, and audit
+  grants; the skill must not rely on `system` bootstrap authority.
 
 ## Start or Resume
 
