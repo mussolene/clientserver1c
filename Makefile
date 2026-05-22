@@ -12,8 +12,8 @@ PLATFORM_DIST_NAME ?=
 DOCKER_DEFAULT_PLATFORM ?=
 IMAGE_NAMESPACE ?=
 OACS_VERSION ?=
-BSL_DEV_DOCS_REPO ?=
-BSL_DEV_DOCS_REF ?=
+ONEC_HBK_BSL_VERSION ?=
+ONEC_CONTEXT_MCP_URL ?=
 ONEC_RUNTIME_MODE ?=
 
 ifneq ($(IMAGE_NAMESPACE),)
@@ -26,13 +26,13 @@ runtime_mode = $(if $(ONEC_RUNTIME_MODE),$(ONEC_RUNTIME_MODE),shell)
 
 PLATFORM_ENV := $(foreach v,PLATFORM_VERSION PLATFORM_ARCH PLATFORM_DIST_NAME DOCKER_DEFAULT_PLATFORM,$(call env_var,$(v)))
 IMAGE_ENV := $(foreach v,PLATFORM_VERSION PG_1C_VERSION IMAGE_NAMESPACE ONEC_WITH_PG,$(call env_var,$(v)))
-RUNTIME_ENV := $(foreach v,DOCKER_DEFAULT_PLATFORM PG_MAJOR PG_1C_VERSION PG_REPO_DIST PLATFORM_VERSION PLATFORM_ARCH PLATFORM_DIST_NAME OACS_VERSION BSL_DEV_DOCS_REPO BSL_DEV_DOCS_REF,$(call env_var,$(v)))
+RUNTIME_ENV := $(foreach v,DOCKER_DEFAULT_PLATFORM PG_MAJOR PG_1C_VERSION PG_REPO_DIST PLATFORM_VERSION PLATFORM_ARCH PLATFORM_DIST_NAME OACS_VERSION ONEC_HBK_BSL_VERSION ONEC_CONTEXT_MCP_URL,$(call env_var,$(v)))
 BUILD_ENV := $(RUNTIME_ENV) $(call env_var,IMAGE_NAMESPACE)
-AGENT_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH PLATFORM_VERSION PLATFORM_ARCH PLATFORM_DIST_NAME OACS_VERSION NETHASP_INI_PATH,$(call env_var,$(v)))
-AGENT_CMD_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH NETHASP_INI_PATH,$(call env_var,$(v)))
+AGENT_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH PLATFORM_VERSION PLATFORM_ARCH PLATFORM_DIST_NAME OACS_VERSION NETHASP_INI_PATH ONEC_CONTEXT_MCP_URL,$(call env_var,$(v)))
+AGENT_CMD_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH NETHASP_INI_PATH ONEC_CONTEXT_MCP_URL,$(call env_var,$(v)))
 CONFIG_ENV := $(BUILD_ENV) POSTGRES_PASSWORD="$(POSTGRES_PASSWORD)"
 
-.PHONY: help env doctor first-start pull download prepare-platform build-common-base build-desktop-base up up-file-db up-server build build-server-stack ui-smoke xunit-smoke agent-up agent-exec agent-doctor agent-skills agent-skill agent-context agent-bslls agent-bslls-format agent-epf-roundtrip config down ps logs clean-platform clean
+.PHONY: help env doctor first-start pull download prepare-platform build-common-base build-desktop-base up up-file-db up-server build build-server-stack ui-smoke xunit-smoke agent-up agent-exec agent-doctor agent-skills agent-skill agent-context agent-bsl-check agent-bsl-format agent-epf-roundtrip config down ps logs clean-platform clean
 
 help:
 	@printf '%s\n' \
@@ -52,8 +52,8 @@ help:
 	  '  make agent-doctor PROJECT_PATH=$$PWD   - check agent-ready runtime inside 1c-dev' \
 	  '  make agent-exec CMD="..."             - run command in /workspace/project' \
 	  '  make agent-context TASK="..."         - build OACS task context capsule' \
-	  '  make agent-bslls SRC_DIR=src/cf       - run BSL Language Server diagnostics' \
-	  '  make agent-bslls-format SRC_DIR=src/cf - format BSL files' \
+	  '  make agent-bsl-check SRC_DIR=src/cf   - run onec-hbk-bsl diagnostics' \
+	  '  make agent-bsl-format SRC_DIR=src/cf  - format BSL files with onec-hbk-bsl' \
 	  '  make agent-epf-roundtrip EPF_PATH=tests/xunit/epf/Test.epf - decompile/compile EPF' \
 	  '' \
 	  'Advanced targets:' \
@@ -71,7 +71,7 @@ help:
 	  '  make first-start' \
 	  '  make up-file-db' \
 	  '  make agent-up PROJECT_PATH=/path/to/1c-project' \
-	  '  make agent-bslls PROJECT_PATH=/path/to/1c-project SRC_DIR=src/cf' \
+	  '  make agent-bsl-check PROJECT_PATH=/path/to/1c-project SRC_DIR=src/cf' \
 	  '  make agent-epf-roundtrip PROJECT_PATH=/path/to/1c-project EPF_PATH=tests/xunit/epf/Test.epf' \
 	  '' \
 	  'See README.md and docs/ for advanced build and runtime options.'
@@ -146,13 +146,13 @@ agent-skill:
 	@env $(AGENT_CMD_ENV) $(call env_var,NAME) bash ./scripts/agent-skill.sh
 
 agent-context:
-	@env $(AGENT_CMD_ENV) $(foreach v,TASK QUERY PACK LIMIT,$(call env_var,$(v))) bash ./scripts/agent-context.sh build
+	@env $(AGENT_CMD_ENV) $(call env_var,TASK) bash ./scripts/agent-context.sh build
 
-agent-bslls:
-	@env $(AGENT_CMD_ENV) $(foreach v,SRC_DIR OUTPUT_DIR REPORTERS,$(call env_var,$(v))) bash ./scripts/agent-bslls.sh
+agent-bsl-check:
+	@env $(AGENT_CMD_ENV) $(foreach v,SRC_DIR OUTPUT_PATH FORMAT SELECT IGNORE,$(call env_var,$(v))) bash ./scripts/agent-bsl-check.sh
 
-agent-bslls-format:
-	@env $(AGENT_CMD_ENV) $(call env_var,SRC_DIR) bash ./scripts/agent-bslls-format.sh
+agent-bsl-format:
+	@env $(AGENT_CMD_ENV) $(foreach v,SRC_DIR CHECK,$(call env_var,$(v))) bash ./scripts/agent-bsl-format.sh
 
 agent-epf-roundtrip:
 	@env $(AGENT_CMD_ENV) $(foreach v,EPF_PATH EPF_ROUNDTRIP_DIR IB_CONNECTION DB_USER DB_PWD PLATFORM_VERSION EPF_ROUNDTRIP_TIMEOUT_SEC,$(call env_var,$(v))) bash ./scripts/agent-epf-roundtrip.sh

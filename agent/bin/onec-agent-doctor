@@ -63,25 +63,9 @@ else
   status=1
 fi
 
-printf '%-28s ' "bsl-language-server:"
-if command -v bsl-language-server >/dev/null 2>&1; then
-  bsl-language-server --version
-else
-  printf 'MISSING\n'
-  status=1
-fi
-
-printf '%-28s ' "onec-context:"
-if command -v onec-context >/dev/null 2>&1; then
-  onec-context --help | head -n 1
-else
-  printf 'MISSING\n'
-  status=1
-fi
-
-printf '%-28s ' "onec-context-mcp:"
-if command -v onec-context-mcp >/dev/null 2>&1; then
-  onec-context-mcp --help | head -n 1
+printf '%-28s ' "onec-hbk-bsl:"
+if command -v onec-hbk-bsl >/dev/null 2>&1; then
+  onec-hbk-bsl --version
 else
   printf 'MISSING\n'
   status=1
@@ -89,7 +73,7 @@ fi
 
 printf '%-28s ' "onec-agent-context-mcp:"
 if command -v onec-agent-context-mcp >/dev/null 2>&1; then
-  onec-agent-context-mcp --help | head -n 1
+  printf 'external endpoint adapter\n'
 else
   printf 'MISSING\n'
   status=1
@@ -103,53 +87,21 @@ else
 fi
 
 if [[ -f "$registry_path" ]]; then
-  context_manifest="$(jq -r '.tools["onec-context"].manifest // empty' "$registry_path")"
-  context_platform_pack="$(jq -r '.packs.platform // empty' "$registry_path")"
-  context_standards_pack="$(jq -r '.packs.standards // empty' "$registry_path")"
-  context_bsl_dev_pack="$(jq -r '.packs.bsl_dev // empty' "$registry_path")"
-  context_standards_manifest="$(jq -r '.manifests.standards // empty' "$registry_path")"
-  context_bsl_dev_manifest="$(jq -r '.manifests.bsl_dev // empty' "$registry_path")"
+  context_mcp_mode="$(jq -r '.tools["onec-context-mcp"].mode // empty' "$registry_path")"
+  context_mcp_url="$(jq -r '.tools["onec-context-mcp"].url // empty' "$registry_path")"
 
-  printf '\ncontext packs\n'
-  if [[ -n "$context_manifest" ]]; then
-    check_path "context manifest" "$context_manifest"
+  printf '\ncontext MCP\n'
+  if [[ "$context_mcp_mode" == "external" ]]; then
+    printf '%-28s OK external\n' "context mode:"
   else
-    printf '%-28s MISSING registry tools.onec-context.manifest\n' "context manifest:"
+    printf '%-28s MISSING registry tools.onec-context-mcp.mode=external\n' "context mode:"
     status=1
   fi
 
-  if [[ -n "$context_platform_pack" ]]; then
-    check_path "platform pack" "$context_platform_pack"
+  if [[ -n "$context_mcp_url" ]]; then
+    printf '%-28s OK %s\n' "context MCP URL:" "${ONEC_CONTEXT_MCP_URL:-$context_mcp_url}"
   else
-    printf '%-28s MISSING registry packs.platform\n' "platform pack:"
-    status=1
-  fi
-
-  if [[ -n "$context_standards_pack" ]]; then
-    check_path "standards pack" "$context_standards_pack"
-  else
-    printf '%-28s MISSING registry packs.standards\n' "standards pack:"
-    status=1
-  fi
-
-  if [[ -n "$context_bsl_dev_pack" ]]; then
-    check_path "bsl dev docs pack" "$context_bsl_dev_pack"
-  else
-    printf '%-28s MISSING registry packs.bsl_dev\n' "bsl dev docs pack:"
-    status=1
-  fi
-
-  if [[ -n "$context_standards_manifest" ]]; then
-    check_path "standards manifest" "$context_standards_manifest"
-  else
-    printf '%-28s MISSING registry manifests.standards\n' "standards manifest:"
-    status=1
-  fi
-
-  if [[ -n "$context_bsl_dev_manifest" ]]; then
-    check_path "bsl dev docs manifest" "$context_bsl_dev_manifest"
-  else
-    printf '%-28s MISSING registry manifests.bsl_dev\n' "bsl dev docs manifest:"
+    printf '%-28s MISSING registry tools.onec-context-mcp.url\n' "context MCP URL:"
     status=1
   fi
 

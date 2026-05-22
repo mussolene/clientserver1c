@@ -177,10 +177,9 @@ fi
 check_command jq
 check_command acs
 check_command onec-agent
-check_command onec-context
 check_command vrunner
 check_command oscript
-check_command bsl-language-server
+check_command onec-hbk-bsl
 
 if [[ -x "$platform_bin/ibcmd" ]]; then
   ok "ibcmd: $platform_bin/ibcmd"
@@ -190,7 +189,7 @@ fi
 
 version_line "OneScript" oscript -version
 version_line "Vanessa Runner" vrunner version
-version_line "BSL Language Server" bsl-language-server --version
+version_line "onec-hbk-bsl" onec-hbk-bsl --version
 
 if nethasp_path="$(readable_nethasp)"; then
   ok "nethasp.ini is readable at $nethasp_path"
@@ -211,8 +210,8 @@ note "Next:"
 note "  Open VNC at 127.0.0.1:5900"
 note "  Use the desktop launcher '1C:Enterprise Launcher'"
 note "  Demo DB entry: $db_name -> $db_path"
-note "  Platform help lookup: onec-agent context --query 'ЗаписьJSON' --pack platform --limit 3"
-note "  BSL guide lookup:    onec-agent context --query 'Фоновые задания' --pack bsl-dev --limit 3"
+note "  MCP config: onec-agent context-mcp-config"
+note "  1C knowledge lookup: start external 1c_hbk_helper/onec-context-mcp and connect the IDE/MCP client"
 note ""
 
 if [[ -d /workspace/project ]]; then

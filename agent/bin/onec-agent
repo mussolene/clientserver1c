@@ -11,16 +11,17 @@ Usage:
   onec-agent bootstrap
   onec-agent registry
   onec-agent skills
-  onec-agent skill <context|testing|memory|runtime>
-  onec-agent bslls [src-dir]
-  onec-agent bslls-format <src-dir>
-  onec-agent context --query text [--pack platform|standards|bsl-dev|metadata] [--limit n]
+  onec-agent skill <testing|memory|runtime>
+  onec-agent bsl-check [src-dir]
+  onec-agent bsl-format <src-dir>
+  onec-agent context --query text
   onec-agent context-mcp [--debug]
   onec-agent context-mcp-config
   onec-agent ibase add --name <display-name> --path <file-db-path> [--home <home-dir>] [--owner <user:group>]
   onec-agent exec -- <command...>
 
 Run `onec-agent quickstart` for standalone container onboarding without a mounted project.
+Start external 1c_hbk_helper/onec-context-mcp for 1C knowledge lookup.
 Mount a project at /workspace/project, or set ONEC_PROJECT_ROOT, before `onec-agent bootstrap`.
 EOF
 }
@@ -57,15 +58,15 @@ case "$mode" in
     exec onec-agent-skill list
     ;;
   skill)
-    [[ "$#" -ge 1 ]] || die "Usage: onec-agent skill <context|testing|memory|runtime>"
+    [[ "$#" -ge 1 ]] || die "Usage: onec-agent skill <testing|memory|runtime>"
     exec onec-agent-skill "$@"
     ;;
-  bslls)
-    exec onec-agent-bslls "$@"
+  bsl-check)
+    exec onec-agent-bsl "$@"
     ;;
-  bslls-format)
-    [[ "$#" -ge 1 ]] || die "Usage: onec-agent bslls-format <src-dir>"
-    BSLLS_MODE=format exec onec-agent-bslls "$@"
+  bsl-format)
+    [[ "$#" -ge 1 ]] || die "Usage: onec-agent bsl-format <src-dir>"
+    ONEC_BSL_MODE=format exec onec-agent-bsl "$@"
     ;;
   context)
     exec onec-agent-context lookup "$@"

@@ -2,18 +2,18 @@
 
 `1c-develop` - переносимая Docker-среда для разработки, проверки и агентной работы с 1С-проектами.
 
-Идея простая: пользователь скачивает готовый image и сразу получает 1С runtime, VNC, OneScript, Vanessa, BSL Language Server, OACS и 1C-aware context. Репозиторий `1c-develop` нужен только для разработки самого образа; обычный пользователь может начать с одного контейнера.
+Идея простая: пользователь скачивает готовый image и сразу получает 1С runtime, VNC, OneScript, Vanessa, `onec-hbk-bsl`, OACS и 1C-aware context. Репозиторий `1c-develop` нужен только для разработки самого образа; обычный пользователь может начать с одного контейнера.
 
 ## Что внутри
 
 - 1С:Предприятие `8.5.1.1343` в desktop/runtime контейнере.
 - VNC/Xfce, доступный на `127.0.0.1:5900`.
-- OneScript, Vanessa Runner, Vanessa Automation и `bsl-language-server`.
-- `onec-agent` для 1C-specific операций: bootstrap, context, MCP config, BSLLS, skills.
+- OneScript, Vanessa Runner, Vanessa Automation и `onec-hbk-bsl`.
+- `onec-agent` для 1C-specific операций: bootstrap, MCP config, BSL diagnostics/formatting, skills.
 - OACS/ACS как прямой слой памяти, evidence и context capsules, плюс local Codex/OACS runtime skill.
-- Prebuilt context packs: platform help, BSL developer guide и ITS standards.
-  Project metadata pack строится после bootstrap, если в mounted project есть
-  поддерживаемые 1С metadata sources.
+- External 1C Context MCP contract. Для справки, стандартов, snippets и
+  metadata используйте `1c_hbk_helper` / `onec-context-mcp`; image не встраивает
+  context packs и не скачивает ITS/BSL docs во время сборки.
 - Опциональный PostgreSQL 1C для server/client-server сценариев.
 
 Изюминка проекта: контейнер не просто запускает 1С. Он подготавливает корректный контекст для IDE-агента: где искать справку, какие skills читать, как строить OACS capsule, куда писать evidence и как не терять проектные решения между итерациями.
@@ -59,8 +59,8 @@ docker run -d \
   ghcr.io/mussolene/1c-developer:8.5.1.1343
 ```
 
-Без лицензии всё равно доступны VNC, launcher, справка/context lookup, OACS CLI,
-OneScript, Vanessa tooling и BSLLS. Лицензия нужна для действий, реально
+Без лицензии всё равно доступны VNC, launcher, OACS CLI,
+OneScript, Vanessa tooling и `onec-hbk-bsl`. Лицензия нужна для действий, реально
 запускающих 1С runtime: создание/загрузка ИБ, `vrunner`, `ibcmd`,
 `compileepf/decompileepf`.
 
@@ -68,11 +68,14 @@ OneScript, Vanessa tooling и BSLLS. Лицензия нужна для дейс
 
 ```bash
 docker exec -it 1c-dev onec-agent doctor
-docker exec -it 1c-dev onec-agent context --query "ЗаписьJSON" --pack platform --limit 5
-docker exec -it 1c-dev onec-agent context --query "Фоновые задания" --pack bsl-dev --limit 5
+docker exec -it 1c-dev onec-agent context-mcp-config
 docker exec -it 1c-dev vrunner version
-docker exec -it 1c-dev bsl-language-server --version
+docker exec -it 1c-dev onec-hbk-bsl --version
 ```
+
+Для 1C knowledge lookup поднимите внешний `1c_hbk_helper` / `onec-context-mcp`
+и подключите IDE/MCP client к URL из `onec-agent context-mcp-config`:
+по умолчанию `http://localhost:8050/mcp`.
 
 Для работы с конкретным проектом смонтируйте его в `/workspace/project` и
 запустите bootstrap:
@@ -152,7 +155,9 @@ context capsule.
 
 ## Работа с агентом
 
-Агент остается в Cursor, Codex, VS Code или другом IDE на host. Контейнер дает runtime и проверенные 1C facts.
+Агент остается в Cursor, Codex, VS Code или другом IDE на host. Контейнер дает
+runtime, проверки и MCP config; 1C facts приходят из внешнего
+`onec-context-mcp`.
 
 `onec-agent bootstrap` создает в смонтированном проекте:
 
@@ -166,7 +171,7 @@ context capsule.
 Правило работы:
 
 - память и evidence пишутся напрямую через `acs`;
-- `onec-agent` используется только как 1C adapter для context, MCP, diagnostics и runtime checks;
+- `onec-agent` используется только как 1C adapter для MCP config, diagnostics и runtime checks;
 - контейнер не пересоздается для каждой задачи.
 
 Подробнее: [docs/agent-ready.md](docs/agent-ready.md).
@@ -186,8 +191,8 @@ context capsule.
 | `make up-server` | запустить server mode вместе с PostgreSQL 1C |
 | `make ui-smoke` | прогнать минимальный Vanessa UI smoke |
 | `make xunit-smoke` | прогнать xUnit smoke по EPF |
-| `make agent-context` | transport-helper для context-команд внутри контейнера |
-| `make agent-bslls` | запустить BSL Language Server diagnostics |
+| `make agent-context` | transport-helper для OACS context capsule внутри контейнера |
+| `make agent-bsl-check` | запустить диагностику `onec-hbk-bsl` |
 | `make agent-epf-roundtrip` | разобрать и собрать EPF внутри mounted проекта |
 
 Пример из 1С-проекта:
@@ -196,7 +201,7 @@ context capsule.
 make -C /path/to/1c-develop agent-up PROJECT_PATH="$PWD"
 make -C /path/to/1c-develop agent-doctor PROJECT_PATH="$PWD"
 make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="текущая задача"
-make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="метаданные" QUERY="Заявки" PACK=metadata LIMIT=5
+make -C /path/to/1c-develop agent-exec PROJECT_PATH="$PWD" CMD="onec-agent context-mcp-config"
 make -C /path/to/1c-develop agent-epf-roundtrip PROJECT_PATH="$PWD" EPF_PATH=tests/xunit/epf/Test.epf
 ```
 
@@ -224,7 +229,7 @@ docker exec -it 1c-dev onec-agent ibase add --name "SmallBusiness30" --path /mnt
 
 Server ports 1C наружу по умолчанию не публикуются. Для локальной разработки и file DB они не нужны.
 
-Runtime modes, platform staging, volumes, architecture и prebuilt context packs описаны в [docs/runtime-details.md](docs/runtime-details.md).
+Runtime modes, platform staging, volumes, architecture и MCP-контракт описаны в [docs/runtime-details.md](docs/runtime-details.md).
 
 ## Проверки
 

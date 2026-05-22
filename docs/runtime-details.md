@@ -2,7 +2,7 @@
 
 Репозиторий даёт один основной developer-контейнер:
 
-- `1c-dev`: платформа 1С, GUI/VNC, OneScript, Vanessa tooling, BSL diagnostics и agent-ready skills layer с предсобранными platform help, BSL developer guide и standards packs.
+- `1c-dev`: платформа 1С, GUI/VNC, OneScript, Vanessa tooling, BSL diagnostics, OACS/ACS и agent-ready skills layer. Knowledge retrieval подключается через внешний `1c_hbk_helper` / `onec-context-mcp`.
 - `1c-pg`: опциональный PostgreSQL 1C для server/client-server сценариев.
 
 ## Runtime modes
@@ -30,8 +30,8 @@ onec-agent quickstart
 
 Она проверяет VNC и инструменты, регистрирует demo file DB в `ibases.v8i`,
 пытается создать её через `ibcmd`, если доступна лицензия, и печатает следующие
-команды для context lookup. Project-local OACS memory и metadata packs она не
-создаёт; для этого нужен `onec-agent bootstrap` со смонтированным проектом.
+команды. Project-local OACS memory она не создаёт; для этого нужен
+`onec-agent bootstrap` со смонтированным проектом.
 
 Если база создана или восстановлена уже после старта контейнера, обновите
 список баз вручную:
@@ -46,7 +46,7 @@ onec-agent ibase add --name "SmallBusiness30" --path /mnt/ib/sb30 --home /home/u
 - `./volumes/1c-dev/cache:/home/usr1cv8/.1cv8/1C/1cv8/`
 - `onec-license-store:/var/1C/licenses` для локальной ручной активации
 
-Standalone quickstart, bootstrap, OACS memory и static context packs не требуют
+Standalone quickstart, bootstrap и OACS memory не требуют
 активированной лицензии. Для запуска 1С runtime используйте один из двух путей:
 
 - локальная ручная активация через `license-ui` и volume `onec-license-store`; не удаляйте этот volume после активации;
@@ -116,12 +116,12 @@ make build
 2. `linux-desktop-base`: Xfce/VNC/s6 поверх common base.
 3. `postgresql`: опциональный PostgreSQL 1C, не влияет на developer image.
 4. `1c-developer`: desktop base плюс платформа 1С, downloaded OneScript zip,
-   Vanessa, BSLLS, OACS, skills и context packs.
+   Vanessa, onec-hbk-bsl, OACS и local skills.
 
-Правило зависимости: platform archives, OneScript, skills, OACS и context packs
+Правило зависимости: platform archives, OneScript, skills и OACS
 живут только в `1c-developer`; базовые Linux/Desktop слои не должны знать о 1С
 platform staging, OACS DB, project `.agent/`, `nethasp.ini` или mounted
-workspace. Это держит rebuild scope понятным: смена справки/skills/OACS не
+workspace. Это держит rebuild scope понятным: смена skills/OACS не
 пересобирает desktop/common base, а смена PostgreSQL 1C не пересобирает
 developer image.
 
@@ -158,14 +158,11 @@ VANESSA_ADD_VERSION=6.8.0
 VANESSA_RUNNER_VERSION=2.6.0
 VANESSA_AUTOMATION_VERSION=1.2.043.1
 ONESCRIPT_VERSION=2.0.2
-BSLLS_VERSION=0.25.0
+ONEC_HBK_BSL_VERSION=0.7.41
 OACS_VERSION=1.0.14
-BSL_DEV_DOCS_REPO=https://github.com/mussolene/BSL_8.5.1_dev_docs
-BSL_DEV_DOCS_REF=5feac5e9b9237d4bc134a517834a740157be2809
 ```
 
 Skills закреплены по commit SHA. Обновляйте эти значения только при осознанном refresh agent-ready слоя.
-BSL developer guide закреплен по commit SHA нашего fork и собирается в image как immutable KB pack.
 OACS является обязательным agent-layer dependency для Portable Agent Infrastructure memory/context/evidence. Image также включает local `codex-oacs-runtime` skill как компактный Codex/OACS workflow layer.
 
 ## Environment Contract
@@ -189,34 +186,29 @@ Build pins:
 
 - `VANESSA_ADD_VERSION`, `VANESSA_RUNNER_VERSION`,
   `VANESSA_AUTOMATION_VERSION`.
-- `BSLLS_VERSION`, `OACS_VERSION`.
-- `ONEC_VANESSA_SKILL_REF`, `ONEC_CONTEXT_TOOLKIT_REF`.
-- `BSL_DEV_DOCS_REPO`, `BSL_DEV_DOCS_REF`.
+- `ONEC_HBK_BSL_VERSION`, `OACS_VERSION`.
+- `ONEC_VANESSA_SKILL_REF`.
+- `ONEC_CONTEXT_MCP_URL`: URL внешнего `onec-context-mcp` для generated MCP config.
 
 Secrets:
 
-- `ITS_LOGIN`, `ITS_PASSWORD` нужны только для явного скачивания/build.
 - `POSTGRES_PASSWORD` нужен только при `server`/PostgreSQL mode.
-- `nethasp.ini`, ITS credentials, license data, `.agent/oacs/oacs.db`,
+- `nethasp.ini`, license data, `.agent/oacs/oacs.db`,
   platform archives и local volumes не попадают в git, OACS memory или context
   capsules.
 
-## Agent Context Packs
+## Agent Context MCP
 
-Во время сборки `1c-dev` `onec-context` создаёт workspace `/opt/onec-agent/context-workspace`:
+`1c-dev` больше не собирает и не хранит embedded context packs. Во время build
+image не скачивает ITS standards, не клонирует BSL developer docs и не создаёт
+SQLite/FTS packs. Для platform help, standards, snippets и metadata используйте
+внешний `1c_hbk_helper` / `onec-context-mcp`.
 
-- platform help pack строится из HBK под `/opt/1cv8`;
-- BSL developer guide pack строится из pinned GitHub fork в SQLite/FTS `.db.zst`;
-- standards pack строится из ITS `v8std` в SQLite/FTS `.db.zst`;
-- пути записываются в `/opt/onec-agent/registry.json`.
-
-Static packs (`platform`, `standards`, `bsl-dev`) доступны в контейнере без
-`/workspace/project`. Project-specific packs (`metadata`, `code`, `full`)
-строятся отдельно из смонтированного `/workspace/project`, когда в нём есть
-поддерживаемые 1С sources. Bootstrap пытается подготовить metadata pack и не
-пересобирает platform help, потому что platform/standards/BSL developer packs
-уже лежат в image. OACS хранит memory, evidence refs, audit и context capsules
-вокруг найденных фактов, но не заменяет сами packs.
+Bootstrap записывает MCP config в `.agent/mcp/onec-context-mcp.json`.
+По умолчанию URL равен `http://localhost:8050/mcp`; переопределите его через
+`ONEC_CONTEXT_MCP_URL`, если MCP endpoint доступен по другому адресу. OACS
+хранит memory, evidence refs, audit и context capsules вокруг найденных фактов,
+но не заменяет сам retrieval service.
 
 Registry также содержит local skills `/opt/onec-agent/skills/memory` и
 `/opt/onec-agent/skills/codex_oacs_runtime`. Первый описывает прямой ACS memory

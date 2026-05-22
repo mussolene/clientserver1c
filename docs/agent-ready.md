@@ -11,7 +11,7 @@ IDE-агент на host
 
 контейнер 1c-dev
   видит тот же проект как /workspace/project
-  запускает 1С, OneScript, Vanessa, BSLLS и 1C-specific проверки через onec-agent
+  запускает 1С, OneScript, Vanessa, onec-hbk-bsl и 1C-specific проверки через onec-agent
   вызывает ACS/OACS напрямую через acs
 ```
 
@@ -46,8 +46,8 @@ docker exec -it 1c-dev sh -lc 'test -n "$OACS_PASSPHRASE" && onec-agent bootstra
 Bootstrap создает в смонтированном проекте:
 
 - `.agent/oacs/oacs.db` - project-local OACS state.
-- `.agent/mcp/onec-context-mcp.json` - MCP config для context tools.
-- `.agent/context-capsules/bootstrap-context-capsule.json` - минимальный capsule с `orientation_prompt`, ссылками на help, BSL developer guide, standards packs, metadata scan, registry и skills.
+- `.agent/mcp/onec-context-mcp.json` - MCP config для внешнего `1c_hbk_helper` / `onec-context-mcp`.
+- `.agent/context-capsules/bootstrap-context-capsule.json` - минимальный capsule с `orientation_prompt`, MCP URL, registry и skills.
 - `.agent/bootstrap-report.md` - короткий отчет и следующий шаг для агента.
 - `.agent/instructions/pai-agent-instructions.md` - инструкции для IDE-агента.
 - `.agent/instructions/oacs-memory-call-loop.md` - обязательный memory/context/evidence loop.
@@ -55,23 +55,17 @@ Bootstrap создает в смонтированном проекте:
 - `.agent/reports/cross-repo-findings-memories.public.json` - OACS MemoryRecord seed records, на которые ссылается cross-repo capsule.
 - `.agent/reports/onec-agent-doctor.txt` - снимок readiness-check.
 - `.agent/reports/oacs-bootstrap-context.json` - bootstrap context capsule.
-- `.agent/reports/onec-context-platform-lookup.json` - platform help lookup sample.
-- `.agent/reports/onec-context-standards-lookup.json` - standards lookup sample.
-- `.agent/reports/onec-context-bsl-dev-lookup.json` - developer guide lookup sample.
-- `.agent/reports/onec-context-metadata-ensure.log` - результат подготовки
-  metadata pack. На пустом или не-1С проекте bootstrap остаётся успешным, но
-  `--pack metadata` lookup будет недоступен.
 
 Если `.agent/AGENTS.md` еще нет, bootstrap создаст IDE entrypoint. Если файл уже существует, bootstrap его не перезаписывает.
 
 После bootstrap агент должен начинать каждую нетривиальную задачу с прямого
-`acs memory query` и `acs context build`. Затем он делает точечные
-`onec-agent context` lookup для 1С-фактов и сохраняет в memory только
+`acs memory query` и `acs context build`. Для 1С-фактов он использует внешний
+MCP endpoint из `.agent/mcp/onec-context-mcp.json` и сохраняет в memory только
 проверенные выводы через `acs memory propose`, `acs memory commit` и
 `acs memory sharpen`.
 
 ACS используется напрямую. `onec-agent` не является оберткой над ACS: он
-добавляет 1С context retrieval, diagnostics, skills и runtime checks.
+добавляет diagnostics, skills, MCP config и runtime checks.
 
 ## Запуск Runtime
 
@@ -84,16 +78,14 @@ make -C /path/to/1c-develop agent-doctor PROJECT_PATH="$PWD"
 
 Без helper-репозитория держите контейнер в `shell` runtime и выполняйте команды
 через `docker exec`. Команды ACS ниже требуют mounted project и
-`OACS_PASSPHRASE`; static context lookup по `platform`/`bsl-dev` работает и без
-project mount.
+`OACS_PASSPHRASE`. 1C knowledge lookup выполняется через внешний MCP service.
 
 ```bash
 docker exec -it 1c-dev onec-agent doctor
 docker exec -it 1c-dev acs memory query --query "task" --scope project --json
 docker exec -it 1c-dev acs context build --intent "task" --scope project --json
-docker exec -it 1c-dev onec-agent context --query "ЗаписьJSON" --pack platform --limit 5
-docker exec -it 1c-dev onec-agent context --query "Фоновые задания" --pack bsl-dev --limit 5
-docker exec -it 1c-dev acs run --label "bslls_check" --scope project --json -- onec-agent bslls src/cf
+docker exec -it 1c-dev onec-agent context-mcp-config
+docker exec -it 1c-dev acs run --label "bsl_check" --scope project --json -- onec-agent bsl-check src/cf
 docker exec -it 1c-dev acs resume --scope project --json
 ```
 
@@ -101,17 +93,16 @@ docker exec -it 1c-dev acs resume --scope project --json
 
 ```bash
 make -C /path/to/1c-develop agent-skills PROJECT_PATH="$PWD"
-make -C /path/to/1c-develop agent-skill PROJECT_PATH="$PWD" NAME=context
 make -C /path/to/1c-develop agent-skill PROJECT_PATH="$PWD" NAME=testing
 make -C /path/to/1c-develop agent-skill PROJECT_PATH="$PWD" NAME=memory
 make -C /path/to/1c-develop agent-skill PROJECT_PATH="$PWD" NAME=runtime
 ```
 
-Используйте `context` перед изменением метаданных или BSL, когда нужны точные факты. Используйте `testing` для Vanessa/xUnit/UI проверок. Используйте `memory` для OACS project memory, task context capsule и evidence refs. Используйте `runtime` как Codex/OACS loop для компактной работы через OACS без повторной передачи всего контекста.
-
-`metadata` lookup работает только для проектов, где bootstrap смог построить
-project metadata pack из поддерживаемых 1С sources. Static packs `platform`,
-`standards` и `bsl-dev` доступны без project metadata.
+Используйте внешний MCP для точных фактов по платформе, стандартам, snippets и
+metadata. Используйте `testing` для Vanessa/xUnit/UI проверок. Используйте
+`memory` для OACS project memory, task context capsule и evidence refs.
+Используйте `runtime` как Codex/OACS loop для компактной работы через OACS без
+повторной передачи всего контекста.
 
 ## Выполнить команду в контейнере
 
@@ -122,19 +113,19 @@ make -C /path/to/1c-develop agent-exec PROJECT_PATH="$PWD" CMD="oscript -version
 ## BSL-диагностика и форматирование
 
 ```bash
-make -C /path/to/1c-develop agent-bslls PROJECT_PATH="$PWD" SRC_DIR=src/cf
-make -C /path/to/1c-develop agent-bslls-format PROJECT_PATH="$PWD" SRC_DIR=src/cf
+make -C /path/to/1c-develop agent-bsl-check PROJECT_PATH="$PWD" SRC_DIR=src/cf
+make -C /path/to/1c-develop agent-bsl-format PROJECT_PATH="$PWD" SRC_DIR=src/cf
 ```
 
 Эквивалент внутри Portable Agent Infrastructure container:
 
 ```bash
-onec-agent bslls src/cf
-onec-agent bslls-format src/cf
+onec-agent bsl-check src/cf
+onec-agent bsl-format src/cf
 ```
 
-`agent-bslls` пишет полный JSON в `.agent/bslls/bsl-json.json` и печатает короткую сводку. Если нужен полный console reporter, передайте `REPORTERS=json,console`.
-`agent-bslls-format` меняет файлы проекта. После запуска агент должен показать diff.
+`agent-bsl-check` пишет JSON в `.agent/bsl/onec-hbk-bsl.json` и печатает короткую сводку. Для фильтрации правил передайте `SELECT=BSL001,BSL011` или `IGNORE=BSL012`.
+`agent-bsl-format` меняет файлы проекта. После запуска агент должен показать diff.
 
 ## EPF Round-Trip
 
@@ -159,7 +150,9 @@ stores могут использовать `local_unlocked` key material без 
 `ONEC_OACS_PASSPHRASE` явно. Не коммитьте `.agent/oacs/`, `.oacs`, OACS DB,
 `key.json`, `unlocked.key`, passphrases и private agent state.
 
-OACS здесь state/governance backend, а не оркестратор. `onec-context` остаётся retrieval engine для platform help, BSL developer guide, ITS standards и project packs.
+OACS здесь state/governance backend, а не оркестратор. `onec-context-mcp`
+остаётся внешним retrieval service для platform help, standards, snippets и
+metadata.
 
 Минимальный memory call loop после bootstrap:
 
@@ -168,7 +161,6 @@ export OACS_DB=/workspace/project/.agent/oacs/oacs.db
 acs context gate --intent repo_development --scope project --task "<task intent>" --json
 acs memory query --query "<task intent>" --scope project --json
 acs context build --intent "<task intent>" --scope project --json
-onec-agent context --query "<точный термин 1С>" --pack platform --limit 5
 acs run --label "<check label>" --scope project --json -- <check command>
 acs resume --scope project --json
 ```
@@ -184,7 +176,7 @@ domain-heavy, release/CI/security/tooling related. `decision=skip` допуст�
 verification и leak/secret checks для substantial work.
 Durable memory пишите через `acs memory propose/commit/sharpen` только после
 проверки факта. Не сохраняйте в OACS ITS credentials, license data, platform
-archives, полные help packs или другие секреты.
+archives, полные help dumps или другие секреты.
 
 Для лицензирования через сетевой HASP агенту можно передавать только локальный
 путь `NETHASP_INI_PATH=/absolute/path/to/nethasp.ini`. Сам файл, его содержимое,
@@ -195,23 +187,20 @@ OACS memory, reports или context capsules.
 
 MCP import внутри контейнера нужен только когда агент умеет вызывать governed
 MCP tools через ACS. Для первого запуска достаточно прямых `acs` команд и
-точечных `onec-agent context` lookup.
+внешнего MCP endpoint.
 
 ```bash
 onec-agent context-mcp-config > /tmp/onec-context-mcp.json
 acs mcp import /tmp/onec-context-mcp.json
 ```
 
-После import OACS видит `onec_status`, `onec_ensure`, `onec_resolve_packs`,
-`onec_query_kb`, `onec_query_code`, `onec_query_config` как governed tools.
+После import OACS видит tools внешнего `onec-context-mcp` как governed tools.
 
 `make agent-context` является transport-helper поверх `docker exec`, а не
 отдельным workflow:
 
 ```bash
-make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="answer_1c_platform_question"
-make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="json_writer_question" QUERY="ЗаписьJSON" PACK=platform LIMIT=5
-make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="metadata_question" QUERY="Заявки" PACK=metadata LIMIT=5
+make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="oacs_context_question"
 ```
 
 Прочитать и записать project memory напрямую через ACS:
@@ -244,8 +233,7 @@ acs loop run --request "<task intent>" --scope project --json
 - registry skills: `/opt/onec-agent/registry.json`
 - skill repositories: `/opt/onec-skills`
 - local agent skills: `/opt/onec-agent/skills`
-- prebuilt context workspace: `/opt/onec-agent/context-workspace`
 
 ## Закреплённые версии
 
-Image закрепляет версии инструментов и skills через build variables из `.env`. Build/runtime детали и prebuilt packs описаны в [runtime-details.md](runtime-details.md).
+Image закрепляет версии инструментов и skills через build variables из `.env`. Build/runtime детали и MCP-контракт описаны в [runtime-details.md](runtime-details.md).

@@ -9,9 +9,6 @@ case "$name" in
     jq -r '.skills | keys[]' "$registry_path"
     exit 0
     ;;
-  context)
-    key="onec-context-toolkit"
-    ;;
   testing|vanessa)
     key="onec-vanessa-skill"
     ;;
@@ -22,7 +19,7 @@ runtime|oacs-runtime|codex-oacs-runtime)
     key="codex-oacs-runtime"
     ;;
   ""|-h|--help)
-    printf 'Usage: onec-agent-skill <list|context|testing|memory|runtime>\n'
+    printf 'Usage: onec-agent-skill <list|testing|memory|runtime>\n'
     exit 0
     ;;
   *)

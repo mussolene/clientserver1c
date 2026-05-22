@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-workspace="${ONEC_CONTEXT_WORKSPACE:-/opt/onec-agent/context-workspace}"
-if [[ -d "$workspace" ]]; then
-  cd "$workspace"
-fi
+context_mcp_url="${ONEC_CONTEXT_MCP_URL:-http://localhost:8050/mcp}"
 
-exec onec-context-mcp "$@"
+cat >&2 <<EOF
+Local onec-context-mcp is not embedded in this image.
+Start the external 1c_hbk_helper/onec-context-mcp service and connect the MCP client to:
+  $context_mcp_url
+EOF
+exit 2

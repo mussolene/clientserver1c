@@ -29,7 +29,7 @@ docker run -d \
 docker exec -it 1c-dev onec-agent bootstrap
 ```
 
-Лицензия не нужна для bootstrap, OACS memory и context capsule. Для новых
+Лицензия не нужна для bootstrap, OACS memory, MCP config и context capsule. Для новых
 локальных проектов OACS может создать `local_unlocked` key material без
 passphrase. Для существующих passphrase-wrapped хранилищ передайте
 `OACS_PASSPHRASE` или `ONEC_OACS_PASSPHRASE`, но не коммитьте их и не
@@ -53,7 +53,7 @@ runtime-профили `root` и `usr1cv8`, поэтому сетевой HASP �
 or publish ports. It only prepares the mounted project:
 
 - initializes project-local OACS state under `.agent/oacs/`;
-- writes `.agent/mcp/onec-context-mcp.json`;
+- writes `.agent/mcp/onec-context-mcp.json` for the external `1c_hbk_helper` / `onec-context-mcp` endpoint;
 - builds `.agent/context-capsules/bootstrap-context-capsule.json` with a compact PAI `orientation_prompt`;
 - writes `.agent/bootstrap-report.md`;
 - writes `.agent/instructions/pai-agent-instructions.md`;
@@ -61,18 +61,12 @@ or publish ports. It only prepares the mounted project:
 - writes `.agent/AGENTS.md` only when it does not already exist;
 - writes `.agent/reports/onec-agent-doctor.txt`;
 - writes `.agent/reports/oacs-bootstrap-context.json`;
-- writes `.agent/reports/onec-context-platform-lookup.json`;
-- writes `.agent/reports/onec-context-standards-lookup.json`;
-- writes `.agent/reports/onec-context-bsl-dev-lookup.json`;
 - writes `.agent/context-capsules/cross-repo-findings-capsule.public.json`;
 - writes `.agent/reports/cross-repo-findings-memories.public.json`;
-- writes `.agent/reports/onec-context-metadata-ensure.log`;
-- records references to platform help, standards packs, project metadata status, registry, skills, and the agent orientation prompt.
+- records references to the external MCP URL, registry, skills, and the agent orientation prompt.
 
-Metadata lookup is available only when the mounted project contains supported
-1C metadata sources and the metadata ensure step can build a project pack. Empty
-or non-1C projects still bootstrap successfully, but `--pack metadata` lookups
-will report that the metadata context pack is missing.
+Platform help, standards, snippets, and metadata lookup are provided by the
+external MCP service. The image does not embed or build local context packs.
 
 ## Agent Loop
 
@@ -82,7 +76,7 @@ After bootstrap, agents use the same running container:
 docker exec -it 1c-dev acs context gate --intent repo_development --scope project --task "<task intent>" --json
 docker exec -it 1c-dev acs memory query --query "<task intent>" --scope project --json
 docker exec -it 1c-dev acs context build --intent "<task intent>" --scope project --json
-docker exec -it 1c-dev onec-agent context --query "<exact 1C term>" --pack platform --limit 5
+docker exec -it 1c-dev onec-agent context-mcp-config
 docker exec -it 1c-dev acs run --label "<check label>" --scope project --json -- <check command>
 docker exec -it 1c-dev acs resume --scope project --json
 ```

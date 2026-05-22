@@ -6,8 +6,7 @@ registry_path="${ONEC_AGENT_REGISTRY:-/opt/onec-agent/registry.json}"
 oacs_db="${OACS_DB:-$project_root/.agent/oacs/oacs.db}"
 oacs_passphrase="${OACS_PASSPHRASE:-${ONEC_OACS_PASSPHRASE:-}}"
 task="${ONEC_BOOTSTRAP_TASK:-pai_bootstrap}"
-query="${ONEC_BOOTSTRAP_QUERY:-ЗаписьJSON}"
-limit="${ONEC_BOOTSTRAP_LIMIT:-3}"
+context_mcp_url="${ONEC_CONTEXT_MCP_URL:-http://localhost:8050/mcp}"
 
 usage() {
   cat <<'EOF'
@@ -16,7 +15,7 @@ Usage:
 
 Prepare the mounted project for Portable Agent Infrastructure work:
 - initialize project-local OACS state under .agent/oacs
-- write MCP config under .agent/mcp
+- write external 1C Context MCP config under .agent/mcp
 - build a minimal context capsule under .agent/context-capsules
 - write agent instructions for the OACS memory call loop
 
@@ -57,27 +56,23 @@ Before changing 1C metadata, BSL, tests, or runtime scripts:
    `acs memory query --query "<task intent>" --scope project --json`
 5. Build an ACS context capsule when the gate returns `decision=build`, prior memory/evidence may matter, or the task is substantial/ambiguous/domain-heavy:
    `acs context build --intent "<task intent>" --scope project --json`
-6. Build a 1C task context capsule:
-   `onec-agent context --query "<exact 1C term>" --pack platform --limit 5`
-7. Query developer-guide facts when the task needs behavior, patterns, or examples:
-   `onec-agent context --query "<1C developer guide topic>" --pack bsl-dev --limit 5`
-8. Query project metadata after bootstrap when the task is about project objects:
-   `onec-agent context --query "<metadata object>" --pack metadata --limit 5`
-9. Use the relevant skill instructions from:
-   - `/opt/onec-skills/onec-context-toolkit/skill/SKILL.md`
+6. Use the external 1C Context MCP service for platform help, standards,
+   snippets, and metadata. Bootstrap writes `.agent/mcp/onec-context-mcp.json`;
+   the default URL is `http://localhost:8050/mcp`.
+7. Use the relevant skill instructions from:
    - `/opt/onec-skills/onec-vanessa-skill/skill/core/SKILL.md`
    - `/opt/onec-agent/skills/memory/SKILL.md`
    - `/opt/onec-agent/skills/codex_oacs_runtime/SKILL.md`
-10. Run focused checks inside the container.
-11. Capture durable conclusions only after verification with direct ACS memory commands.
+8. Run focused checks inside the container.
+9. Capture durable conclusions only after verification with direct ACS memory commands.
 
 Rules:
 
 - Treat OACS as memory, evidence, and context governance. It is not the runtime orchestrator.
 - Do not prepend OACS context unconditionally. Use `acs context gate` as a preflight, but do not let `skip` bypass the proof loop for substantial work.
 - Use `acs` directly for memory, context capsules, MCP import, and evidence.
-  Use `onec-agent` for 1C retrieval, diagnostics, skills, and runtime checks.
-- Prefer exact platform, developer-guide, standards, and project context-pack facts over remembered guesses.
+  Use `onec-agent` for diagnostics, skills, bootstrap artifacts, ibase helpers, and runtime checks.
+- Prefer exact 1C Context MCP facts over remembered guesses.
 - Do not store secrets, ITS credentials, license data, or full help dumps in OACS.
 - Do not read, print, or commit `.agent/oacs/key.json`, `.agent/oacs/unlocked.key`, OACS DB files, passphrases, or private agent state.
 - Keep project state under `.agent/`.
@@ -94,7 +89,7 @@ Use this loop for every non-trivial task.
 1. `acs context gate`: decide whether this task needs OACS context.
 2. `acs memory query`: find prior project decisions and constraints.
 3. `acs context build`: create the task capsule when the gate returns `decision=build`, prior memory/evidence may matter, or the task is substantial/ambiguous/domain-heavy.
-4. `onec-agent context`: run exact 1C lookups against platform, developer-guide, standards, metadata, or code packs.
+4. Use the external 1C Context MCP service for exact 1C lookups against platform help, standards, snippets, metadata, and task context.
 5. Work against the current project files.
 6. Verify with the narrowest relevant command.
 7. `acs run`: execute checks and save command outputs as evidence.
@@ -107,9 +102,6 @@ export OACS_DB="${ONEC_PROJECT_ROOT:-/workspace/project}/.agent/oacs/oacs.db"
 acs context gate --intent repo_development --scope project --task "<task intent>" --json
 acs memory query --query "<task intent>" --scope project --json
 acs context build --intent "<task intent>" --scope project --json
-onec-agent context --query "<1C term>" --pack platform --limit 5
-onec-agent context --query "<1C behavior or example>" --pack bsl-dev --limit 5
-onec-agent context --query "<metadata object>" --pack metadata --limit 5
 acs run --label "<check label>" --scope project --json -- <check command>
 acs resume --scope project --json
 candidate="$(acs memory propose --type procedure --depth 2 --scope project --text "<verified conclusion>" --json)"
@@ -172,7 +164,7 @@ memories = [
         "scope": ["project", "pai", "oacs"],
         "owner_actor_id": None,
         "content": {
-            "text": "Use acs directly for memory, context capsules, and evidence. Use onec-agent only as the 1C adapter for context lookup, diagnostics, bootstrap artifacts, and runtime checks.",
+            "text": "Use acs directly for memory, context capsules, and evidence. Use onec-agent only as the 1C adapter for diagnostics, bootstrap artifacts, MCP config, and runtime checks.",
             "kind": "procedure",
             "tags": ["oacs", "workflow", "onec-agent"],
             "confidence": 1.0,
@@ -304,9 +296,7 @@ main() {
   require_command jq
   require_command python3
   require_command acs
-  require_command onec-agent-context
   require_command onec-agent-doctor
-  require_command onec-context
   [[ -f "$registry_path" ]] || die "Agent registry is missing: $registry_path"
 
   local agent_dir mcp_dir capsule_dir instructions_dir report_dir capsule_path findings_capsule_path findings_memories_path report_path
@@ -337,24 +327,6 @@ main() {
   onec-agent-context mcp-config >"$mcp_dir/onec-context-mcp.json"
   acs context build --intent "$task" --scope project --budget "${ONEC_OACS_CONTEXT_BUDGET:-4000}" --json \
     >"$report_dir/oacs-bootstrap-context.json"
-  onec-agent-context lookup --query "$query" --pack platform --limit "$limit" \
-    >"$report_dir/onec-context-platform-lookup.json"
-  onec-agent-context lookup --query "стандарты разработки" --pack standards --limit "$limit" \
-    >"$report_dir/onec-context-standards-lookup.json"
-  onec-agent-context lookup --query "фоновые задания" --pack bsl-dev --limit "$limit" \
-    >"$report_dir/onec-context-bsl-dev-lookup.json"
-
-  local metadata_status metadata_pack
-  metadata_status="not-built"
-  metadata_pack=""
-  if onec-context init --workspace-root "$project_root" --source-path "$project_root" \
-      --profile metadata --without-help --with-metadata \
-      >"$report_dir/onec-context-metadata-ensure.log" 2>&1; then
-    metadata_status="built"
-    metadata_pack="$(onec-context resolve-packs --workspace-root "$project_root" --role metadata --path-only 2>/dev/null || true)"
-  else
-    metadata_status="not-available"
-  fi
 
   write_agent_instructions "$instructions_dir/pai-agent-instructions.md"
   if [[ ! -e "$agent_dir/AGENTS.md" ]]; then
@@ -372,12 +344,8 @@ main() {
     --arg registry "$registry_path" \
     --arg oacs_db "$oacs_db" \
     --arg mcp_config "$mcp_dir/onec-context-mcp.json" \
-    --arg platform_pack "$(jq -r '.packs.platform // empty' "$registry_path")" \
-    --arg standards_pack "$(jq -r '.packs.standards // empty' "$registry_path")" \
-    --arg bsl_dev_pack "$(jq -r '.packs.bsl_dev // empty' "$registry_path")" \
-    --arg metadata_status "$metadata_status" \
-    --arg metadata_pack "$metadata_pack" \
-    --arg orientation_prompt 'You are working inside a project prepared by Portable Agent Infrastructure (PAI) for 1C development. PAI is the container/runtime infrastructure, not a product object named pai. The host IDE agent edits the mounted project; the container provides 1C runtime, VNC, OneScript, Vanessa, BSL Language Server, OACS/ACS, skills, and onec-context knowledge packs. Start every non-trivial task with acs context gate, direct acs memory query, and acs context build when the gate says build, prior memory/evidence may matter, or the task is substantial, ambiguous, domain-heavy, or release/CI/security/tooling related. Do not let gate skip bypass evidence, checkpoint, verification, or leak/secret checks for substantial work. Use onec-agent only as the 1C adapter for context lookup, diagnostics, skills, bootstrap artifacts, ibase helpers, and runtime checks. Treat platform help, BSL developer guide, standards, and metadata packs as retrieval sources; do not paste full corpora into memory. The supported runtime/build target is linux/amd64. Licensing is optional for bootstrap/OACS/context, but 1C runtime checks need activation or a readable nethasp.ini mounted by local path only. Never read, print, or store nethasp.ini contents, license data, ITS credentials, OACS DB/key files, passphrases, platform archives, local host paths, or unrelated artifacts in git, reports, OACS memory, or context capsules.' \
+    --arg mcp_url "$context_mcp_url" \
+    --arg orientation_prompt 'You are working inside a project prepared by Portable Agent Infrastructure (PAI) for 1C development. PAI is the container/runtime infrastructure, not a product object named pai. The host IDE agent edits the mounted project; the container provides 1C runtime, VNC, OneScript, Vanessa, onec-hbk-bsl, OACS/ACS, local skills, and bootstrap/runtime checks. 1C knowledge retrieval is provided by an external 1C Context MCP service; bootstrap writes the MCP URL/config but does not embed or build context packs. Start every non-trivial task with acs context gate, direct acs memory query, and acs context build when the gate says build, prior memory/evidence may matter, or the task is substantial, ambiguous, domain-heavy, or release/CI/security/tooling related. Do not let gate skip bypass evidence, checkpoint, verification, or leak/secret checks for substantial work. Use onec-agent only as the 1C adapter for diagnostics, skills, bootstrap artifacts, ibase helpers, and runtime checks. Treat MCP answers as retrieval sources; do not paste full corpora into memory. The supported runtime/build target is linux/amd64. Licensing is optional for bootstrap/OACS/MCP config, but 1C runtime checks need activation or a readable nethasp.ini mounted by local path only. Never read, print, or store nethasp.ini contents, license data, ITS credentials, OACS DB/key files, passphrases, platform archives, local host paths, or unrelated artifacts in git, reports, OACS memory, or context capsules.' \
     --argjson project_files "$project_files_json" \
     --slurpfile registry_json "$registry_path" \
     '{
@@ -399,14 +367,12 @@ main() {
       },
       mcp: {
         config: $mcp_config,
-        server: "onec-agent-context-mcp"
+        server: "onec-context-mcp",
+        url: $mcp_url
       },
       required_context: {
-        platform_help_pack: $platform_pack,
-        standards_pack: $standards_pack,
-        bsl_dev_docs_pack: $bsl_dev_pack,
-        metadata_pack_status: $metadata_status,
-        metadata_pack: $metadata_pack,
+        external_mcp_url: $mcp_url,
+        provider: "1c_hbk_helper / onec-context-mcp",
         skills: ($registry_json[0].skills // {})
       },
       project_metadata_sample: $project_files,
@@ -418,11 +384,8 @@ main() {
       reports: [
         ".agent/reports/onec-agent-doctor.txt",
         ".agent/reports/oacs-bootstrap-context.json",
-        ".agent/reports/onec-context-platform-lookup.json",
-        ".agent/reports/onec-context-standards-lookup.json",
-        ".agent/reports/onec-context-bsl-dev-lookup.json",
         ".agent/reports/cross-repo-findings-memories.public.json",
-        ".agent/reports/onec-context-metadata-ensure.log"
+        ".agent/mcp/onec-context-mcp.json"
       ],
       additional_capsules: [
         ".agent/context-capsules/cross-repo-findings-capsule.public.json"
@@ -451,9 +414,6 @@ Read \`.agent/instructions/pai-agent-instructions.md\`. If bootstrap created \`.
 acs context gate --intent repo_development --scope project --task "<task intent>" --json
 acs memory query --query "<task intent>" --scope project --json
 acs context build --intent "<task intent>" --scope project --json
-onec-agent context --query "<exact 1C term>" --pack platform --limit 5
-onec-agent context --query "<developer guide topic>" --pack bsl-dev --limit 5
-onec-agent context --query "<metadata object>" --pack metadata --limit 5
 acs run --label "<check label>" --scope project --json -- <check command>
 acs resume --scope project --json
 candidate_json=\$(acs memory propose --type procedure --depth 2 --scope project --text "<verified reusable fact>" --json)
@@ -465,10 +425,8 @@ acs checkpoint add --task "<task-id>" --summary "<what changed>" --next "Done" -
 
 ## Required Context
 
-- Platform help pack: \`$(jq -r '.packs.platform // empty' "$registry_path")\`
-- Standards pack: \`$(jq -r '.packs.standards // empty' "$registry_path")\`
-- BSL developer docs pack: \`$(jq -r '.packs.bsl_dev // empty' "$registry_path")\`
-- Metadata pack status: \`$metadata_status\`
+- 1C Context MCP URL: \`$context_mcp_url\`
+- MCP config: \`.agent/mcp/onec-context-mcp.json\`
 - Skills registry: \`$registry_path\`
 
 Do not restart or recreate the container for normal agent work. Keep it running in shell mode and use \`docker exec\`, Compose transport commands, or IDE tool calls to invoke \`onec-agent\`.

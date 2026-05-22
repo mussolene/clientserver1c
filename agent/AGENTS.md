@@ -19,15 +19,15 @@ Inside the container, prefer the self-contained onec-agent CLI:
 ```bash
 onec-agent doctor
 onec-agent registry
-onec-agent skill context
-onec-agent bslls src/cf
-onec-agent context --query "ЗаписьJSON" --pack platform --limit 5
-onec-agent context --query "Заявки" --pack metadata --limit 5
+onec-agent bsl-check src/cf
 onec-agent context-mcp-config
 ```
 
 Use `acs` directly for memory, context capsules, and evidence. `onec-agent`
-does not wrap ACS; it only prepares 1C-specific context and runtime checks.
+does not wrap ACS; it prepares 1C-specific diagnostics, bootstrap artifacts,
+skills, MCP config, and runtime checks. 1C knowledge lookup is provided by the
+external `onec-context-mcp` service from `1c_hbk_helper`; the container does not
+embed context packs.
 
 ```bash
 export OACS_DB=/workspace/project/.agent/oacs/oacs.db
@@ -52,14 +52,15 @@ Before 1C work:
 4. Ask `acs context gate`, query ACS memory, and build a fresh context capsule
    when the gate says `build`, prior memory/evidence may matter, or the task is
    substantial, ambiguous, domain-heavy, or release/CI/security/tooling related.
-5. Read only the relevant `SKILL.md` before acting:
-   - `context` for ConfigDump, metadata, BSL, platform help, and exact fact lookup.
+5. Import or configure `.agent/mcp/onec-context-mcp.json` when the task needs
+   platform help, standards, snippets, metadata, or exact 1C API facts.
+6. Read only the relevant `SKILL.md` before acting:
    - `testing` for Vanessa Automation, xUnitFor1C, UI smoke, and test artifacts.
    - `memory` for OACS project memory, task context capsules, and evidence refs.
-6. Run checks through `acs run` when their output should become evidence.
-7. After verification, save only reusable conclusions through
+7. Run checks through `acs run` when their output should become evidence.
+8. After verification, save only reusable conclusions through
    `acs memory propose`, `acs memory commit`, and `acs memory sharpen`.
-8. Add an OACS checkpoint with outcome, evidence refs, and next step.
+9. Add an OACS checkpoint with outcome, evidence refs, and next step.
 
 Treat `decision=skip` as valid only for tiny visible-file edits. Do not let it
 bypass evidence, checkpoint, verification, or leak/secret checks for substantial

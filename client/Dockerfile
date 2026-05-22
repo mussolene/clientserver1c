@@ -13,10 +13,7 @@ ARG VANESSA_ADD_VERSION=6.8.0
 ARG VANESSA_RUNNER_VERSION=2.6.0
 ARG VANESSA_AUTOMATION_VERSION=1.2.043.1
 ARG ONEC_VANESSA_SKILL_REF=58b8e8b4831f4f1457707b037c8a050f5cd32e86
-ARG ONEC_CONTEXT_TOOLKIT_REF=6a1df34b06a7a71c65876298070cb13525896ee3
-ARG BSL_DEV_DOCS_REPO=https://github.com/mussolene/BSL_8.5.1_dev_docs
-ARG BSL_DEV_DOCS_REF=5feac5e9b9237d4bc134a517834a740157be2809
-ARG BSLLS_VERSION=0.25.0
+ARG ONEC_HBK_BSL_VERSION=0.7.41
 ARG OACS_VERSION=1.0.14
 
 ENV PLATFORM_VERSION=${PLATFORM_VERSION}
@@ -75,10 +72,6 @@ RUN apt-get update -o APT::Sandbox::User=root \
     iproute2 \
     iputils-ping \
     jq \
-    openjdk-17-jre-headless \
-    python3 \
-    python3-pip \
-    python3-venv \
     ripgrep \
     xdotool \
   && rm -rf /var/lib/apt/lists/*
@@ -217,17 +210,12 @@ RUN opm install "add@${VANESSA_ADD_VERSION}" \
   && command -v vrunner >/dev/null \
   && vrunner help >/dev/null
 
-RUN mkdir -p /opt/bslls \
-  && curl -fsSL \
-    "https://github.com/1c-syntax/bsl-language-server/releases/download/v${BSLLS_VERSION}/bsl-language-server-${BSLLS_VERSION}-exec.jar" \
-    -o /opt/bslls/bsl-language-server.jar \
-  && printf '%s\n' \
-      '#!/usr/bin/env bash' \
-      'set -euo pipefail' \
-      'exec java ${BSLLS_JAVA_OPTS:--Xmx2g} -jar /opt/bslls/bsl-language-server.jar "$@"' \
-    > /usr/local/bin/bsl-language-server \
-  && chmod +x /usr/local/bin/bsl-language-server \
-  && bsl-language-server --version >/dev/null
+ENV ONEC_HBK_BSL_VERSION=${ONEC_HBK_BSL_VERSION}
+RUN python3 -m venv /opt/onec-hbk-bsl \
+  && /opt/onec-hbk-bsl/bin/pip install --no-cache-dir "onec-hbk-bsl==${ONEC_HBK_BSL_VERSION}" \
+  && ln -sf /opt/onec-hbk-bsl/bin/onec-hbk-bsl /usr/local/bin/onec-hbk-bsl \
+  && onec-hbk-bsl --version >/dev/null \
+  && onec-hbk-bsl --list-rules >/dev/null
 
 ENV OACS_VERSION=${OACS_VERSION}
 RUN python3 -m venv /opt/oacs \
@@ -238,13 +226,8 @@ RUN python3 -m venv /opt/oacs \
   && command -v acs >/dev/null
 
 COPY agent/ /opt/onec-agent/
-ENV BSL_DEV_DOCS_REPO=${BSL_DEV_DOCS_REPO}
-ENV BSL_DEV_DOCS_REF=${BSL_DEV_DOCS_REF}
 
-RUN --mount=type=secret,id=its_login,required=false \
-  --mount=type=secret,id=its_password,required=false \
-  --mount=type=cache,target=/var/cache/onec-context/its-v8std \
-  bash -euxo pipefail <<'EOF'
+RUN bash -euxo pipefail <<'EOF'
 skills_root=/opt/onec-skills
 mkdir -p "$skills_root"
 
@@ -263,109 +246,30 @@ clone_skill() {
 }
 
 vanessa_commit="$(clone_skill onec-vanessa-skill https://github.com/mussolene/onec-vanessa-skill "${ONEC_VANESSA_SKILL_REF}")"
-context_commit="$(clone_skill onec-context-toolkit https://github.com/mussolene/onec-context-toolkit "${ONEC_CONTEXT_TOOLKIT_REF}")"
-
-context_root="$skills_root/onec-context-toolkit"
-context_workspace=/opt/onec-agent/context-workspace
-context_manifest="$context_workspace/.onec/workspace.manifest.json"
-standards_cache=/var/cache/onec-context/its-v8std
-bsl_docs_source=/tmp/bsl-dev-docs
-bsl_docs_pack="$context_workspace/.onec/packs/bsl-dev-${PLATFORM_VERSION}.kb.db.zst"
-bsl_docs_manifest="$context_workspace/.onec/manifests/bsl-dev-${PLATFORM_VERSION}.kb.manifest.json"
-
-printf '%s\n' \
-  '#!/usr/bin/env bash' \
-  'set -euo pipefail' \
-  'exec /opt/onec-skills/onec-context-toolkit/bin/onec-context "$@"' \
-  > /usr/local/bin/onec-context
-chmod +x /usr/local/bin/onec-context "$context_root/bin/onec-context"
-
-onec-context doctor --workspace-init --hbk-base /opt/1cv8
-test -x "$context_root/.venv/bin/onec-context-mcp"
-printf '%s\n' \
-  '#!/usr/bin/env bash' \
-  'set -euo pipefail' \
-  'exec /opt/onec-skills/onec-context-toolkit/.venv/bin/onec-context-mcp "$@"' \
-  > /usr/local/bin/onec-context-mcp
-chmod +x /usr/local/bin/onec-context-mcp
-if [[ ! -f "$standards_cache/_snapshot.json" ]]; then
-  onec-context fetch-its-standards --output-dir "$standards_cache"
-else
-  echo "Reusing cached ITS standards from $standards_cache"
-fi
-onec-context init \
-  --workspace-root "$context_workspace" \
-  --source-path "$context_workspace" \
-  --profile base \
-  --hbk-base /opt/1cv8 \
-  --platform "${PLATFORM_VERSION}" \
-  --with-standards \
-  --standards-dir "$standards_cache" \
-  --cleanup-intermediate
-context_platform_pack="$(onec-context resolve-packs \
-  --workspace-root "$context_workspace" \
-  --role platform \
-  --path-only)"
-context_standards_pack="$(onec-context resolve-packs \
-  --workspace-root "$context_workspace" \
-  --role standards \
-  --path-only)"
-context_standards_manifest="$context_workspace/.onec/manifests/standards.its-v8std.kb.manifest.json"
-bsl_docs_commit="$(clone_skill bsl-dev-docs "${BSL_DEV_DOCS_REPO}" "${BSL_DEV_DOCS_REF}")"
-rm -rf "$bsl_docs_source"
-cp -a "$skills_root/bsl-dev-docs" "$bsl_docs_source"
-/opt/onec-skills/onec-context-toolkit/.venv/bin/python \
-  /opt/onec-agent/bin/onec-agent-build-bsl-docs \
-  --source-dir "$bsl_docs_source" \
-  --db-path "$context_workspace/.onec/cache/bsl-dev-${PLATFORM_VERSION}.kb.db" \
-  --out-zst "$bsl_docs_pack" \
-  --manifest "$bsl_docs_manifest" \
-  --version "$PLATFORM_VERSION" \
-  --source-url "$BSL_DEV_DOCS_REPO" \
-  --source-ref "$BSL_DEV_DOCS_REF" \
-  --source-commit "$bsl_docs_commit"
-rm -rf "$bsl_docs_source" "$skills_root/bsl-dev-docs"
-test -f "$context_manifest"
-test -f "$context_platform_pack"
-test -f "$context_standards_pack"
-test -f "$context_standards_manifest"
-test -f "$bsl_docs_pack"
-test -f "$bsl_docs_manifest"
 
 jq -n \
   --arg vanessa_ref "${ONEC_VANESSA_SKILL_REF}" \
   --arg vanessa_commit "$vanessa_commit" \
-  --arg context_ref "${ONEC_CONTEXT_TOOLKIT_REF}" \
-  --arg context_commit "$context_commit" \
-  --arg bslls_version "${BSLLS_VERSION}" \
-  --arg context_workspace "$context_workspace" \
-  --arg context_manifest "$context_manifest" \
-  --arg context_platform_pack "$context_platform_pack" \
-  --arg context_standards_pack "$context_standards_pack" \
-  --arg context_standards_manifest "$context_standards_manifest" \
-  --arg bsl_docs_repo "${BSL_DEV_DOCS_REPO}" \
-  --arg bsl_docs_ref "${BSL_DEV_DOCS_REF}" \
-  --arg bsl_docs_commit "$bsl_docs_commit" \
-  --arg bsl_docs_pack "$bsl_docs_pack" \
-  --arg bsl_docs_manifest "$bsl_docs_manifest" \
+  --arg hbk_bsl_version "${ONEC_HBK_BSL_VERSION}" \
+  --arg context_mcp_url "http://localhost:8050/mcp" \
   '{
     skills_root: "/opt/onec-skills",
     project_root: "/workspace/project",
     tools: {
-      "bsl-language-server": {
-        version: $bslls_version,
-        command: "bsl-language-server",
-        jar: "/opt/bslls/bsl-language-server.jar"
+      "onec-hbk-bsl": {
+        version: $hbk_bsl_version,
+        command: "onec-hbk-bsl",
+        description: "Python BSL diagnostics, formatter, LSP and MCP server"
       },
       "onec-agent": {
         command: "onec-agent",
         description: "Self-contained container-side 1C agent CLI"
       },
-      "onec-context": {
-        command: "onec-context",
-        mcp_command: "onec-agent-context-mcp",
-        workspace: $context_workspace,
-        manifest: $context_manifest
+      "onec-context-mcp": {
+        mode: "external",
+        url: $context_mcp_url,
+        config_command: "onec-agent context-mcp-config",
+        description: "External 1C Context MCP service, typically provided by 1c_hbk_helper"
       },
       "oacs": {
         enabled: true,
@@ -377,33 +281,14 @@ jq -n \
         default_db: "/workspace/project/.agent/oacs/oacs.db"
       }
     },
-    packs: {
-      platform: $context_platform_pack,
-      standards: $context_standards_pack,
-      bsl_dev: $bsl_docs_pack
-    },
-    manifests: {
-      standards: $context_standards_manifest,
-      bsl_dev: $bsl_docs_manifest
-    },
+    packs: {},
+    manifests: {},
     skills: {
       "onec-vanessa-skill": {
         source: "https://github.com/mussolene/onec-vanessa-skill",
         ref: $vanessa_ref,
         commit: $vanessa_commit,
         entrypoint: "/opt/onec-skills/onec-vanessa-skill/skill/core/SKILL.md"
-      },
-      "onec-context-toolkit": {
-        source: "https://github.com/mussolene/onec-context-toolkit",
-        ref: $context_ref,
-        commit: $context_commit,
-        entrypoint: "/opt/onec-skills/onec-context-toolkit/skill/SKILL.md"
-      },
-      "bsl-dev-docs": {
-        source: $bsl_docs_repo,
-        ref: $bsl_docs_ref,
-        commit: $bsl_docs_commit,
-        entrypoint: $bsl_docs_manifest
       },
       "oacs-memory": {
         source: "local",
@@ -427,12 +312,10 @@ find /opt/onec-agent/bin -maxdepth 1 -type f -exec ln -sf {} /usr/local/bin/ \;
 command -v onec-agent-doctor >/dev/null
 command -v onec-agent-quickstart >/dev/null
 command -v onec-agent-skill >/dev/null
-command -v onec-agent-bslls >/dev/null
+command -v onec-agent-bsl >/dev/null
 command -v onec-agent-bootstrap >/dev/null
 command -v onec-agent-ibase >/dev/null
 command -v onec-agent >/dev/null
-command -v onec-context >/dev/null
-command -v onec-context-mcp >/dev/null
 command -v onec-agent-context-mcp >/dev/null
 command -v onec-agent-oacs-runtime >/dev/null
 test -f /opt/onec-agent/skills/codex_oacs_runtime/SKILL.md
@@ -445,16 +328,8 @@ onec-agent-skill runtime >/dev/null
 onec-agent bootstrap --help >/dev/null
 onec-agent ibase --help >/dev/null
 onec-agent --help >/dev/null
-onec-context-mcp --help >/dev/null
-onec-agent-context-mcp --help >/dev/null
-onec-context query-kb --db "$context_platform_pack" --q "ЗаписьJSON" --limit 1 >/dev/null
-onec-context query-kb --db "$context_standards_pack" --q "стандарты разработки" --limit 1 >/dev/null
-onec-context query-kb --db "$bsl_docs_pack" --q "Фоновые задания" --limit 1 >/dev/null
+onec-agent context-mcp-config >/dev/null
 rm -rf \
-  "$context_workspace/.onec/cache" \
-  "$context_workspace/data" \
-  "$context_root/build" \
-  "$context_root/.git" \
   "$skills_root/onec-vanessa-skill/.git" \
   /root/.cache/pip
 EOF

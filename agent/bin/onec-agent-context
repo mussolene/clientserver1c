@@ -3,19 +3,17 @@ set -euo pipefail
 
 project_root="${ONEC_PROJECT_ROOT:-/workspace/project}"
 registry_path="${ONEC_AGENT_REGISTRY:-/opt/onec-agent/registry.json}"
-oacs_db="${OACS_DB:-$project_root/.agent/oacs/oacs.db}"
-oacs_passphrase="${OACS_PASSPHRASE:-${ONEC_OACS_PASSPHRASE:-}}"
-scope="${ONEC_OACS_SCOPE:-project}"
+context_mcp_url="${ONEC_CONTEXT_MCP_URL:-http://localhost:8050/mcp}"
 
 usage() {
   cat <<'EOF'
 Usage:
   onec-agent-context doctor
-  onec-agent-context lookup --query <text> [--pack platform|standards|bsl-dev|metadata] [--limit n]
+  onec-agent-context lookup --query <text>
   onec-agent-context mcp-config
 
-This command is a 1C context-pack lookup adapter. Use acs directly for OACS
-memory, task context capsules, and evidence.
+This command publishes the external 1C Context MCP contract. Use acs directly
+for OACS memory, task context capsules, and evidence.
 EOF
 }
 
@@ -24,92 +22,44 @@ die() {
   exit 2
 }
 
-require_project() {
-  [[ -d "$project_root" ]] || die "Project mount is missing: $project_root"
-}
-
-arg_value() {
-  local key="$1"
-  shift
-  while [[ "$#" -gt 0 ]]; do
-    case "$1" in
-      "--$key")
-        [[ "$#" -ge 2 ]] || die "Missing value for --$key"
-        printf '%s\n' "$2"
-        return 0
-        ;;
-    esac
-    shift
-  done
-  return 1
-}
-
-pack_db() {
-  local pack="$1"
-  case "$pack" in
-    platform|standards)
-      jq -r --arg pack "$pack" '.packs[$pack] // empty' "$registry_path"
-      ;;
-    bsl-dev|bsl_dev)
-      jq -r '.packs.bsl_dev // empty' "$registry_path"
-      ;;
-    metadata|project-metadata|project_metadata)
-      onec-context resolve-packs --workspace-root "$project_root" --role metadata --path-only 2>/dev/null || true
-      ;;
-    *)
-      die "Unknown pack: $pack"
-      ;;
-  esac
-}
-
 cmd_lookup() {
-  local query pack limit db
-  query="$(arg_value query "$@" || true)"
-  pack="$(arg_value pack "$@" || printf 'platform')"
-  limit="$(arg_value limit "$@" || printf '5')"
-  [[ -n "$query" ]] || die "Set --query."
-
-  if [[ "$pack" == "metadata" || "$pack" == "project-metadata" || "$pack" == "project_metadata" ]]; then
-    require_project
-  fi
-
-  db="$(pack_db "$pack")"
-  [[ -n "$db" && -f "$db" ]] || die "Context pack is missing for $pack: ${db:-<empty>}"
-  onec-context query-kb --db "$db" --q "$query" --limit "$limit"
+  die "Local context packs are not embedded in this image. Start 1c_hbk_helper/onec-context-mcp and use MCP URL: $context_mcp_url"
 }
 
 cmd_mcp_config() {
-  cat <<'JSON'
-{
-  "mcpServers": {
-    "onec-context": {
-      "command": "onec-agent-context-mcp",
-      "args": [],
-      "env": {},
-      "allowed_tools": [
-        "onec_status",
-        "onec_ensure",
-        "onec_resolve_packs",
-        "onec_query_kb",
-        "onec_query_code",
-        "onec_query_config"
-      ],
-      "namespace": "default",
-      "scope": ["project"]
+  jq -n --arg url "$context_mcp_url" '{
+    mcpServers: {
+      "onec-context-mcp": {
+        url: $url
+      }
     }
-  }
-}
-JSON
+  }'
 }
 
 cmd_doctor() {
+  printf '1C context MCP: external\n'
+  printf 'MCP URL: %s\n' "$context_mcp_url"
+  if [[ -f "$registry_path" ]]; then
+    jq -r '.tools["onec-context-mcp"].url // empty' "$registry_path" | sed 's/^/Registry URL: /'
+  fi
   if ! command -v acs >/dev/null 2>&1; then
     printf 'OACS: MISSING (rebuild the 1c-dev image)\n'
     exit 1
   fi
   printf 'OACS: '
   acs --help >/dev/null && printf 'OK %s\n' "$(command -v acs)"
-  printf 'OACS DB: project .agent/oacs/oacs.db\n'
+}
+
+cmd_legacy_mcp_config_example() {
+  cat <<'JSON'
+{
+  "mcpServers": {
+    "onec-context-mcp": {
+      "url": "http://localhost:8050/mcp"
+    }
+  }
+}
+JSON
 }
 
 mode="${1:-}"

@@ -4,10 +4,10 @@ Use this skill when a 1C task benefits from project memory, task context capsule
 
 ## Model
 
-- `onec-context` remains the canonical retrieval engine for platform help, BSL developer guide, ITS standards, and project packs.
+- External `onec-context-mcp` remains the canonical retrieval surface for platform help, standards, snippets, and project metadata.
 - OACS stores governed memory, `EvidenceRef` records, audit entries, and `ContextCapsule` metadata.
-- Do not copy whole help pages, standards packs, platform archives, ITS credentials, license data, or secrets into memory.
-- Treat OACS memory as project-specific guidance. Treat `onec-context` lookup output as canonical evidence.
+- Do not copy whole help pages, standards dumps, platform archives, ITS credentials, license data, or secrets into memory.
+- Treat OACS memory as project-specific guidance. Treat external MCP lookup output as retrieval evidence only after it is captured through `acs run` or `acs tool ingest-result`.
 
 ## Workflow
 
@@ -24,25 +24,22 @@ Host transport command:
 make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="short_task_intent"
 ```
 
-When the task needs a specific 1C help, developer-guide, or standards lookup, include a query:
+When the task needs a specific 1C help, standards, snippets, or metadata lookup,
+use the external MCP config produced by bootstrap:
 
 ```bash
-onec-agent context --query "ЗаписьJSON" --pack platform --limit 5
-onec-agent context --query "Фоновые задания" --pack bsl-dev --limit 5
-onec-agent context --query "Заявки" --pack metadata --limit 5
+onec-agent context-mcp-config > /tmp/onec-context-mcp.json
+acs mcp import /tmp/onec-context-mcp.json
 ```
 
-Host transport command:
+The image does not embed local context packs. Start `1c_hbk_helper` /
+`onec-context-mcp` outside this image and connect the MCP client to the URL in
+the config, default `http://localhost:8050/mcp`.
 
-```bash
-make -C /path/to/1c-develop agent-context PROJECT_PATH="$PWD" TASK="json_writer_question" QUERY="ЗаписьJSON" PACK=platform LIMIT=5
-```
+Use `acs run` or `acs tool ingest-result` when an MCP result should become OACS
+evidence, then promote durable conclusions explicitly with `acs memory`.
 
-The direct `onec-agent context` command performs a `onec-context` lookup only.
-Use `acs run` or `acs tool ingest-result` when the lookup result should become
-OACS evidence, then promote durable conclusions explicitly with `acs memory`.
-
-For agents that support MCP, register the container MCP server with OACS from inside the container:
+For agents that support MCP, register the external MCP endpoint with OACS:
 
 ```bash
 onec-agent context-mcp-config > /tmp/onec-context-mcp.json
@@ -61,7 +58,7 @@ acs context build --intent "json writer" --scope project --json
 Run checks through ACS when their command output should be evidence:
 
 ```bash
-acs run --label "bslls_json_writer" --scope project --json -- onec-agent bslls src/cf
+acs run --label "bsl_check_json_writer" --scope project --json -- onec-agent bsl-check src/cf
 acs resume --scope project --json
 ```
 

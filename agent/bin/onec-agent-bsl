@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+project_root="${ONEC_PROJECT_ROOT:-/workspace/project}"
+mode="${ONEC_BSL_MODE:-check}"
+src_path="${ONEC_BSL_SRC:-${1:-$project_root}}"
+output_path="${ONEC_BSL_OUTPUT:-$project_root/.agent/bsl/onec-hbk-bsl.json}"
+format="${ONEC_BSL_FORMAT:-json}"
+
+if [[ "$mode" == "check" && ! -d "$src_path" && ! -f "$src_path" ]]; then
+  printf 'BSL source path does not exist: %s\n' "$src_path" >&2
+  exit 2
+fi
+
+case "$mode" in
+  check)
+    mkdir -p "$(dirname "$output_path")"
+    args=(--check "$src_path" --format "$format")
+    if [[ -n "${ONEC_BSL_SELECT:-}" ]]; then
+      args+=(--select "$ONEC_BSL_SELECT")
+    fi
+    if [[ -n "${ONEC_BSL_IGNORE:-}" ]]; then
+      args+=(--ignore "$ONEC_BSL_IGNORE")
+    fi
+    stdout_file="$(mktemp)"
+    stderr_file="$(mktemp)"
+    set +e
+    onec-hbk-bsl "${args[@]}" >"$stdout_file" 2>"$stderr_file"
+    rc="$?"
+    set -e
+    cp "$stdout_file" "$output_path"
+    python3 - "$output_path" "$rc" "$stderr_file" <<'PY'
+import collections
+import json
+import pathlib
+import sys
+
+report = pathlib.Path(sys.argv[1])
+rc = int(sys.argv[2])
+stderr_file = pathlib.Path(sys.argv[3])
+print(f"onec-hbk-bsl report: {report}")
+print(f"onec-hbk-bsl exit code: {rc}")
+
+try:
+    data = json.loads(report.read_text(encoding="utf-8"))
+except json.JSONDecodeError:
+    print(report.read_text(encoding="utf-8", errors="replace").rstrip())
+    stderr = stderr_file.read_text(encoding="utf-8", errors="replace").strip()
+    if stderr:
+        print(stderr, file=sys.stderr)
+    raise SystemExit(rc)
+
+if isinstance(data, dict):
+    issues = data.get("issues") or data.get("diagnostics") or []
+elif isinstance(data, list):
+    issues = data
+else:
+    issues = []
+
+severity = collections.Counter()
+codes = collections.Counter()
+files = set()
+for issue in issues:
+    if not isinstance(issue, dict):
+        continue
+    severity[str(issue.get("severity") or issue.get("level") or "unknown")] += 1
+    code = issue.get("code") or issue.get("rule") or issue.get("rule_id")
+    if code:
+        codes[str(code)] += 1
+    path = issue.get("path") or issue.get("file") or issue.get("uri")
+    if path:
+        files.add(str(path))
+
+print(f"Files with diagnostics: {len(files)}")
+print(f"Diagnostics total: {len(issues)}")
+if severity:
+    print("By severity: " + ", ".join(f"{key}={value}" for key, value in severity.most_common()))
+if codes:
+    print("Top diagnostics: " + ", ".join(f"{key}={value}" for key, value in codes.most_common(10)))
+
+for issue in issues[:12]:
+    if not isinstance(issue, dict):
+        continue
+    path = issue.get("path") or issue.get("file") or issue.get("uri") or "<unknown>"
+    line = issue.get("line") or issue.get("start_line")
+    line_text = "" if line in (None, "") else f":{line}"
+    code = issue.get("code") or issue.get("rule") or issue.get("rule_id") or ""
+    message = issue.get("message") or issue.get("description") or ""
+    print(f"- {path}{line_text} {code}: {message}".rstrip())
+
+raise SystemExit(rc)
+PY
+    result="$?"
+    rm -f "$stdout_file" "$stderr_file"
+    exit "$result"
+    ;;
+  format)
+    [[ -e "$src_path" ]] || {
+      printf 'BSL source path does not exist: %s\n' "$src_path" >&2
+      exit 2
+    }
+    args=(format "$src_path")
+    if [[ "${ONEC_BSL_FORMAT_CHECK:-0}" == "1" ]]; then
+      args+=(--check)
+    fi
+    exec onec-hbk-bsl "${args[@]}"
+    ;;
+  *)
+    printf 'Unknown BSL mode: %s\n' "$mode" >&2
+    exit 2
+    ;;
+esac

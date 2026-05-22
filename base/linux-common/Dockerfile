@@ -1,5 +1,5 @@
 ARG COMMON_BASE_DIST=bookworm
-FROM debian:${COMMON_BASE_DIST}-slim
+FROM python:3.12-slim-${COMMON_BASE_DIST}
 
 ARG COMMON_BASE_DIST=bookworm
 

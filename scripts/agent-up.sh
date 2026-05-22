@@ -52,7 +52,7 @@ if ! docker image inspect "$ONEC_DEV_IMAGE" >/dev/null 2>&1; then
 fi
 
 if ! docker run --rm --entrypoint test "$ONEC_DEV_IMAGE" -f /opt/onec-agent/registry.json >/dev/null 2>&1 \
-  || ! docker run --rm --entrypoint test "$ONEC_DEV_IMAGE" -f /opt/bslls/bsl-language-server.jar >/dev/null 2>&1 \
+  || ! docker run --rm --entrypoint sh "$ONEC_DEV_IMAGE" -c 'command -v onec-hbk-bsl' >/dev/null 2>&1 \
   || ! docker run --rm --entrypoint sh "$ONEC_DEV_IMAGE" -c 'command -v acs' >/dev/null 2>&1; then
   printf 'Developer image is not agent-ready: %s\n' "$ONEC_DEV_IMAGE" >&2
   printf 'Run: make build\n' >&2
