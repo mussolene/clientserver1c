@@ -20,6 +20,18 @@ acs init --json
 acs key init --json
 ```
 
+Before substantial OACS-dependent work, verify the consumer pack that provides
+the `acs` CLI:
+
+```bash
+acs --version
+```
+
+When developing against an editable local checkout of `open-agent-context`,
+also verify that checkout is on the expected branch and not behind its remote.
+Keep those checks as local evidence summaries only; do not commit host-specific
+checkout paths.
+
 `acs key init --json` creates local `local_unlocked` key material by default
 for development repositories. Existing passphrase-wrapped stores remain
 supported: export `OACS_PASSPHRASE` when the current store requires it. Do not
@@ -36,6 +48,7 @@ For each non-trivial repository task:
 ```bash
 export OACS_DB="$PWD/.agent/oacs/oacs.db"
 
+acs --version
 acs context gate --intent repo_development --scope project --task "<task intent>" --json
 acs memory query --query "<task intent>" --scope project --json
 acs context build --intent "<task intent>" --scope project --json
@@ -134,6 +147,7 @@ commit. Do not carry finished changes across iterations as uncommitted state.
 ## Policy
 
 - Use `acs` for repo memory, context capsules, and evidence references.
+- Verify the OACS consumer pack at task start when OACS behavior matters.
 - Query memory before changing behavior, use `acs context gate` before building
   a fresh context capsule, and attach evidence before promoting a durable
   memory.
