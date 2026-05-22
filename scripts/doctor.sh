@@ -11,7 +11,7 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-platform_version="${PLATFORM_VERSION:-8.5.1.1302}"
+platform_version="${PLATFORM_VERSION:-8.5.1.1343}"
 # shellcheck source=scripts/image-refs.sh
 . "$ROOT_DIR/scripts/image-refs.sh"
 dev_image="$ONEC_DEV_IMAGE"

@@ -6,7 +6,7 @@
 
 ## Что внутри
 
-- 1С:Предприятие `8.5.1.1302` в desktop/runtime контейнере.
+- 1С:Предприятие `8.5.1.1343` в desktop/runtime контейнере.
 - VNC/Xfce, доступный на `127.0.0.1:5900`.
 - OneScript, Vanessa Runner, Vanessa Automation и `bsl-language-server`.
 - `onec-agent` для 1C-specific операций: bootstrap, context, MCP config, BSLLS, skills.
@@ -24,7 +24,7 @@
 контейнер и выполните container-side quick start:
 
 ```bash
-docker pull ghcr.io/mussolene/1c-developer:8.5.1.1302
+docker pull ghcr.io/mussolene/1c-developer:8.5.1.1343
 mkdir -p .onec/data .onec/cache
 
 docker run -d \
@@ -35,7 +35,7 @@ docker run -d \
   -v "$PWD/.onec/data":/mnt/data \
   -v "$PWD/.onec/cache":/home/usr1cv8/.1cv8/1C/1cv8 \
   -e ONEC_RUNTIME_MODE=shell \
-  ghcr.io/mussolene/1c-developer:8.5.1.1302
+  ghcr.io/mussolene/1c-developer:8.5.1.1343
 
 docker exec -it 1c-dev onec-agent quickstart
 ```
@@ -56,7 +56,7 @@ docker run -d \
   -v "$PWD/.onec/cache":/home/usr1cv8/.1cv8/1C/1cv8 \
   -v "$PWD/nethasp.ini":/opt/1cv8/conf/nethasp.ini:ro \
   -e ONEC_RUNTIME_MODE=shell \
-  ghcr.io/mussolene/1c-developer:8.5.1.1302
+  ghcr.io/mussolene/1c-developer:8.5.1.1343
 ```
 
 Без лицензии всё равно доступны VNC, launcher, справка/context lookup, OACS CLI,
@@ -88,7 +88,7 @@ docker run -d \
   -v "$PWD/.onec-runtime/cache":/home/usr1cv8/.1cv8/1C/1cv8 \
   -e ONEC_RUNTIME_MODE=shell \
   -e ONEC_PROJECT_ROOT=/workspace/project \
-  ghcr.io/mussolene/1c-developer:8.5.1.1302
+  ghcr.io/mussolene/1c-developer:8.5.1.1343
 
 docker exec -it 1c-dev onec-agent bootstrap
 ```
@@ -130,7 +130,7 @@ docker run -d \
   -v "$PWD/nethasp.ini":/opt/1cv8/conf/nethasp.ini:ro \
   -e ONEC_RUNTIME_MODE=shell \
   -e ONEC_PROJECT_ROOT=/workspace/project \
-  ghcr.io/mussolene/1c-developer:8.5.1.1302
+  ghcr.io/mussolene/1c-developer:8.5.1.1343
 ```
 
 Файл `nethasp.ini` не коммитьте. Достаточно смонтировать его в

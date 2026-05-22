@@ -11,7 +11,7 @@ README. `onec-agent bootstrap` нужен позже, когда конкрет�
 ## Project Bootstrap
 
 ```bash
-docker pull ghcr.io/mussolene/1c-developer:8.5.1.1302
+docker pull ghcr.io/mussolene/1c-developer:8.5.1.1343
 mkdir -p .onec-runtime/data .onec-runtime/cache
 
 docker run -d \
@@ -24,7 +24,7 @@ docker run -d \
   -v "$PWD/.onec-runtime/cache":/home/usr1cv8/.1cv8/1C/1cv8 \
   -e ONEC_RUNTIME_MODE=shell \
   -e ONEC_PROJECT_ROOT=/workspace/project \
-  ghcr.io/mussolene/1c-developer:8.5.1.1302
+  ghcr.io/mussolene/1c-developer:8.5.1.1343
 
 docker exec -it 1c-dev onec-agent bootstrap
 ```

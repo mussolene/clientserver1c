@@ -80,7 +80,7 @@ register_ibase() {
       --path "$db_path" \
       --home "$home_dir" \
       --owner "$owner" \
-      --version "${PLATFORM_VERSION:-8.5.1.1302}" >/dev/null
+      --version "${PLATFORM_VERSION:-8.5.1.1343}" >/dev/null
     ok "registered '$db_name' in $home_dir/.1C/1cestart/ibases.v8i"
   fi
 }

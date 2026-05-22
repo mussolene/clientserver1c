@@ -22,7 +22,7 @@ services:
         COMMON_BASE_IMAGE: common_base
 
   1c-dev:
-    image: ${IMAGE_NAMESPACE:-ghcr.io/mussolene}/1c-developer:${PLATFORM_VERSION:-8.5.1.1302}
+    image: ${IMAGE_NAMESPACE:-ghcr.io/mussolene}/1c-developer:${PLATFORM_VERSION:-8.5.1.1343}
     hostname: onecdev
     platform: linux/amd64
     build:
@@ -34,7 +34,7 @@ services:
         DESKTOP_BASE_IMAGE: desktop_base
         ONESCRIPT_VERSION: ${ONESCRIPT_VERSION:-2.0.2}
         ONESCRIPT_DOWNLOAD_URL: ${ONESCRIPT_DOWNLOAD_URL-}
-        PLATFORM_VERSION: ${PLATFORM_VERSION:-8.5.1.1302}
+        PLATFORM_VERSION: ${PLATFORM_VERSION:-8.5.1.1343}
         PLATFORM_DIST_NAME: ${PLATFORM_DIST_NAME-}
         VANESSA_ADD_VERSION: ${VANESSA_ADD_VERSION:-6.8.0}
         VANESSA_RUNNER_VERSION: ${VANESSA_RUNNER_VERSION:-2.6.0}

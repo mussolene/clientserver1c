@@ -63,7 +63,7 @@ roundtrip_rel="${EPF_ROUNDTRIP_DIR:-.agent/runtime/epf-roundtrip/$epf_stem}"
 ib_connection="${IB_CONNECTION:-/F/mnt/data/testdb}"
 db_user="${DB_USER:-Администратор}"
 db_pwd="${DB_PWD:-}"
-v8version="${V8_VERSION:-${PLATFORM_VERSION:-8.5.1.1302}}"
+v8version="${V8_VERSION:-${PLATFORM_VERSION:-8.5.1.1343}}"
 timeout_sec="${EPF_ROUNDTRIP_TIMEOUT_SEC:-240}"
 
 exec docker compose "${compose_args[@]}" --profile build exec -T \

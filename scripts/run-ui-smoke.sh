@@ -17,7 +17,7 @@ artifacts_dir_rel="${ARTIFACTS_DIR_REL:-artifacts}"
 ib_connection="${IB_CONNECTION:-/F/mnt/data/testdb}"
 db_user="${DB_USER:-Администратор}"
 db_pwd="${DB_PWD:-}"
-v8version="${V8_VERSION:-${PLATFORM_VERSION:-8.5.1.1302}}"
+v8version="${V8_VERSION:-${PLATFORM_VERSION:-8.5.1.1343}}"
 ui_timeout_sec="${UI_TIMEOUT_SEC:-240}"
 skip_recreate="${ONEC_SKIP_RECREATE:-0}"
 
