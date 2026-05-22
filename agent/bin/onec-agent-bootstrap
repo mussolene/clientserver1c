@@ -55,7 +55,7 @@ Before changing 1C metadata, BSL, tests, or runtime scripts:
    `acs context gate --intent repo_development --scope project --task "<task intent>" --json`
 4. Query project memory with ACS:
    `acs memory query --query "<task intent>" --scope project --json`
-5. Build an ACS context capsule for the current task when the gate returns `decision=build`:
+5. Build an ACS context capsule when the gate returns `decision=build`, prior memory/evidence may matter, or the task is substantial/ambiguous/domain-heavy:
    `acs context build --intent "<task intent>" --scope project --json`
 6. Build a 1C task context capsule:
    `onec-agent context --query "<exact 1C term>" --pack platform --limit 5`
@@ -74,7 +74,7 @@ Before changing 1C metadata, BSL, tests, or runtime scripts:
 Rules:
 
 - Treat OACS as memory, evidence, and context governance. It is not the runtime orchestrator.
-- Do not prepend OACS context unconditionally. Use `acs context gate` or an equivalent explicit decision.
+- Do not prepend OACS context unconditionally. Use `acs context gate` as a preflight, but do not let `skip` bypass the proof loop for substantial work.
 - Use `acs` directly for memory, context capsules, MCP import, and evidence.
   Use `onec-agent` for 1C retrieval, diagnostics, skills, and runtime checks.
 - Prefer exact platform, developer-guide, standards, and project context-pack facts over remembered guesses.
@@ -93,7 +93,7 @@ Use this loop for every non-trivial task.
 
 1. `acs context gate`: decide whether this task needs OACS context.
 2. `acs memory query`: find prior project decisions and constraints.
-3. `acs context build`: create the task capsule for current repo/project state when the gate returns `decision=build`.
+3. `acs context build`: create the task capsule when the gate returns `decision=build`, prior memory/evidence may matter, or the task is substantial/ambiguous/domain-heavy.
 4. `onec-agent context`: run exact 1C lookups against platform, developer-guide, standards, metadata, or code packs.
 5. Work against the current project files.
 6. Verify with the narrowest relevant command.
@@ -116,6 +116,7 @@ candidate="$(acs memory propose --type procedure --depth 2 --scope project --tex
 memory_id="$(printf '%s' "$candidate" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
 acs memory commit "$memory_id" --json
 acs memory sharpen "$memory_id" --evidence "<ev_...>" --json
+acs checkpoint add --task "<task-id>" --summary "<what changed>" --next "Done" --evidence "<ev_...>" --json
 ```
 EOF
 }
@@ -376,7 +377,7 @@ main() {
     --arg bsl_dev_pack "$(jq -r '.packs.bsl_dev // empty' "$registry_path")" \
     --arg metadata_status "$metadata_status" \
     --arg metadata_pack "$metadata_pack" \
-    --arg orientation_prompt 'You are working inside a project prepared by Portable Agent Infrastructure (PAI) for 1C development. PAI is the container/runtime infrastructure, not a product object named pai. The host IDE agent edits the mounted project; the container provides 1C runtime, VNC, OneScript, Vanessa, BSL Language Server, OACS/ACS, skills, and onec-context knowledge packs. Start every non-trivial task with acs context gate, direct acs memory query, and acs context build only when the gate or prior memory/evidence says context matters. Use onec-agent only as the 1C adapter for context lookup, diagnostics, skills, bootstrap artifacts, ibase helpers, and runtime checks. Treat platform help, BSL developer guide, standards, and metadata packs as retrieval sources; do not paste full corpora into memory. The supported runtime/build target is linux/amd64. Licensing is optional for bootstrap/OACS/context, but 1C runtime checks need activation or a readable nethasp.ini mounted by local path only. Never read, print, or store nethasp.ini contents, license data, ITS credentials, OACS DB/key files, passphrases, platform archives, local host paths, or unrelated artifacts in git, reports, OACS memory, or context capsules.' \
+    --arg orientation_prompt 'You are working inside a project prepared by Portable Agent Infrastructure (PAI) for 1C development. PAI is the container/runtime infrastructure, not a product object named pai. The host IDE agent edits the mounted project; the container provides 1C runtime, VNC, OneScript, Vanessa, BSL Language Server, OACS/ACS, skills, and onec-context knowledge packs. Start every non-trivial task with acs context gate, direct acs memory query, and acs context build when the gate says build, prior memory/evidence may matter, or the task is substantial, ambiguous, domain-heavy, or release/CI/security/tooling related. Do not let gate skip bypass evidence, checkpoint, verification, or leak/secret checks for substantial work. Use onec-agent only as the 1C adapter for context lookup, diagnostics, skills, bootstrap artifacts, ibase helpers, and runtime checks. Treat platform help, BSL developer guide, standards, and metadata packs as retrieval sources; do not paste full corpora into memory. The supported runtime/build target is linux/amd64. Licensing is optional for bootstrap/OACS/context, but 1C runtime checks need activation or a readable nethasp.ini mounted by local path only. Never read, print, or store nethasp.ini contents, license data, ITS credentials, OACS DB/key files, passphrases, platform archives, local host paths, or unrelated artifacts in git, reports, OACS memory, or context capsules.' \
     --argjson project_files "$project_files_json" \
     --slurpfile registry_json "$registry_path" \
     '{
@@ -459,6 +460,7 @@ candidate_json=\$(acs memory propose --type procedure --depth 2 --scope project 
 memory_id=\$(printf '%s' "\$candidate_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
 acs memory commit "\$memory_id" --json
 acs memory sharpen "\$memory_id" --evidence "<evidence ref>" --json
+acs checkpoint add --task "<task-id>" --summary "<what changed>" --next "Done" --evidence "<evidence ref>" --json
 \`\`\`
 
 ## Required Context

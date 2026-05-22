@@ -42,8 +42,10 @@ acs context build --intent "<task intent>" --scope project --json
 ```
 
 Treat `decision=build` from the gate as the signal to build OACS context.
-Treat `decision=skip` as permission to proceed from visible files and user
-instructions. Do not prepend OACS context unconditionally.
+Treat `decision=skip` as valid only for tiny visible-file edits. For
+substantial, ambiguous, domain-heavy, release/CI/security/tooling work, build
+context or explicitly report that OACS context is unavailable. Do not prepend
+OACS context unconditionally.
 
 Run the actual work with normal tools: shell, `git`, `docker`, `make`, and
 focused scripts. Prefer `acs run` when command output should become evidence:
@@ -96,6 +98,17 @@ acs memory commit "$memory_id" --json
 acs memory sharpen "$memory_id" --evidence "<ev_...>" --json
 ```
 
+Record an iteration checkpoint with the outcome, evidence refs, and next step:
+
+```bash
+acs checkpoint add \
+  --task "<task-id>" \
+  --summary "<what changed and why>" \
+  --next "<next step or Done>" \
+  --evidence "<ev_...>" \
+  --json
+```
+
 ## Pre-Commit Check
 
 Before every commit, verify that staged changes and unpushed commits do not
@@ -134,6 +147,8 @@ commit. Do not carry finished changes across iterations as uncommitted state.
 - Standalone tool-result evidence does not enter `ContextCapsule.evidence_refs`
   by itself. Promote it through reviewed memory if it should guide future
   context.
+- Do not let `decision=skip` bypass evidence, checkpoint, verification, or
+  leak/secret checks for substantial work.
 - Keep `.agent/` ignored. OACS state, capsules, and local reports are runtime
   artifacts.
 - Commit after each completed, verified iteration.

@@ -87,9 +87,11 @@ docker exec -it 1c-dev acs run --label "<check label>" --scope project --json --
 docker exec -it 1c-dev acs resume --scope project --json
 ```
 
-Run `acs context build` when the gate returns `decision=build`, or when prior
-memory/evidence clearly matters. For simple visible-file edits, `decision=skip`
-means the agent can proceed from current files and user instructions.
+Run `acs context build` when the gate returns `decision=build`, when prior
+memory/evidence clearly matters, or when the task is substantial, ambiguous,
+domain-heavy, or release/CI/security/tooling related. Treat `decision=skip` as
+valid only for tiny visible-file edits, and do not let it bypass evidence,
+checkpoint, verification, or leak/secret checks for substantial work.
 
 `acs run` is the preferred path for command evidence. Use `acs tool
 ingest-result` only for results that were produced outside the CLI. Persist only
