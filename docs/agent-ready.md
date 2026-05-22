@@ -40,7 +40,7 @@ docker exec -it 1c-dev onec-agent quickstart
 `onec-agent bootstrap` разделяет инструкции и runtime bootstrap. Команда выполняется внутри уже запущенного container-side PAI и не управляет Docker lifecycle.
 
 ```bash
-docker exec -it 1c-dev sh -lc 'test -n "$OACS_PASSPHRASE" && onec-agent bootstrap'
+docker exec -it 1c-dev onec-agent bootstrap
 ```
 
 Bootstrap создает в смонтированном проекте:
