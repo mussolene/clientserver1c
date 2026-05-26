@@ -158,7 +158,6 @@ metadata.
 
 ```bash
 export OACS_DB=/workspace/project/.agent/oacs/oacs.db
-acs context gate --intent repo_development --scope project --task "<task intent>" --json
 acs memory query --query "<task intent>" --scope project --json
 acs context build --intent "<task intent>" --scope project --json
 acs run --label "<check label>" --scope project --json -- <check command>
@@ -169,11 +168,8 @@ acs resume --scope project --json
 evidence. `acs resume` показывает последние command evidence, checkpoints,
 memory и context capsules после сжатия контекста или возврата к задаче.
 `acs tool ingest-result` оставляйте для результатов, полученных вне CLI.
-Запускайте `acs context build`, когда gate возвращает `decision=build`, когда
-prior memory/evidence явно важны, или когда задача substantial, ambiguous,
-domain-heavy, release/CI/security/tooling related. `decision=skip` допустим
-только для tiny visible-file edits и не отменяет evidence/checkpoint,
-verification и leak/secret checks для substantial work.
+Запускайте `acs context build` напрямую после `acs memory query` для
+substantial repository work. Не заменяйте context build локальной эвристикой.
 Durable memory пишите через `acs memory propose/commit/sharpen` только после
 проверки факта. Не сохраняйте в OACS ITS credentials, license data, platform
 archives, полные help dumps или другие секреты.

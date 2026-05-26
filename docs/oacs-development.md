@@ -49,16 +49,12 @@ For each non-trivial repository task:
 export OACS_DB="$PWD/.agent/oacs/oacs.db"
 
 acs --version
-acs context gate --intent repo_development --scope project --task "<task intent>" --json
 acs memory query --query "<task intent>" --scope project --json
 acs context build --intent "<task intent>" --scope project --json
 ```
 
-Treat `decision=build` from the gate as the signal to build OACS context.
-Treat `decision=skip` as valid only for tiny visible-file edits. For
-substantial, ambiguous, domain-heavy, release/CI/security/tooling work, build
-context or explicitly report that OACS context is unavailable. Do not prepend
-OACS context unconditionally.
+Build OACS context directly after querying durable memory. Do not replace
+context build with a local heuristic for substantial repository work.
 
 Run the actual work with normal tools: shell, `git`, `docker`, `make`, and
 focused scripts. Prefer `acs run` when command output should become evidence:
@@ -148,9 +144,8 @@ commit. Do not carry finished changes across iterations as uncommitted state.
 
 - Use `acs` for repo memory, context capsules, and evidence references.
 - Verify the OACS consumer pack at task start when OACS behavior matters.
-- Query memory before changing behavior, use `acs context gate` before building
-  a fresh context capsule, and attach evidence before promoting a durable
-  memory.
+- Query memory before changing behavior, build a fresh context capsule, and
+  attach evidence before promoting a durable memory.
 - Use shell, Docker, Make, and git for execution.
 - Do not route repository development through container runtime commands unless
   the behavior under test is the built image or 1C runtime itself.
@@ -161,8 +156,8 @@ commit. Do not carry finished changes across iterations as uncommitted state.
 - Standalone tool-result evidence does not enter `ContextCapsule.evidence_refs`
   by itself. Promote it through reviewed memory if it should guide future
   context.
-- Do not let `decision=skip` bypass evidence, checkpoint, verification, or
-  leak/secret checks for substantial work.
+- Do not replace OACS context build with a local heuristic for substantial
+  repository work.
 - Keep `.agent/` ignored. OACS state, capsules, and local reports are runtime
   artifacts.
 - Commit after each completed, verified iteration.

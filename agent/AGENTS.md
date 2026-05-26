@@ -31,7 +31,6 @@ embed context packs.
 
 ```bash
 export OACS_DB=/workspace/project/.agent/oacs/oacs.db
-acs context gate --intent repo_development --scope project --task "<task intent>" --json
 acs memory query --query "<task intent>" --scope project --json
 acs context build --intent "<task intent>" --scope project --json
 acs run --label "<check label>" --scope project --json -- <check command>
@@ -49,9 +48,7 @@ Before 1C work:
 1. Start or reuse the runtime with `make -C /path/to/1c-develop agent-up PROJECT_PATH="$PWD"`.
 2. Run `make -C /path/to/1c-develop agent-doctor PROJECT_PATH="$PWD"`.
 3. Read the skill registry with `make -C /path/to/1c-develop agent-skills PROJECT_PATH="$PWD"`.
-4. Ask `acs context gate`, query ACS memory, and build a fresh context capsule
-   when the gate says `build`, prior memory/evidence may matter, or the task is
-   substantial, ambiguous, domain-heavy, or release/CI/security/tooling related.
+4. Query ACS memory and build a fresh context capsule.
 5. Import or configure `.agent/mcp/onec-context-mcp.json` when the task needs
    platform help, standards, snippets, metadata, or exact 1C API facts.
 6. Read only the relevant `SKILL.md` before acting:
@@ -61,10 +58,6 @@ Before 1C work:
 8. After verification, save only reusable conclusions through
    `acs memory propose`, `acs memory commit`, and `acs memory sharpen`.
 9. Add an OACS checkpoint with outcome, evidence refs, and next step.
-
-Treat `decision=skip` as valid only for tiny visible-file edits. Do not let it
-bypass evidence, checkpoint, verification, or leak/secret checks for substantial
-work.
 
 Use OACS evidence and context capsules for development traceability. Keep durable agent state in the mounted project under `.agent/oacs/`.
 

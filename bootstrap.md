@@ -73,7 +73,6 @@ external MCP service. The image does not embed or build local context packs.
 After bootstrap, agents use the same running container:
 
 ```bash
-docker exec -it 1c-dev acs context gate --intent repo_development --scope project --task "<task intent>" --json
 docker exec -it 1c-dev acs memory query --query "<task intent>" --scope project --json
 docker exec -it 1c-dev acs context build --intent "<task intent>" --scope project --json
 docker exec -it 1c-dev onec-agent context-mcp-config
@@ -81,11 +80,8 @@ docker exec -it 1c-dev acs run --label "<check label>" --scope project --json --
 docker exec -it 1c-dev acs resume --scope project --json
 ```
 
-Run `acs context build` when the gate returns `decision=build`, when prior
-memory/evidence clearly matters, or when the task is substantial, ambiguous,
-domain-heavy, or release/CI/security/tooling related. Treat `decision=skip` as
-valid only for tiny visible-file edits, and do not let it bypass evidence,
-checkpoint, verification, or leak/secret checks for substantial work.
+Run `acs context build` directly after querying project memory for substantial
+repository work. Do not replace context build with a local heuristic.
 
 `acs run` is the preferred path for command evidence. Use `acs tool
 ingest-result` only for results that were produced outside the CLI. Persist only
