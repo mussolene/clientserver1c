@@ -32,7 +32,7 @@ RUN apt-get update -o APT::Sandbox::User=root \
     libarchive-tools \
     libicu72 \
   && rm -rf /var/lib/apt/lists/* \
-  && onescript_url="${ONESCRIPT_DOWNLOAD_URL:-https://oscript.io/downloads/latest/OneScript-${ONESCRIPT_VERSION}-linux-x64.zip}" \
+  && onescript_url="${ONESCRIPT_DOWNLOAD_URL:-https://github.com/EvilBeaver/OneScript/releases/download/v${ONESCRIPT_VERSION}/OneScript-${ONESCRIPT_VERSION}-linux-x64.zip}" \
   && mkdir -p /opt/onescript /tmp/onescript \
   && curl -fsSL --retry 3 --show-error "$onescript_url" -o /tmp/onescript/onescript.zip \
   && LANG=C.UTF-8 LC_ALL=C.UTF-8 bsdtar -xf /tmp/onescript/onescript.zip -C /opt/onescript \
