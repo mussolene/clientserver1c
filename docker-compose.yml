@@ -44,6 +44,8 @@ services:
         OACS_VERSION: ${OACS_VERSION:-1.0.14}
     environment:
       ONEC_RUNTIME_MODE: ${ONEC_RUNTIME_MODE:-shell}
+      ONEC_RDP_USER: ${ONEC_RDP_USER:-usr1cv8}
+      ONEC_RDP_PASSWORD: ${ONEC_RDP_PASSWORD:-1cdev}
       OACS_PASSPHRASE: ${OACS_PASSPHRASE-}
       ONEC_CONTEXT_MCP_URL: ${ONEC_CONTEXT_MCP_URL:-http://localhost:8050/mcp}
       ONEC_FILE_DB_PATH: ${ONEC_FILE_DB_PATH:-/mnt/data/testdb}
@@ -55,6 +57,7 @@ services:
       SRV1CV8_RANGE: "1560:1691"
     ports:
       - "127.0.0.1:5900:5900"
+      - "127.0.0.1:3389:3389"
     networks:
       debug_def:
         ipv4_address: 172.16.1.2

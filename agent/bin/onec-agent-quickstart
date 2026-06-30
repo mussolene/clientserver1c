@@ -139,7 +139,7 @@ launch_1cestart() {
     export DISPLAY=:0
   fi
 
-  if ! pgrep -f 'x11vnc|Xorg|Xvfb|Xvnc' >/dev/null 2>&1; then
+  if ! pgrep -f 'Xorg|Xvfb|Xvnc' >/dev/null 2>&1; then
     warn "X/VNC session is not visible yet; start the normal container entrypoint and rerun quickstart"
     return 0
   fi

@@ -26,12 +26,14 @@ RUN rm -rf /var/lib/apt/lists/* \
     policykit-1 \
     x11-utils \
     x11-xserver-utils \
-    x11vnc \
     xauth \
     xdg-utils \
     xfce4 \
     xfce4-goodies \
+    tigervnc-standalone-server \
     xvfb \
+    xorgxrdp \
+    xrdp \
   && sed -i 's%<property name="ThemeName" type="string" value="Xfce"/>%<property name="ThemeName" type="string" value="Raleigh"/>%' /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml \
   && curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors \
     "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-$(case "${TARGETARCH:-amd64}" in amd64) echo amd64 ;; *) echo "Unsupported TARGETARCH for desktop base: ${TARGETARCH}" >&2; exit 1 ;; esac).tar.gz" \
@@ -44,6 +46,8 @@ RUN rm -rf /var/lib/apt/lists/* \
 
 COPY artifacts/client-vnc/rootfs/ /
 
-EXPOSE 5900
+RUN chmod +x /etc/xrdp/startwm.sh
+
+EXPOSE 5900 3389
 
 ENTRYPOINT ["/init"]

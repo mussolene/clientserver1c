@@ -1,0 +1,5 @@
+#!/usr/bin/with-contenv sh
+set -eu
+
+mkdir -p /run/xrdp /var/run/xrdp
+exec /usr/sbin/xrdp --nodaemon

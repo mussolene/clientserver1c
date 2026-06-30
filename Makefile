@@ -15,6 +15,8 @@ OACS_VERSION ?=
 ONEC_HBK_BSL_VERSION ?=
 ONEC_CONTEXT_MCP_URL ?=
 ONEC_RUNTIME_MODE ?=
+ONEC_RDP_USER ?=
+ONEC_RDP_PASSWORD ?=
 
 ifneq ($(IMAGE_NAMESPACE),)
 export IMAGE_NAMESPACE
@@ -26,7 +28,7 @@ runtime_mode = $(if $(ONEC_RUNTIME_MODE),$(ONEC_RUNTIME_MODE),shell)
 
 PLATFORM_ENV := $(foreach v,PLATFORM_VERSION PLATFORM_ARCH PLATFORM_DIST_NAME DOCKER_DEFAULT_PLATFORM,$(call env_var,$(v)))
 IMAGE_ENV := $(foreach v,PLATFORM_VERSION PG_1C_VERSION IMAGE_NAMESPACE ONEC_WITH_PG,$(call env_var,$(v)))
-RUNTIME_ENV := $(foreach v,DOCKER_DEFAULT_PLATFORM PG_MAJOR PG_1C_VERSION PG_REPO_DIST PLATFORM_VERSION PLATFORM_ARCH PLATFORM_DIST_NAME OACS_VERSION ONEC_HBK_BSL_VERSION ONEC_CONTEXT_MCP_URL,$(call env_var,$(v)))
+RUNTIME_ENV := $(foreach v,DOCKER_DEFAULT_PLATFORM PG_MAJOR PG_1C_VERSION PG_REPO_DIST PLATFORM_VERSION PLATFORM_ARCH PLATFORM_DIST_NAME OACS_VERSION ONEC_HBK_BSL_VERSION ONEC_CONTEXT_MCP_URL ONEC_RDP_USER ONEC_RDP_PASSWORD,$(call env_var,$(v)))
 BUILD_ENV := $(RUNTIME_ENV) $(call env_var,IMAGE_NAMESPACE)
 AGENT_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH PLATFORM_VERSION PLATFORM_ARCH PLATFORM_DIST_NAME OACS_VERSION NETHASP_INI_PATH ONEC_CONTEXT_MCP_URL,$(call env_var,$(v)))
 AGENT_CMD_ENV := $(foreach v,PROJECT_PATH ONEC_PROJECT_PATH NETHASP_INI_PATH ONEC_CONTEXT_MCP_URL,$(call env_var,$(v)))
@@ -41,7 +43,7 @@ help:
 	  '  make doctor          - check local readiness and print next commands' \
 	  '  make pull            - pull configured prebuilt developer image' \
 	  '  make first-start     - create .env if needed, then start the license UI' \
-	  '  make up              - use local/pulled developer image, start shell/agent-ready runtime' \
+	  '  make up              - start shell runtime with TigerVNC on 5900 and RDP on 3389' \
 	  '  make up-file-db      - start 1c-dev in file DB mode after licensing is configured' \
 	  '  make ui-smoke        - run the tracked Vanessa UI smoke' \
 	  '  make xunit-smoke     - run xUnit EPF smoke via vrunner' \

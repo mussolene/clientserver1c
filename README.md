@@ -7,7 +7,7 @@
 ## Что внутри
 
 - 1С:Предприятие `8.5.1.1343` в desktop/runtime контейнере.
-- VNC/Xfce, доступный на `127.0.0.1:5900`.
+- TigerVNC/Xfce на `127.0.0.1:5900` и RDP на `127.0.0.1:3389`.
 - OneScript, Vanessa Runner, Vanessa Automation и `onec-hbk-bsl`.
 - `onec-agent` для 1C-specific операций: bootstrap, MCP config, BSL diagnostics/formatting, skills.
 - OACS/ACS как прямой слой памяти, evidence и context capsules, плюс local Codex/OACS runtime skill.
@@ -43,6 +43,10 @@ docker exec -it 1c-dev onec-agent quickstart
 Откройте VNC: `127.0.0.1:5900`. На рабочем столе будет штатный launcher 1С, а
 `quickstart` зарегистрирует demo file DB в списке баз и попробует создать её
 через `ibcmd`.
+
+По умолчанию одновременно доступны TigerVNC на `127.0.0.1:5900` и RDP на
+`127.0.0.1:3389`. Для RDP используйте пользователя `usr1cv8` с паролем `1cdev`,
+либо задайте `ONEC_RDP_USER` / `ONEC_RDP_PASSWORD`.
 
 Если используете сетевой HASP, сразу смонтируйте `nethasp.ini`:
 
@@ -224,7 +228,8 @@ docker exec -it 1c-dev onec-agent ibase add --name "SmallBusiness30" --path /mnt
 
 Порты:
 
-- `127.0.0.1:5900` - VNC;
+- `127.0.0.1:5900` - TigerVNC;
+- `127.0.0.1:3389` - RDP;
 - `5432` - PostgreSQL 1C, только если поднят `make up-server`.
 
 Server ports 1C наружу по умолчанию не публикуются. Для локальной разработки и file DB они не нужны.

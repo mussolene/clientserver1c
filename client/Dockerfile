@@ -350,6 +350,6 @@ RUN chmod +x /etc/services.d/onec/run \
   && cp /tmp/build-artifacts/config/logcfg.xml /home/usr1cv8/.1cv8/1C/1cv8/conf/logcfg.xml \
   && rm -rf /tmp/build-artifacts
 
-EXPOSE 5900 1540-1541 1560-1691 1545
+EXPOSE 5900 3389 1540-1541 1560-1691 1545
 
 ENTRYPOINT ["/init"]

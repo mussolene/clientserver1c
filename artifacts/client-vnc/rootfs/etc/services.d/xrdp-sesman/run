@@ -1,0 +1,15 @@
+#!/usr/bin/with-contenv sh
+set -eu
+
+rdp_user="${ONEC_RDP_USER:-usr1cv8}"
+rdp_password="${ONEC_RDP_PASSWORD:-1cdev}"
+
+if getent passwd "$rdp_user" >/dev/null 2>&1; then
+  rdp_home="$(getent passwd "$rdp_user" | cut -d: -f6)"
+  printf '%s:%s\n' "$rdp_user" "$rdp_password" | chpasswd
+  printf '%s\n' "exec startxfce4" >"$rdp_home/.xsession"
+  chown "$rdp_user:$(id -gn "$rdp_user")" "$rdp_home/.xsession" 2>/dev/null || true
+fi
+
+mkdir -p /run/xrdp /var/run/xrdp
+exec /usr/sbin/xrdp-sesman --nodaemon

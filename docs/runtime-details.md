@@ -2,7 +2,7 @@
 
 Репозиторий даёт один основной developer-контейнер:
 
-- `1c-dev`: платформа 1С, GUI/VNC, OneScript, Vanessa tooling, BSL diagnostics, OACS/ACS и agent-ready skills layer. Knowledge retrieval подключается через внешний `1c_hbk_helper` / `onec-context-mcp`.
+- `1c-dev`: платформа 1С, GUI/VNC/RDP, OneScript, Vanessa tooling, BSL diagnostics, OACS/ACS и agent-ready skills layer. Knowledge retrieval подключается через внешний `1c_hbk_helper` / `onec-context-mcp`.
 - `1c-pg`: опциональный PostgreSQL 1C для server/client-server сценариев.
 
 ## Runtime modes
@@ -13,6 +13,12 @@
 - `license-ui`: первый запуск для ручной активации лицензии через VNC.
 - `file-db`: запускает `1cv8 ENTERPRISE /F <path>`.
 - `server`: запускает `ragent`.
+
+Desktop transport поднимается сразу в двух стандартных вариантах:
+
+- TigerVNC `Xvnc` на `127.0.0.1:5900` как основной X/VNC server для desktop `:0`.
+- xrdp на `127.0.0.1:3389`; по умолчанию login `usr1cv8` / `1cdev`,
+  переопределяется через `ONEC_RDP_USER` и `ONEC_RDP_PASSWORD`.
 
 Во время сборки контейнера 1С installer запускается с компонентом
 `desktop_icons`, поэтому меню приложений и icon theme наполняются штатными
@@ -176,6 +182,7 @@ Runtime/onboarding:
 - `PLATFORM_ARCH=amd64` и `DOCKER_DEFAULT_PLATFORM=linux/amd64`: единственный
   поддержанный target.
 - `ONEC_RUNTIME_MODE`: `shell`, `license-ui`, `file-db` или `server`.
+- `ONEC_RDP_USER`, `ONEC_RDP_PASSWORD`: локальный RDP login для `xrdp` backend.
 - `ONEC_FILE_DB_PATH`, `ONEC_FILE_DB_NAME`: файловая база и имя в `ibases.v8i`.
 - `ONEC_PROJECT_PATH` или `PROJECT_PATH`: host project для `agent-*` helpers.
 - `OACS_PASSPHRASE`: локальный passphrase для project OACS DB; standalone

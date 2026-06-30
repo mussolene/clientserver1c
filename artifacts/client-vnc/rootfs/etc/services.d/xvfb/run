@@ -1,3 +1,10 @@
 #!/usr/bin/with-contenv sh
+set -eu
 
-exec /usr/bin/Xvfb $DISPLAY -screen 0 ${DISPLAY_WIDTH}x${DISPLAY_HEIGHT}x24
+exec /usr/bin/Xvnc "$DISPLAY" \
+  -geometry "${DISPLAY_WIDTH}x${DISPLAY_HEIGHT}" \
+  -depth 24 \
+  -rfbport 5900 \
+  -SecurityTypes None \
+  -localhost no \
+  -AlwaysShared

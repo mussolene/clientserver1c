@@ -1,7 +1,42 @@
 #!/usr/bin/with-contenv sh
+set -eu
 
-# copy default panel config to current user profile
-mkdir -p /root/.config/xfce4/xfconf/xfce-perchannel-xml
-cp /etc/xdg/xfce4/panel/default.xml ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml
+desktop_user="${ONEC_DESKTOP_USER:-usr1cv8}"
 
-exec startxfce4
+if ! getent passwd "$desktop_user" >/dev/null 2>&1; then
+  desktop_user="root"
+fi
+
+desktop_home="$(getent passwd "$desktop_user" | cut -d: -f6)"
+desktop_group="$(id -gn "$desktop_user")"
+xfconf_dir="$desktop_home/.config/xfce4/xfconf/xfce-perchannel-xml"
+
+mkdir -p /tmp/.ICE-unix /tmp/.X11-unix
+chmod 1777 /tmp/.ICE-unix /tmp/.X11-unix
+mkdir -p "$xfconf_dir"
+cp /etc/xdg/xfce4/panel/default.xml "$xfconf_dir/xfce4-panel.xml"
+cat >"$xfconf_dir/xfwm4.xml" <<'EOF_XFWM4'
+<?xml version="1.0" encoding="UTF-8"?>
+
+<channel name="xfwm4" version="1.0">
+  <property name="general" type="empty">
+    <property name="use_compositing" type="bool" value="false"/>
+  </property>
+</channel>
+EOF_XFWM4
+chown -R "$desktop_user:$desktop_group" "$desktop_home/.config" 2>/dev/null || true
+
+unset DBUS_SESSION_BUS_ADDRESS
+unset SESSION_MANAGER
+unset XDG_RUNTIME_DIR
+
+if [ "$desktop_user" = "root" ]; then
+  export HOME="$desktop_home" USER=root LOGNAME=root
+  exec dbus-run-session startxfce4
+fi
+
+exec s6-setuidgid "$desktop_user" env \
+  HOME="$desktop_home" \
+  USER="$desktop_user" \
+  LOGNAME="$desktop_user" \
+  dbus-run-session startxfce4
