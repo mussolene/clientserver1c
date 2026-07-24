@@ -4,6 +4,12 @@
 
 Идея простая: пользователь скачивает готовый image и сразу получает 1С runtime, VNC, OneScript, Vanessa, `onec-hbk-bsl`, OACS и 1C-aware context. Репозиторий `1c-develop` нужен только для разработки самого образа; обычный пользователь может начать с одного контейнера.
 
+Граница ответственности проекта — воспроизводимый контейнер, 1С runtime,
+VNC/RDP, тестовые утилиты и orchestration для запуска агентных инструментов.
+Актуальность локального code index и содержание platform help принадлежат другим
+слоям; их роли и deployment-сценарии описывает
+[каноническая карта границ продукта](https://github.com/mussolene/1c_hbk_bsl/blob/main/docs/architecture.md#product-boundaries-and-deployment-map).
+
 ## Что внутри
 
 - 1С:Предприятие `8.5.1.1343` в desktop/runtime контейнере.
